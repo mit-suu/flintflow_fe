@@ -7,7 +7,7 @@ const refresh = vi.fn();
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh }) }));
 
 const account = vi.hoisted(() => ({ token: null as string | null, updateMyLocale: vi.fn(async () => ({ data: null, error: null })) }));
-vi.mock("@/lib/api/token-store", () => ({ getStoredAuthToken: () => account.token }));
+vi.mock("@/lib/api/token-store", () => ({ hasSession: () => account.token !== null }));
 vi.mock("@/lib/api/users", () => ({ updateMyLocale: account.updateMyLocale }));
 
 const clearCookie = () => {

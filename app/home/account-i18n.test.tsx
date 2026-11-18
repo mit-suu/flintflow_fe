@@ -87,7 +87,7 @@ vi.mock("@/lib/api/users", () => ({
 }));
 
 const renderInShell = (page: ReactElement, locale: Locale) =>
-  renderWithIntl(<AppShell sidebar={null}>{page}</AppShell>, locale);
+  renderWithIntl(<AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={null}>{page}</AppShell>, locale);
 
 const PAGES: readonly [string, ReactElement, string][] = [
   ["thông báo", <NotificationsPage key="n" />, "Notifications"],
@@ -95,7 +95,7 @@ const PAGES: readonly [string, ReactElement, string][] = [
   ["hồ sơ", <ProfilePage key="p" />, "Your profile"],
 ];
 
-describe("Trang tài khoản — song ngữ", () => {
+describe("Trang tài khoản - song ngữ", () => {
   it.each(PAGES)("bản en của trang %s dịch tiêu đề và không còn chữ tiếng Việt", async (_name, page, heading) => {
     const { container } = renderInShell(page, "en");
     await waitFor(() => expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(heading));

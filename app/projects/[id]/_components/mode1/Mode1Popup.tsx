@@ -2,13 +2,15 @@
 
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import Modal from "@/components/ui/Modal";
 import { useDocVersions } from "../../hooks/mode1/useDocVersions";
 import ChangeRequestList from "./ChangeRequestList";
 import CrWorkspace from "./CrWorkspace";
 import GapReportView from "./GapReportView";
+import ReuploadDiffView from "./ReuploadDiffView";
 import VersionCompare from "./VersionCompare";
-import { crListHref, readCrPrefill } from "./prefill";
+import { crListHref } from "./prefill";
 
 interface Mode1PopupProps {
   projectId: string;
@@ -17,6 +19,9 @@ interface Mode1PopupProps {
   onChanged?: () => void;
   /** Viewer: xem gap report / CR nhưng không tạo hay thao tác CR. */
   readOnly?: boolean;
+  /** BF §3.2 / UC-45, UC-48: người đang xem + vai trò — CR của người khác chỉ xem, Huỷ chỉ người tạo hoặc Lead. */
+  myUserId?: string | null;
+  orgRole?: string | null;
 }
 
 /**
@@ -28,8 +33,9 @@ interface Mode1PopupProps {
  * Popup không cần đếm cờ đỏ (chỉ panel Release cần) nên tắt để khỏi gọi thừa `GET /flags`.
  */
 function CompareBody({ projectId }: { projectId: string }) {
+  const t = useTranslations("mode1.popup");
   const docs = useDocVersions(projectId, { redFlags: false });
-  if (docs.loading) return <p className="text-body text-on-surface-muted">Đang tải danh sách version…</p>;
+  if (docs.loading) return <p className="text-body text-on-surface-muted">{t("loadingVersions")}</p>;
   return (
     <div className="flex flex-col gap-3">
       {docs.error && (
@@ -45,40 +51,47 @@ function CompareBody({ projectId }: { projectId: string }) {
 /**
  * Mode 1: gap report, change request và so sánh version là popup trên màn "Tài liệu & version" — mở theo query
  * `panel=gap` / `panel=cr` (+ `cr=<id>` ⇒ chi tiết ngay trong popup, `new=1&…` ⇒ form tạo CR điền sẵn) /
- * `panel=compare`. Đóng ⇒ bỏ query.
+ * `panel=compare` / `panel=reupload` (UC-25, chỉ người sửa được). Đóng ⇒ bỏ query.
  */
-export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false }: Mode1PopupProps) {
+export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false, myUserId = null, orgRole = null }: Mode1PopupProps) {
+  const t = useTranslations("mode1.popup");
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const panel = params?.get("panel");
-  if (panel !== "gap" && panel !== "cr" && panel !== "compare") return null;
+  if (panel !== "gap" && panel !== "cr" && panel !== "compare" && panel !== "reupload") return null;
+  // Re-upload dẫn tới tạo CR từ khác biệt — viewer không làm được, nên không dựng popup
+  if (panel === "reupload" && readOnly) return null;
 
   const crId = panel === "cr" ? params?.get("cr") : null;
   const close = () => router.replace(pathname ?? `/projects/${projectId}`, { scroll: false });
   const title =
-    panel === "gap" ? "Gap report" : panel === "compare" ? "So sánh version" : crId ? `Change request ${crId}` : "Change request";
+    panel === "gap"
+      ? t("gapTitle")
+      : panel === "compare"
+        ? t("compareTitle")
+        : panel === "reupload"
+          ? t("reuploadTitle")
+          : crId
+            ? t("crTitleWithId", { id: crId })
+            : t("crTitle");
 
   return (
     <Modal open onClose={close} title={title} size="xl">
       {panel === "gap" && <GapReportView projectId={projectId} projectName={projectName} onChanged={onChanged} readOnly={readOnly} />}
       {/* So sánh chỉ đọc nên viewer cũng xem được — không gác theo `readOnly` */}
       {panel === "compare" && <CompareBody projectId={projectId} />}
+      {panel === "reupload" && <ReuploadDiffView projectId={projectId} />}
       {panel === "cr" && crId && (
         <div className="flex flex-col gap-3">
           <Link href={crListHref(projectId)} scroll={false} className="self-start text-body font-bold text-primary hover:underline">
-            ← Danh sách change request
+            {t("backToList")}
           </Link>
-          <CrWorkspace key={crId} projectId={projectId} crId={crId} onChanged={onChanged} readOnly={readOnly} />
+          <CrWorkspace key={crId} projectId={projectId} crId={crId} onChanged={onChanged} readOnly={readOnly} myUserId={myUserId} orgRole={orgRole} />
         </div>
       )}
       {panel === "cr" && !crId && (
-        <ChangeRequestList
-          key={params?.toString() ?? ""}
-          projectId={projectId}
-          prefill={readOnly ? null : readCrPrefill(new URLSearchParams(params?.toString() ?? ""))}
-          readOnly={readOnly}
-        />
+        <ChangeRequestList key={params?.toString() ?? ""} projectId={projectId} readOnly={readOnly} />
       )}
     </Modal>
   );

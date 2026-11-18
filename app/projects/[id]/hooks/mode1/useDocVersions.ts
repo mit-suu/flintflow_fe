@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { listFlags } from "@/lib/api/flags";
 import { listVersions } from "@/lib/api/versions";
 import type { DocVersion } from "@/types/doc-version";
-import { errorText } from "../../_components/mode1/errors";
+import { useErrorText } from "../../_components/mode1/i18n";
 
 interface Options {
   /**
@@ -12,6 +12,8 @@ interface Options {
    * không — bật thừa là thêm một `GET /flags` và gộp lỗi của nó vào `error` của danh sách version.
    */
   redFlags?: boolean;
+  /** Đổi giá trị ⇒ tải lại (vd change request vừa ghi bản nháp mới ở khung chat). */
+  refreshToken?: number;
 }
 
 /**
@@ -22,11 +24,12 @@ interface Options {
  * state khởi tạo từ `versions` phải chờ `loading === false`, nếu không nó khởi tạo từ mảng rỗng và giữ
  * nguyên giá trị rỗng đó (`useState` chỉ đọc initializer ở lần render đầu).
  */
-export function useDocVersions(projectId: string, { redFlags = true }: Options = {}) {
+export function useDocVersions(projectId: string, { redFlags = true, refreshToken = 0 }: Options = {}) {
   const [versions, setVersions] = useState<DocVersion[]>([]);
   const [redOpen, setRedOpen] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const errText = useErrorText();
 
   // `loading` chỉ hạ một lần, ở lượt tải đầu: không nâng lại đầu mỗi `reload` vì `reload` chạy trong
   // effect, mà đặt state đồng bộ trong effect là cascading render (`react-hooks/set-state-in-effect`).
@@ -39,14 +42,14 @@ export function useDocVersions(projectId: string, { redFlags = true }: Options =
           : Promise.resolve(),
       ])
         .then(() => setError(null))
-        .catch((err: unknown) => setError(errorText(err, "Không tải được danh sách version")))
+        .catch((err: unknown) => setError(errText(err, "loadVersions")))
         .finally(() => setLoading(false)),
-    [projectId, redFlags]
+    [projectId, redFlags, errText]
   );
 
   useEffect(() => {
     void reload();
-  }, [reload]);
+  }, [reload, refreshToken]);
 
   return { versions, redOpen, loading, error, reload };
 }

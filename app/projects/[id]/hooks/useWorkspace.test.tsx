@@ -42,7 +42,7 @@ const mount = async () => {
   return hook;
 };
 
-describe("useWorkspace — phiên chính và phiên phụ (FLF-244)", () => {
+describe("useWorkspace - phiên chính và phiên phụ (FLF-244)", () => {
   it("vào workspace mở phiên chính kèm đủ lịch sử, dù phiên phụ mới hơn", async () => {
     const { result } = await mount();
 
@@ -75,7 +75,7 @@ describe("useWorkspace — phiên chính và phiên phụ (FLF-244)", () => {
     await act(() => result.current.deleteSession(MOCK_SESSION_ID));
 
     expect(result.current.sessions.map((s) => s._id)).toContain(MOCK_SESSION_ID);
-    expect(result.current.notice).toMatch(/Không thể xoá cuộc trò chuyện/);
+    expect(result.current.notice).toMatchObject({ key: "deleteFailed" });
     expect(alertSpy).not.toHaveBeenCalled();
     act(() => result.current.clearNotice());
     expect(result.current.notice).toBeNull();
@@ -96,7 +96,7 @@ describe("useWorkspace — phiên chính và phiên phụ (FLF-244)", () => {
   });
 });
 
-describe("useWorkspace — vai trò trong org (FLF-244)", () => {
+describe("useWorkspace - vai trò trong org (FLF-244)", () => {
   const orgHandler = (role: string) =>
     http.get("*/orgs/:orgId", ({ params }) =>
       Response.json({ data: { id: params.orgId, name: "Nhóm A", role, memberCount: 2 }, error: null })
@@ -123,12 +123,132 @@ describe("useWorkspace — vai trò trong org (FLF-244)", () => {
   });
 });
 
-describe("useWorkspace — replaceProject (FLF-265 §3.7)", () => {
+describe("useWorkspace - replaceProject (FLF-265 §3.7)", () => {
   it("thay project bằng bản BE vừa trả ⇒ ngôn ngữ tài liệu mới có ngay, không tải lại workspace", async () => {
     const { result } = await mount();
     expect(result.current.project?.documentLanguage).not.toBe("vi");
 
     act(() => result.current.replaceProject({ ...result.current.project!, documentLanguage: "vi" }));
     expect(result.current.project?.documentLanguage).toBe("vi");
+  });
+});
+
+/**
+ * FLF-279 — lượt hỏi tri thức. Hai nhánh hỏng dễ im lặng: máy chủ tắt tính năng (409), và lỗi giữa luồng
+ * (`streamSse` phát `error` mà KHÔNG ném, nên `catch` không chạy). Luồng này không stream chữ, nên im
+ * lặng nghĩa là user chỉ thấy spinner tắt đi.
+ */
+describe("useWorkspace - lượt hỏi tri thức (FLF-279)", () => {
+  const ask = async (result: { current: ReturnType<typeof useWorkspace> }) => {
+    await act(async () => {
+      await result.current.sendMessage("chat", "Trần lượt gọi model là bao nhiêu?", { knowledge: true });
+    });
+  };
+
+  it("409 KNOWLEDGE_DISABLED ⇒ ẩn chip, báo lý do, trả chữ về ô nhập, không để tin ma", async () => {
+    mockState.knowledgeDisabled = true;
+    const { result } = await mount();
+    const before = result.current.activeSession!.messages.length;
+
+    await ask(result);
+
+    expect(result.current.knowledgeDisabled).toBe(true);
+    expect(result.current.notice).toEqual({ key: "knowledgeDisabled" });
+    expect(result.current.inputMessage).toBe("Trần lượt gọi model là bao nhiêu?");
+    expect(result.current.activeSession!.messages).toHaveLength(before);
+    expect(result.current.knowledgePending).toBe(false);
+  });
+
+  it("lỗi giữa luồng ⇒ có thông báo, gỡ tin tạm, trả chữ về ô nhập (không kết thúc im lặng)", async () => {
+    mockServer.use(
+      http.post(`*/projects/${MOCK_PROJECT_ID}/chats/${MOCK_SESSION_ID}/messages/stream`, () => {
+        const body = `data: ${JSON.stringify({ type: "error", error: "Ví credit không đủ" })}\n\n`;
+        return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+      })
+    );
+    const { result } = await mount();
+    const before = result.current.activeSession!.messages.length;
+
+    await ask(result);
+
+    expect(result.current.notice).toBeTruthy();
+    expect(result.current.activeSession!.messages).toHaveLength(before);
+    expect(result.current.inputMessage).toBe("Trần lượt gọi model là bao nhiêu?");
+    expect(result.current.knowledgePending).toBe(false);
+  });
+
+  it("lượt tri thức thành công ⇒ tin AI vào phiên, không còn chờ", async () => {
+    const { result } = await mount();
+
+    await ask(result);
+
+    const last = result.current.activeSession!.messages.at(-1)!;
+    expect(last.role).toBe("ai");
+    expect(JSON.parse(last.content).grounded).toBe(true);
+    expect(result.current.knowledgePending).toBe(false);
+    expect(result.current.knowledgeDisabled).toBe(false);
+  });
+});
+
+describe("useWorkspace - dừng lượt chat (stopMessage)", () => {
+  it("dừng giữa stream ⇒ huỷ fetch, bỏ chữ dở, giữ tin user, báo đã dừng, hết trạng thái gửi", async () => {
+    let aborted = false;
+    mockServer.use(
+      http.post(`*/projects/${MOCK_PROJECT_ID}/chats/${MOCK_SESSION_ID}/messages/stream`, ({ request }) => {
+        request.signal.addEventListener("abort", () => {
+          aborted = true;
+        });
+        // Phát một mẩu chữ rồi treo — như model đang sinh dở
+        const body = new ReadableStream({
+          start(controller) {
+            controller.enqueue(new TextEncoder().encode(`data: ${JSON.stringify({ type: "text-delta", delta: "Đang tr" })}\n\n`));
+          },
+        });
+        return new Response(body, { headers: { "Content-Type": "text/event-stream" } });
+      })
+    );
+    const { result } = await mount();
+    const before = result.current.activeSession!.messages.length;
+
+    let sent!: Promise<unknown>;
+    act(() => {
+      sent = result.current.sendMessage("chat", "Giải thích luồng đặt lịch");
+    });
+    await waitFor(() => expect(result.current.streamingMessage).toBe("Đang tr"));
+    expect(result.current.sending).toBe(true);
+
+    await act(async () => {
+      result.current.stopMessage();
+      await sent;
+    });
+
+    expect(aborted).toBe(true);
+    expect(result.current.streamingMessage).toBeNull();
+    expect(result.current.sending).toBe(false);
+    expect(result.current.notice).toEqual({ key: "stopped" });
+    const messages = result.current.activeSession!.messages;
+    expect(messages).toHaveLength(before + 1);
+    expect(messages.at(-1)).toMatchObject({ role: "user", content: "Giải thích luồng đặt lịch" });
+  });
+});
+
+describe("useWorkspace - gửi lặp (FLF-400)", () => {
+  it("sendMessage gọi 2 lần trong cùng một tick ⇒ chỉ 1 request, transcript chỉ thêm 1 tin", async () => {
+    let requests = 0;
+    mockServer.events.on("request:start", ({ request }) => {
+      if (request.method === "POST" && request.url.endsWith(`/chats/${MOCK_SESSION_ID}/messages/stream`)) requests++;
+    });
+    const { result } = await mount();
+    const before = result.current.activeSession!.messages.length;
+
+    await act(async () => {
+      await Promise.all([result.current.sendMessage("chat", "Giải thích luồng đặt lịch"), result.current.sendMessage("chat", "Giải thích luồng đặt lịch")]);
+    });
+    mockServer.events.removeAllListeners();
+
+    expect(requests).toBe(1);
+    expect(result.current.activeSession!.messages.filter((m) => m.role === "user" && m.content === "Giải thích luồng đặt lịch")).toHaveLength(1);
+    expect(result.current.activeSession!.messages.length).toBeLessThanOrEqual(before + 2);
+    expect(result.current.sending).toBe(false);
   });
 });

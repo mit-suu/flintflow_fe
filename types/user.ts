@@ -1,16 +1,21 @@
-/** User trả về từ `GET /users/me` (kèm số dư ví credit). */
+/** User trả về từ `GET /users/me` (kèm credit của tổ chức đang chọn). */
 export interface User {
   id: string;
   email: string;
   name?: string;
   /** UC 1.12: ISO khi đã onboarding, `null` khi chưa. */
   onboardedAt?: string | null;
+  /** Tổ chức mặc định tự động chọn khi đăng nhập (FLF-427). */
+  preferredOrganizationId?: string | null;
   /**
    * Ngôn ngữ giao diện đã lưu trong tài khoản (FLF-259). `null` = chưa chọn ⇒ lần vào `/home` đầu tiên lưu ngôn ngữ
    * đang hiển thị (`useAccountLocaleSync`).
    */
   locale?: "vi" | "en" | null;
+  /** FLF-310: credit khả dụng của tổ chức đang chọn (không còn ví cá nhân); chưa chọn tổ chức ⇒ 0. */
   balance?: number;
+  /** FLF-310: tổ chức sở hữu `balance`; `null` khi chưa chọn tổ chức. */
+  creditOrganization?: { id: string; name: string } | null;
   createdAt?: string;
   updatedAt?: string;
   /** Chỉ có ở `GET /users/me` (trang Hồ sơ). */

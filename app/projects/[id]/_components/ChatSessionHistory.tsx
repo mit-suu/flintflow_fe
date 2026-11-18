@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
@@ -49,6 +50,7 @@ export default function ChatSessionHistory({
   onCreateSession,
   onDeleteSession,
 }: ChatSessionHistoryProps) {
+  const t = useTranslations("workspace.chatSessions");
   const [open, setOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
@@ -74,7 +76,7 @@ export default function ChatSessionHistory({
     <div ref={rootRef} className="relative">
       <IconButton
         icon="history"
-        label="Lịch sử phiên chat"
+        label={t("title")}
         size="sm"
         aria-expanded={open}
         aria-haspopup="dialog"
@@ -92,14 +94,14 @@ export default function ChatSessionHistory({
       {mounted && (
         <div
           role="dialog"
-          aria-label="Lịch sử phiên chat"
+          aria-label={t("title")}
           aria-hidden={!open || undefined}
           className={`absolute left-0 top-[calc(100%+6px)] z-40 w-[280px] max-h-[420px] flex flex-col bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-1.5 origin-top-left transition-[opacity,transform] ease-out motion-reduce:transition-none ${
             shown ? "opacity-100 scale-100 translate-y-0 duration-200" : "opacity-0 scale-95 -translate-y-1 duration-150 pointer-events-none"
           }`}
         >
           <div className="flex items-center justify-between px-2 pt-1 pb-1.5">
-            <span className="text-body font-bold text-on-surface">Lịch sử phiên chat</span>
+            <span className="text-body font-bold text-on-surface">{t("title")}</span>
             {!readOnly && (
               <Button
                 size="sm"
@@ -107,19 +109,19 @@ export default function ChatSessionHistory({
                 icon="plus"
                 className="h-7 px-2"
                 disabled={createDisabled}
-                title={createDisabled ? "Đợi AI làm xong lượt này rồi hãy mở phiên mới" : undefined}
+                title={createDisabled ? t("newDisabled") : undefined}
                 onClick={() => {
                   onCreateSession();
                   setOpen(false);
                 }}
               >
-                Phiên mới
+                {t("newSession")}
               </Button>
             )}
           </div>
 
           <ul className="flex-1 overflow-y-auto ff-scroll flex flex-col gap-0.5">
-            {sessions.length === 0 && <li className="text-center text-body text-on-surface-subtle py-6">Chưa có phiên chat nào</li>}
+            {sessions.length === 0 && <li className="text-center text-body text-on-surface-subtle py-6">{t("empty")}</li>}
             {sessions.map((session) => {
               const isActive = session._id === activeSessionId;
               const isPipeline = session._id === pipelineSessionId;
@@ -139,19 +141,19 @@ export default function ChatSessionHistory({
                     className="flex-1 min-w-0 text-left px-2.5 py-2 cursor-pointer rounded-inner focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
                     <div className={`flex items-center gap-1.5 text-body font-bold ${isActive ? "text-primary" : "text-on-surface-dark"}`}>
-                      <span className="truncate">Phiên #{session._id.slice(-4)}</span>
+                      <span className="truncate">{t("sessionName", { id: session._id.slice(-4) })}</span>
                       {isPipeline && (
-                        <span className="shrink-0 px-1.5 py-px rounded-full text-caption font-bold bg-primary-soft text-primary-hover">Phiên chính</span>
+                        <span className="shrink-0 px-1.5 py-px rounded-full text-caption font-bold bg-primary-soft text-primary-hover">{t("pipeline")}</span>
                       )}
                     </div>
-                    <div className="text-caption text-on-surface-muted truncate mt-0.5">{last ? previewOf(last.content) : "Phiên mới"}</div>
+                    <div className="text-caption text-on-surface-muted truncate mt-0.5">{last ? previewOf(last.content) : t("newPreview")}</div>
                   </button>
                   {/* Phiên chính giữ transcript các bước của quy trình — không xoá được (BE trả 409 PIPELINE_SESSION_LOCKED) */}
                   {!isPipeline && !readOnly && (
                     <IconButton
                       icon="trash"
                       size="sm"
-                      label={`Xoá phiên #${session._id.slice(-4)}`}
+                      label={t("deleteNamed", { id: session._id.slice(-4) })}
                       onClick={() => setDeleteId(session._id)}
                       className="mr-1 opacity-0 group-hover:opacity-100 focus-visible:opacity-100 hover:text-error"
                     />
@@ -163,14 +165,14 @@ export default function ChatSessionHistory({
         </div>
       )}
 
-      <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title="Xoá phiên chat?">
+      <Modal open={deleteId !== null} onClose={() => setDeleteId(null)} title={t("confirmTitle")}>
         <p className="text-body text-on-surface-variant leading-relaxed flex gap-2">
           <Icon name="warning" size={18} className="text-error mt-0.5" />
-          Lịch sử hội thoại trong phiên này sẽ bị xoá vĩnh viễn. Các đặc tả đã sinh trong dự án vẫn được giữ nguyên.
+          {t("confirmBody")}
         </p>
         <div className="flex justify-end gap-2 mt-6">
           <Button variant="secondary" size="sm" onClick={() => setDeleteId(null)}>
-            Huỷ
+            {t("cancel")}
           </Button>
           <Button
             variant="danger"
@@ -180,7 +182,7 @@ export default function ChatSessionHistory({
               setDeleteId(null);
             }}
           >
-            Xoá phiên
+            {t("confirmDelete")}
           </Button>
         </div>
       </Modal>

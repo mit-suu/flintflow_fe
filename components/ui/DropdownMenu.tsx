@@ -27,10 +27,17 @@ interface DropdownMenuProps {
   items: readonly DropdownMenuItem[];
   /** Nội dung đầu menu, vd. thông tin user. */
   header?: ReactNode;
-  /** `bottom-end`: dưới, canh phải (menu ⋮ của card); `top`: mở lên trên, canh trái trigger (menu user ở đáy sidebar). */
-  placement?: "bottom-end" | "top";
+  /**
+   * `bottom-end`: dưới, canh phải (menu ⋮ của card); `top`: mở lên trên, canh trái trigger (menu user ở đáy
+   * sidebar); `right-start`: bay ra bên phải trigger bằng `position: fixed` — dùng khi trigger nằm trong một
+   * vùng cuộn (`overflow-y-auto` cắt luôn cả chiều ngang, menu đặt tuyệt đối sẽ bị xén).
+   */
+  placement?: "bottom-end" | "top" | "right-start";
   className?: string;
 }
+
+/** Bề ngang menu `right-start` — cần một số cụ thể để tính xem bên phải còn đủ chỗ không. */
+const MENU_WIDTH = 232;
 
 /** Menu thả xuống dùng chung: đóng khi bấm ra ngoài hoặc Esc (trả focus về trigger), mũi tên lên/xuống giữa các mục. */
 export default function DropdownMenu({ trigger, items, header, placement = "bottom-end", className }: DropdownMenuProps) {
@@ -38,6 +45,27 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
+  /** Toạ độ màn hình của menu `right-start`; `null` khi chưa đo hoặc dùng placement khác. */
+  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+
+  useEffect(() => {
+    if (!open || placement !== "right-start") return;
+    const measure = () => {
+      const rect = rootRef.current?.getBoundingClientRect();
+      if (!rect) return;
+      // Không đủ chỗ bên phải (màn hẹp) thì nhả sang trái trigger thay vì tràn khỏi khung nhìn.
+      const fitsRight = rect.right + 8 + MENU_WIDTH <= window.innerWidth;
+      setAnchor({ top: rect.top, left: fitsRight ? rect.right + 8 : Math.max(8, rect.left - 8 - MENU_WIDTH) });
+    };
+    measure();
+    // Trigger nằm trong vùng cuộn ⇒ cuộn là toạ độ cũ sai ngay; `capture` để bắt cả cuộn của vùng bên trong.
+    window.addEventListener("scroll", measure, true);
+    window.addEventListener("resize", measure);
+    return () => {
+      window.removeEventListener("scroll", measure, true);
+      window.removeEventListener("resize", measure);
+    };
+  }, [open, placement]);
 
   useEffect(() => {
     if (!open) return;
@@ -86,9 +114,19 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
           id={menuId}
           role="menu"
           onKeyDown={moveFocus}
-          className={`absolute z-40 bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-1.5 flex flex-col gap-0.5 ${
-            // `top`: rộng bằng trigger nhưng tối thiểu 232px (sidebar thu gọn chỉ ~48px)
-            placement === "top" ? "bottom-[calc(100%+8px)] left-0 w-[max(100%,232px)]" : "right-0 top-[calc(100%+6px)] min-w-[168px]"
+          style={
+            placement === "right-start" ? { top: anchor?.top ?? 0, left: anchor?.left ?? 0, width: MENU_WIDTH } : undefined
+          }
+          className={`z-50 bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-1.5 flex flex-col gap-0.5 ${
+            placement === "right-start"
+              ? // Chưa đo xong thì chưa vẽ, tránh một frame nhảy từ góc trên bên trái màn hình
+                `fixed ${anchor ? "" : "invisible"}`
+              : // `top`: rộng bằng trigger nhưng tối thiểu 232px (sidebar thu gọn chỉ ~48px)
+                `absolute ${
+                  placement === "top"
+                    ? "bottom-[calc(100%+8px)] left-0 w-[max(100%,232px)]"
+                    : "right-0 top-[calc(100%+6px)] min-w-[168px]"
+                }`
           }`}
         >
           {header && (
@@ -116,8 +154,9 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
               }`}
             >
               {item.icon && <Icon name={item.icon} size={15} />}
-              <span className="flex-1">{item.label}</span>
-              {item.trailing}
+              {/* Nhãn dài (tên tổ chức) phải tự cắt, nếu không nó đẩy phần bên phải ra khỏi menu */}
+              <span className="flex-1 truncate">{item.label}</span>
+              {item.trailing && <span className="shrink-0">{item.trailing}</span>}
             </button>
           ))}
         </div>

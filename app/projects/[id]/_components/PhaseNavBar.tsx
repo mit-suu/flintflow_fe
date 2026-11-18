@@ -1,11 +1,12 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Collapse from "@/components/ui/Collapse";
 import Icon from "@/components/ui/Icon";
 import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
 import type { StepSummary } from "@/types/pipeline";
-import { PHASE_NAV_LABELS, SINGLE_ITEM_PHASES, workspaceStepLabel } from "./phase-labels";
+import { phaseNavLabel, SINGLE_ITEM_PHASES, workspaceStepLabel } from "./phase-labels";
 
 interface PhaseNavBarProps {
   currentPhase: string | null;
@@ -15,8 +16,6 @@ interface PhaseNavBarProps {
   onSelectPhase?: (phase: PhaseId) => void;
   /** Nội dung dưới giai đoạn đang mở (danh sách bước). */
   renderPhaseBody?: (phase: PhaseId) => ReactNode;
-  /** Mode 1 v2: giai đoạn có bước "Thiếu" mang nhãn đỏ "Thiếu". */
-  missingStepIds?: ReadonlySet<string>;
   /** Bước đang làm — ghi tên ngay dưới giai đoạn khi giai đoạn đó đang gập (xem `rowClass`). */
   currentStepId?: string | null;
 }
@@ -45,8 +44,8 @@ export const visiblePhases = (steps: StepSummary[]): PhaseId[] =>
  * nhìn là ô lavender.
  */
 export const PHASE_GROUPS = [
-  { letter: "B", name: "Tóm tắt ý tưởng", icon: "sparkle" },
-  { letter: "S", name: "Tài liệu SRS", icon: "file" },
+  { letter: "B", nameKey: "groupB", icon: "sparkle" },
+  { letter: "S", nameKey: "groupS", icon: "file" },
 ] as const;
 
 /**
@@ -94,19 +93,20 @@ export default function PhaseNavBar({
   openPhases,
   onSelectPhase,
   renderPhaseBody,
-  missingStepIds,
   currentStepId,
 }: PhaseNavBarProps) {
+  const t = useTranslations("workspace.phaseNav");
+  const locale = useLocale();
   const phases = visiblePhases(steps);
   return (
-    <ol aria-label="Giai đoạn" className="flex flex-col gap-0.5">
+    <ol aria-label={t("aria")} className="flex flex-col gap-0.5">
       {PHASE_GROUPS.flatMap((group) => {
         const groupPhases = phases.filter((p) => p.startsWith(group.letter));
         if (groupPhases.length === 0) return [];
         const header = (
           <li key={group.letter} aria-hidden className="px-2.5 pt-5 pb-1.5 first:pt-1 flex items-center gap-2 text-primary-hover">
             <Icon name={group.icon} size={16} />
-            <span className="text-heading font-semibold">{group.name}</span>
+            <span className="text-heading font-semibold">{t(group.nameKey)}</span>
           </li>
         );
         return [
@@ -114,20 +114,19 @@ export default function PhaseNavBar({
           ...groupPhases.map((phase) => {
             const state = phaseState(phase, currentPhase, steps);
             const open = !!openPhases?.has(phase);
-            const hasMissing = !!missingStepIds && steps.some((s) => s.phase === phase && s.status !== "accepted" && missingStepIds.has(s.id));
-            const label = PHASE_NAV_LABELS[phase];
+            const label = phaseNavLabel(phase, locale) ?? phase;
             const single = SINGLE_ITEM_PHASES.has(phase);
             const active = state === "active";
             // Gập giai đoạn đang làm thì danh sách bước biến mất ⇒ ghi tên bước đang làm ngay dưới tên giai đoạn,
             // để vẫn trả lời được câu "tôi đang ở đâu" mà không phải xổ cả danh sách ra.
-            const currentStepLabel = active && !open && !single && currentStepId ? workspaceStepLabel(currentStepId) : null;
+            const currentStepLabel = active && !open && !single && currentStepId ? workspaceStepLabel(currentStepId, locale) : null;
             return (
               <li key={phase} aria-current={state === "active" ? "step" : undefined} data-state={state} className="ml-4">
                 <button
                   type="button"
                   onClick={() => onSelectPhase?.(phase)}
                   aria-expanded={single ? undefined : open}
-                  title={`Giai đoạn ${phase}`}
+                  title={t("phaseTitle", { phase })}
                   // Dòng đã có ô lavender thì bỏ nền hover: hover xám sẽ đè mất chính ô đang chỉ chỗ
                   className={`w-full flex items-start rounded-control transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-9 py-2 px-2 gap-2 ${active ? "" : RAIL_ROW_HOVER} ${rowClass(state, open)}`}
                 >
@@ -135,7 +134,6 @@ export default function PhaseNavBar({
                     <span className="block text-body leading-snug break-words">{label}</span>
                     {currentStepLabel && <span className="block text-caption font-medium opacity-75 truncate">{currentStepLabel}</span>}
                   </span>
-                  {hasMissing && <span className="mt-0.5 shrink-0 text-caption font-bold px-1.5 rounded-full bg-error-container text-error">Thiếu</span>}
                   {/* Mũi tên luôn hiện (bản cũ chỉ hiện khi rê chuột ⇒ không ai biết dòng mở ra được): xoay 90° và đậm
                       lên khi giai đoạn đang mở. Mục đơn không có bước con nên không có mũi tên. */}
                   {!single && (

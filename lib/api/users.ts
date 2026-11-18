@@ -22,6 +22,17 @@ export const updateMyLocale = async (locale: Locale): Promise<User> => {
   return res.data as User;
 };
 
+/** FLF-427: đặt hoặc xoá tổ chức mặc định của người dùng. */
+export const updateMyPreferredOrganization = async (
+  preferredOrganizationId: string | null
+): Promise<User> => {
+  const res = await apiCall<User>("/users/me", {
+    method: "PATCH",
+    body: JSON.stringify({ preferredOrganizationId }),
+  });
+  return res.data as User;
+};
+
 /** UC-06: thu hồi mọi phiên của tài khoản (kể cả phiên này); BE xoá luôn cookie HttpOnly của thiết bị đang dùng. */
 export const logoutAllDevices = async (): Promise<void> => {
   await apiCall("/auth/logout-all", { method: "POST" });

@@ -3,7 +3,7 @@ import { chatChangePreview } from "./chat-change-preview";
 
 const preview = { ok: true, txn: "t", base_version: 3, ops: [], changes: [{}], violations: [], referrers: [], preview_id: "p1" };
 
-describe("chatChangePreview — tin chat bị nhận là lệnh sửa phải có nút Áp dụng", () => {
+describe("chatChangePreview - tin chat bị nhận là lệnh sửa phải có nút Áp dụng", () => {
   it("change_preview kèm bản xem trước có thay đổi ⇒ trả bản đó", () => {
     expect(chatChangePreview({ kind: "change_preview", reply: "…", preview })).toBe(preview);
   });

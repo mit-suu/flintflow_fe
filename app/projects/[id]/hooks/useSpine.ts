@@ -5,6 +5,7 @@ import { resumeProject } from "@/lib/api/pipeline";
 import { getSpine } from "@/lib/api/spine";
 import type { Spine } from "@/types/spine";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export interface UseSpineResult {
   spine: Spine | null;
@@ -23,8 +24,8 @@ const newer = (current: Spine | null, next: Spine): Spine =>
 
 /** `GET /projects/:id/spine`; `version` là `spine_version` dùng làm `base_version` khi ghi. */
 /**
- * `canEdit` = false (Viewer): không gọi `POST /resume` khi mở — đó là thao tác ghi (revert step bỏ dở), Viewer luôn
- * nhận 403. Viewer chỉ đọc Spine.
+ * `canEdit` = false (Viewer, hoặc dự án mode 1 không có step): không gọi `POST /resume` khi mở — đó là thao tác ghi (revert
+ * step bỏ dở), Viewer luôn nhận 403, dự án mode 1 nhận 409. Khi đó chỉ đọc Spine.
  */
 export function useSpine(projectId: string, enabled = true, canEdit = true): UseSpineResult {
   const [spine, setSpine] = useState<Spine | null>(null);
@@ -44,7 +45,7 @@ export function useSpine(projectId: string, enabled = true, canEdit = true): Use
         return next?.spine_version ?? null;
       })
       .catch((err: unknown): null => {
-        if (request === requestRef.current) setError(userErrorMessage(err, "Không tải được dữ liệu tài liệu"));
+        if (request === requestRef.current) setError(userErrorMessage(err, HOOK_ERROR.spineLoadFailed));
         return null;
       })
       .finally(() => {

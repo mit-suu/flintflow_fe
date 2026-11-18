@@ -1,9 +1,10 @@
 "use client";
 
-import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
+import { useLocale, useTranslations } from "next-intl";
+import { PHASES } from "@/lib/constants/step-registry";
 import type { StepProgress, StepSummary } from "@/types/pipeline";
 import { RAIL_ROW_VIEWED, STEP_ACTIVE_CELL } from "./PhaseNavBar";
-import { PHASE_NAV_LABELS, workspaceStepLabel as stepLabel } from "./phase-labels";
+import { phaseNavLabel, workspaceStepLabel } from "./phase-labels";
 
 interface StepProgressBarProps {
   steps: StepSummary[];
@@ -11,8 +12,6 @@ interface StepProgressBarProps {
   /** Step đang chọn để xem/chạy. */
   selectedStepId: string | null;
   onSelectStep: (stepId: string) => void;
-  /** Mode 1 v2 (FLF-185): step của đầu mục mẫu FPT file không có — nhãn đỏ "Thiếu" tới khi chốt. */
-  missingStepIds?: ReadonlySet<string>;
   /** Chỉ hiện bước của một phase; bỏ trống ⇒ mọi phase, gom theo nhóm. */
   phase?: string | null;
   /**
@@ -82,7 +81,6 @@ const Connector = ({ above, below }: { above: boolean; below: boolean }) => (
 const DOT_TONE = {
   current: "size-2.5 bg-primary-hover",
   revision: "size-2 bg-accent-gold",
-  missing: "size-2 bg-error",
   plain: "size-2 bg-surface-container-highest",
 } as const;
 
@@ -92,14 +90,6 @@ const Dot = ({ tone }: { tone: keyof typeof DOT_TONE }) => (
     <span className={`rounded-full ${DOT_TONE[tone]}`} />
   </span>
 );
-
-const STATUS_HINT: Record<StepSummary["status"], string> = {
-  accepted: "đã chốt",
-  in_progress: "đang làm",
-  revision_requested: "cần duyệt lại",
-  pending: "chưa tới",
-  skipped: "bỏ qua",
-};
 
 /**
  * Bước của phase dạng danh sách dọc có tên (thay cho dãy chấm vô danh): đã chốt ✓, đang làm tím, chưa tới mờ và khoá.
@@ -111,34 +101,23 @@ export default function StepProgressBar({
   progress,
   selectedStepId,
   onSelectStep,
-  missingStepIds,
   phase = null,
   reopenableStepIds,
 }: StepProgressBarProps) {
+  const t = useTranslations("workspace.stepBar");
+  const locale = useLocale();
+  const stepLabel = (stepId: string) => workspaceStepLabel(stepId, locale);
   const current = progress?.current_step ?? null;
-  const isMissing = (step: StepSummary) => !!missingStepIds?.has(step.id) && step.status !== "accepted";
-  const missingCount = steps.filter(isMissing).length;
   const percent = progress && progress.total > 0 ? Math.round((progress.done * 100) / progress.total) : 0;
   const groups = (phase ? [phase] : PHASES).map((p) => ({ phase: p, items: steps.filter((s) => s.phase === p) })).filter((g) => g.items.length > 0);
 
   return (
-    <div className="flex flex-col gap-2" aria-label="Tiến độ theo bước">
-      {(progress?.show_percent || missingCount > 0) && (
+    <div className="flex flex-col gap-2" aria-label={t("aria")}>
+      {progress?.show_percent && (
         <div className="flex items-center gap-2">
-          {progress?.show_percent && (
-            <span className="text-body font-bold text-primary-hover tabular-nums" data-testid="step-percent">
-              {percent}% hoàn thành
-            </span>
-          )}
-          {missingCount > 0 && (
-            <span
-              className="text-caption font-bold px-2 py-0.5 rounded-full bg-error-container text-error"
-              data-testid="step-missing"
-              title="Đầu mục mẫu FPT file upload không có — chạy step để AI soạn trước khi ký baseline v1"
-            >
-              Thiếu {missingCount}
-            </span>
-          )}
+          <span className="text-body font-bold text-primary-hover tabular-nums" data-testid="step-percent">
+            {t("percent", { percent })}
+          </span>
         </div>
       )}
 
@@ -149,7 +128,7 @@ export default function StepProgressBar({
         const { open, dormantLoops } = splitLoops(group.items, current);
         return (
         <div key={group.phase} className="flex flex-col gap-1.5">
-          {!phase && <span className="text-caption font-bold text-on-surface-muted">{PHASE_NAV_LABELS[group.phase as PhaseId] ?? group.phase}</span>}
+          {!phase && <span className="text-caption font-bold text-on-surface-muted">{phaseNavLabel(group.phase, locale) ?? group.phase}</span>}
           <ol className="flex flex-col">
             {open.map((step, index) => {
               const isCurrent = step.id === current;
@@ -162,8 +141,8 @@ export default function StepProgressBar({
               // trước đây panel khoá cứng 5 bước của màn đó và không còn đường nào quay lại.
               const reopenable = reopenableStepIds?.has(step.id) ?? false;
               const clickable = step.status === "accepted" || isCurrent || step.status === "revision_requested" || reopenable;
-              const missing = isMissing(step);
-              const cell = missing ? "text-error font-medium" : isCurrent ? STEP_ACTIVE_CELL : CELL[step.status];
+              const cell = isCurrent ? STEP_ACTIVE_CELL : CELL[step.status];
+              const sections = step.template_sections?.length ? step.template_sections.join(" · ") : null;
               return (
                 <li key={step.id} className="relative">
                   <Connector above={!first} below={!last} />
@@ -171,17 +150,18 @@ export default function StepProgressBar({
                     type="button"
                     disabled={!clickable}
                     onClick={() => onSelectStep(step.id)}
-                    aria-label={`${stepLabel(step.id)}${missing ? " (Thiếu)" : ""}`}
+                    aria-label={sections ? `${stepLabel(step.id)} - ${t("templateSectionsTitle", { sections })}` : stepLabel(step.id)}
                     aria-current={isCurrent ? "step" : undefined}
-                    data-missing={missing || undefined}
-                    title={`${step.id} · ${stepLabel(step.id)} — ${
-                      missing ? "Thiếu: đầu mục FPT file không có" : isCurrent ? "đang làm" : reopenable ? "màn đang để trống — bấm để mở lại" : STATUS_HINT[step.status]
-                    }`}
+                    title={(sections ? `${t("templateSectionsTitle", { sections })}\n` : "") + t("stepTitle", {
+                      id: step.id,
+                      label: stepLabel(step.id),
+                      status: isCurrent ? t("current") : reopenable ? t("reopenable") : t(`status.${step.status}`),
+                    })}
                     className={`group w-full py-1 flex items-start gap-2 text-left ${
                       clickable ? "cursor-pointer" : "cursor-not-allowed"
                     } focus-visible:outline-none`}
                   >
-                    <Dot tone={missing ? "missing" : isCurrent ? "current" : step.status === "revision_requested" ? "revision" : "plain"} />
+                    <Dot tone={isCurrent ? "current" : step.status === "revision_requested" ? "revision" : "plain"} />
                     {/* Nền chỉ ôm lấy chữ chứ không trải hết bề ngang: cột chấm phải đứng ngoài ô màu thì mốc thời
                         gian mới đọc được. Vùng bấm vẫn là cả dòng. */}
                     <span
@@ -190,7 +170,12 @@ export default function StepProgressBar({
                       } ${isCurrent ? "" : "group-hover:bg-surface-container"}`}
                     >
                       {stepLabel(step.id)}
-                      {missing && <span className="ml-2 text-caption font-bold">Thiếu</span>}
+                      {/* FLF-278: dự án theo mẫu bắt buộc — mục của mẫu mà bước này soạn (BE gắn, FE chỉ hiển thị) */}
+                      {sections && (
+                        <span data-testid="step-template-sections" className="block mt-0.5 text-caption font-normal text-on-surface-muted [text-decoration:none]">
+                          {t("templateSections", { sections })}
+                        </span>
+                      )}
                     </span>
                   </button>
                 </li>
@@ -199,12 +184,12 @@ export default function StepProgressBar({
             {dormantLoops > 0 && (
               <li
                 data-testid="dormant-loops"
-                title={`${dormantLoops} màn đang để lại (placeholder) — mỗi màn có ${STEPS_PER_LOOP} bước S-5, chỉ mở khi màn có function. Thêm feature/function cho màn để chạy các bước này.`}
+                title={t("dormantTitle", { count: dormantLoops, steps: STEPS_PER_LOOP })}
                 className="relative py-1 flex items-start gap-2"
               >
                 <Connector above below={false} />
                 <Dot tone="plain" />
-                <span className="flex-1 min-w-0 px-2 py-1 text-body text-on-surface-variant italic">+{dormantLoops} màn để lại</span>
+                <span className="flex-1 min-w-0 px-2 py-1 text-body text-on-surface-variant italic">{t("dormant", { count: dormantLoops })}</span>
               </li>
             )}
           </ol>

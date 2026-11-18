@@ -4,8 +4,11 @@ import { useFormatter, useTranslations } from "next-intl";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import LocaleSwitcher from "@/components/LocaleSwitcher";
+import Avatar from "@/components/ui/Avatar";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
+import Skeleton from "@/components/ui/Skeleton";
+import AccountMenu from "./AccountMenu";
 import { useAppShell } from "./AppShell";
 
 interface TopBarProps {
@@ -25,7 +28,7 @@ interface TopBarProps {
 export default function TopBar({ trail, search, actions }: TopBarProps) {
   const t = useTranslations("app.shell");
   const format = useFormatter();
-  const { openNav, balance } = useAppShell();
+  const { openNav, balance, balancePending, user } = useAppShell();
   const current = trail[trail.length - 1];
 
   return (
@@ -49,6 +52,7 @@ export default function TopBar({ trail, search, actions }: TopBarProps) {
         {search && <div className="order-last w-full md:order-none md:w-auto md:flex-1 md:max-w-[320px] md:ml-4">{search}</div>}
 
         <div className="ml-auto flex items-center gap-2 shrink-0">
+          {actions}
           <LocaleSwitcher />
           {balance && (
             <Link
@@ -61,7 +65,29 @@ export default function TopBar({ trail, search, actions }: TopBarProps) {
               <span className="text-on-surface-muted">{t("credits", { plan: balance.planLabel })}</span>
             </Link>
           )}
-          {actions}
+          {/* Số dư đang về: giữ đúng chỗ chip (icon thật, số và gói là thanh giữ chỗ) để nút ngôn ngữ không bị đẩy */}
+          {!balance && balancePending && (
+            <span aria-hidden className="hidden sm:inline-flex items-center gap-1.5 h-8 px-3 rounded-control bg-surface-container-high">
+              <Icon name="wallet" size={14} className="text-primary" />
+              <Skeleton className="h-3 w-20" />
+            </span>
+          )}
+
+          {/* Tài khoản nằm ở góc trên bên phải của MỌI trang `/home` — chỗ quen thuộc để vào hồ sơ và đăng xuất */}
+          <AccountMenu
+            user={user}
+            trigger={(props) => (
+              <button
+                type="button"
+                {...props}
+                aria-label={t("account", { name: user.name || user.email })}
+                title={user.name || user.email}
+                className="rounded-full cursor-pointer transition-opacity hover:opacity-80 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+              >
+                <Avatar name={user.name} email={user.email} brandFallback />
+              </button>
+            )}
+          />
         </div>
       </div>
     </header>

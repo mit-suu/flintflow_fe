@@ -32,7 +32,7 @@ export interface Mode1MockState {
   /** Job I-4 nền đang chạy (#6/#10 trả ngay; mỗi lần poll #4 trích thêm một section). */
   extractRunning: boolean;
   /**
-   * Job baseline–kiểm nền (#8 / #10 ở `baselining`·`checking` trả ngay, §4.16): `finalize` ⇒ poll #4 kế tiếp tạo 0.0 rồi
+   * Job baseline–kiểm nền (#8 / #10 ở `baselining`·`checking` trả ngay, §4.16): `finalize` ⇒ poll #4 kế tiếp tạo 0.1 rồi
    * sang `checking`; `check` ⇒ poll kế tiếp chạy 1.11 (hết credit ⇒ `paused: credits`) rồi `gap_review`. `null` = không chạy.
    */
   finalizeJob: "finalize" | "check" | null;
@@ -49,6 +49,13 @@ export interface Mode1MockState {
   elements: MockElement[];
   /** FLF-186: khoá phần tử theo path ⇒ CR đang giữ. */
   locks: Map<string, string>;
+  /**
+   * §4.17: có ứng viên vector thì chúng THAY nguồn `keyword`. Mặc định **tắt** như BE
+   * (`EMBEDDING_PROVIDER=off`); bật lên trong test nào cần đường vector.
+   */
+  vectorEnabled: boolean;
+  /** FLF-330: gói đang chờ Lead (`pending`) hoặc vừa bị yêu cầu sửa (`rejected`) — mô phỏng `Spine.baseline_submission`. */
+  submission: { status: "pending" | "rejected"; submitted_by: string; submitted_at: string; spine_version: number; decided_by: string | null; decided_at: string | null; reason: string | null; rejection_comment_ids: string[] } | null;
 }
 
 export interface MockElement {
@@ -71,7 +78,7 @@ const now = () => new Date().toISOString();
 
 const block = (n: number, kind: DocBlock["kind"], text: string, extra: Partial<DocBlock> = {}): DocBlock => ({
   block_id: `B${String(n).padStart(4, "0")}`,
-  doc_version: "0.0",
+  doc_version: "0.1",
   kind,
   level: kind === "heading" ? 1 : null,
   heading_path: [],
@@ -83,7 +90,7 @@ const block = (n: number, kind: DocBlock["kind"], text: string, extra: Partial<D
   ...extra,
 });
 
-/** Tài liệu mẫu 0.0 — theo `doc/sample-baseline.docx` rút gọn. */
+/** Tài liệu mẫu 0.1 — theo `doc/sample-baseline.docx` rút gọn. */
 export const initialBlocks = (): DocBlock[] => [
   block(1, "heading", "1 Product Overview", { section_id: "fixed:1" }),
   block(2, "paragraph", "Lumen is an online learning platform that lets instructors publish courses and students learn at their own pace.", { heading_path: ["1 Product Overview"], section_id: "fixed:1" }),
@@ -118,9 +125,9 @@ export const createMode1MockState = (): Mode1MockState => ({
   profile: null,
   finalizedRecordOfChanges: null,
   stepPlan: [
-    { step_id: "S-2.1", state: "applied", missing: false, section_ids: ["fixed:1"], reason: "Có trong template, đã có nội dung" },
-    { step_id: "S-7.1", state: "applied", missing: true, section_ids: ["fixed:5.1"], reason: "Đầu mục mẫu FPT — file không có" },
-    { step_id: "B-0.1", state: "hidden", missing: false, section_ids: [], reason: "Không sinh đầu mục" },
+    { step_id: "S-2.1", state: "applied", section_ids: ["fixed:1"], reason: "Có trong file, đã có nội dung" },
+    { step_id: "S-7.1", state: "hidden", section_ids: ["fixed:5.1"], reason: "File không có đầu mục này — bật nếu muốn AI soạn thêm" },
+    { step_id: "B-0.1", state: "hidden", section_ids: [], reason: "Không sinh đầu mục" },
   ],
   sections: [],
   extractRunning: false,
@@ -135,6 +142,8 @@ export const createMode1MockState = (): Mode1MockState => ({
   crSeq: 0,
   elements: initialElements(),
   locks: new Map(),
+  vectorEnabled: false,
+  submission: null,
 });
 
 export let mode1State: Mode1MockState = createMode1MockState();

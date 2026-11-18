@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { STEP_REGISTRY } from "@/lib/constants/step-registry";
-import { PHASE_NAV_LABELS, workspaceStepLabel } from "../phase-labels";
+import { PHASE_NAV_LABELS, phaseNavLabel, workspaceStepLabel } from "../phase-labels";
 
 const INTERNAL = /addendum|giả định|brief|giả thuyết/i;
 
@@ -20,5 +20,13 @@ describe("workspaceStepLabel", () => {
   });
   it("tên giai đoạn ở rail không có chữ Brief", () => {
     expect(Object.values(PHASE_NAV_LABELS).filter((l) => INTERNAL.test(l))).toEqual([]);
+  });
+  it("en: nhãn tiếng Anh, không còn chữ nội bộ", () => {
+    expect(workspaceStepLabel("B-2.2", "en")).toBe("Sort the notes");
+    expect(workspaceStepLabel("B-0.1", "en")).toBe("Brain Dump");
+    const ids = STEP_REGISTRY.filter((s) => s.phase.startsWith("B-") || s.phase === "S-1" || s.phase === "S-9").map((s) => s.id);
+    expect(ids.filter((id) => /addendum|assumption|brief|hypothes/i.test(workspaceStepLabel(id, "en")))).toEqual([]);
+    expect(phaseNavLabel("S-9", "en")).toBe("Check & sign-off");
+    expect(phaseNavLabel("S-9")).toBe("Kiểm & chốt");
   });
 });

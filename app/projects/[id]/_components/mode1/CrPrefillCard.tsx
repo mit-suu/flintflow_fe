@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useTranslations } from "next-intl";
 import { NEW_CR_SOURCE_KINDS, type ChangeRequiresCrMeta } from "@/types/change-request";
 import { crPrefillHref } from "./prefill";
 
@@ -18,25 +19,23 @@ type SourceKind = (typeof NEW_CR_SOURCE_KINDS)[number];
  * chat); nguồn và người yêu cầu do BA xác nhận.
  */
 export default function CrPrefillCard({ projectId, prefill, onDismiss }: CrPrefillCardProps) {
+  const t = useTranslations("mode1.crPrefill");
   const kind = prefill.source?.kind;
   const source: SourceKind = kind && (NEW_CR_SOURCE_KINDS as readonly string[]).includes(kind) ? (kind as SourceKind) : "verbal";
   return (
     <div role="status" className="bg-[#F2F1FB] border border-[#DCD8F0] rounded-[14px] p-3.5 flex flex-col gap-2 text-body text-[#554DB0]">
-      <p className="font-bold text-[#191817]">Muốn sửa tài liệu? Hãy tạo change request</p>
-      <p>
-        Tài liệu đã import — mọi thay đổi phải qua change request để được làm rõ, tìm vị trí ảnh hưởng, kiểm và duyệt trước khi
-        ghi.
-      </p>
+      <p className="font-bold text-[#191817]">{t("title")}</p>
+      <p>{t("body")}</p>
       <blockquote className="border-l-2 border-[#DCD8F0] pl-2 text-[#4B4842] italic">{prefill.description}</blockquote>
       <div className="flex gap-2 justify-end">
         <button type="button" onClick={onDismiss} className="px-3 py-1.5 rounded-[8px] border border-[#DCD8F0] bg-white font-semibold text-[#4B4842]">
-          Bỏ qua
+          {t("dismiss")}
         </button>
         <Link
           href={crPrefillHref(projectId, { title: prefill.title, description: prefill.description, source, ref: prefill.source?.ref ?? undefined })}
           className="px-3 py-1.5 rounded-[8px] bg-[#6A62C4] text-white font-bold"
         >
-          Tạo change request
+          {t("create")}
         </Link>
       </div>
     </div>

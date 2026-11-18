@@ -14,7 +14,7 @@ import {
   orderedSteps,
   phaseOfStep,
 } from "@/lib/constants/step-registry";
-import type { ChatMessage, ChatSession } from "@/types/chat";
+import type { ChatMessage, ChatSession, KnowledgeReply } from "@/types/chat";
 import type {
   ApplyResult,
   ChangeDiff,
@@ -34,12 +34,13 @@ import type {
   StepSummary,
   StepsResponse,
 } from "@/types/pipeline";
-import type { Change, Spine } from "@/types/spine";
-import type { DocumentLanguage, Project, ProjectMode, ProjectStatus } from "@/types/project";
+import type { Change, ReviewMode, Spine } from "@/types/spine";
+import type { AutoPassedItem } from "@/types/review-level";
+import type { DocumentLanguage, ErdNotation, Project, ProjectMode, ProjectStatus, SequenceLevel } from "@/types/project";
 import type { RenderedDocument } from "@/types/document";
 import { FLAG_NOT_WAIVABLE_RULES } from "@/types/flags";
 import type { TraceabilityEntity, TraceabilityResponse } from "@/types/flags";
-import type { CreateCommentRequest, SrsComment } from "@/types/comment";
+import type { CommentResolutionInput, CreateCommentRequest, SrsComment } from "@/types/comment";
 import {
   countersOf,
   MOCK_SESSION_ID,
@@ -60,6 +61,12 @@ const withPipelineFlag = (session: ChatSession): ChatSession => ({
   ...session,
   is_pipeline: session._id === MOCK_SESSION_ID,
 });
+
+/** FLF-337: thay đổi AI tự qua (mock) — test đặt qua `setMockAutoPassed`. */
+let autoPassedItems: AutoPassedItem[] = [];
+export const setMockAutoPassed = (items: AutoPassedItem[]): void => {
+  autoPassedItems = items.map((i) => ({ ...i }));
+};
 
 const ok = <T>(data: T, init?: ResponseInit) => HttpResponse.json({ data, error: null }, init);
 
@@ -210,7 +217,7 @@ const progressOf = (state: MockState): ProgressResponse => {
     readiness: {
       accepted_pct: Math.round((done * 100) / steps.length),
       awaiting_reaccept: 0,
-      red_open: state.spine.flags.filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user).length,
+      red_open: state.spine.flags.filter((f) => f.level === "red" && !f.resolved_at).length,
       stale: 0,
     },
     progress: {
@@ -247,6 +254,63 @@ const sseStream = (stepId: string, produce: (send: (event: StepEvent) => void) =
 
 /** Nhịp giả lập stream; 0 trong test. */
 export const mockTiming = { stepDelayMs: 250 };
+
+/**
+ * Lượt hỏi tri thức (`pipeline-contract.md` §1.2). Khác luồng chat thường ở hai điểm, và cả hai đều là
+ * thứ FE phải chịu được:
+ *
+ * - **không có `text-delta`**: phát đúng một `finish` rồi đóng, nên UI không thể dựa vào chữ chạy để
+ *   biết lượt còn sống;
+ * - **`content` của tin AI là chuỗi JSON của chính `data`** — đúng như BE lưu transcript. Nhờ vậy tin
+ *   tải lại từ `GET /chats/:chatId` đọc được bằng cùng một đường với tin vừa về.
+ *
+ * Từ chối vì không đủ căn cứ thì BE không gọi model: `cost: 0`, `tokensUsed: null`.
+ */
+const knowledgeStream = (session: ChatSession, body: { content: string; step?: string }) => {
+  const grounded = !body.content.toLowerCase().includes(mockState.knowledgeUngroundedHint.toLowerCase());
+  const data: KnowledgeReply = grounded
+    ? {
+        reply:
+          "Theo hướng dẫn nội bộ FlintFlow, mỗi bước chỉ được gọi model tối đa 8 lượt và regenerate tối đa " +
+          "3 lần [K1]. Hết trần thì bước phải chốt bằng accept_as_is kèm ghi chú lý do [K2].",
+        questions: [],
+        grounded: true,
+        citations: [
+          { ref: "K1", chunk_id: "gate-check#caps", source: "gate-check", section: "Caps", source_kind: "internal_skill" },
+          { ref: "K2", chunk_id: "ieee-830#4.3", source: "IEEE 830-1998", section: "4.3 Specific requirements", source_kind: "standard" },
+        ],
+      }
+    : {
+        reply:
+          "Không đủ căn cứ trong kho tri thức của FlintFlow để trả lời câu này. Bạn thử hỏi lại sát hơn " +
+          "vào quy trình soạn SRS, hoặc đính kèm tài liệu nguồn rồi hỏi lại.",
+        questions: [],
+        grounded: false,
+        citations: [],
+      };
+
+  const at = new Date().toISOString();
+  const user: ChatMessage = { role: "user", content: body.content, step: body.step, createdAt: at };
+  const ai: ChatMessage = { role: "ai", content: JSON.stringify(data), step: body.step, createdAt: at };
+  session.messages = [...session.messages, user, ai];
+
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      await delay(mockTiming.stepDelayMs);
+      const finish = {
+        type: "finish",
+        session: withPipelineFlag(session),
+        data,
+        tokensUsed: grounded ? 320 : null,
+        cost: grounded ? 2 : 0,
+      };
+      controller.enqueue(encoder.encode(`data: ${JSON.stringify(finish)}\n\n`));
+      controller.close();
+    },
+  });
+  return new HttpResponse(stream, { headers: { "Content-Type": "text/event-stream", "Cache-Control": "no-cache" } });
+};
 
 const runSteps = async (state: MockState, stepId: string, send: (event: StepEvent) => void) => {
   const def = getStepDef(stepId);
@@ -309,6 +373,15 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
 // đụng `mocks/state.ts`. `resetMockChangeFlowState` dùng trong test riêng của T16, không nối vào
 // `resetMockState` (thuộc T12).
 
+/** PNG 1×1 trong suốt. */
+const MOCK_PNG_BYTES = Uint8Array.from(
+  atob("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="),
+  (c) => c.charCodeAt(0)
+);
+/** Mock không có lớp bản dịch riêng nên revision tài liệu bám `spine_version` (+ ngôn ngữ tài liệu). */
+const mockDocumentRevision = (): string =>
+  `${mockState.spine.spine_version}:${mockState.project.mode === "import" ? "" : (mockState.project.documentLanguage ?? "en")}`;
+
 const okWithMeta = <T>(data: T, meta: Record<string, unknown>) => HttpResponse.json({ data, meta, error: null });
 
 /** `preview_id` → lô ops đã tính diff, chờ `POST /changes` hoặc `POST /reconcile` xác nhận. */
@@ -329,6 +402,9 @@ export const resetMockChangeFlowState = (): void => {
 // ─── FLF-265: ngôn ngữ tài liệu + dịch theo lô (#16 `meta.translation`, #26, #27) ────────
 // Ngôn ngữ tài liệu = `mockState.project.documentLanguage` (thiếu ⇒ `en`); ngôn ngữ gốc mode 2 luôn `en`, mode import
 // theo file ⇒ coi như trùng. Khác nhau ⇒ `GET /document` kèm `meta.translation`, `status` đếm phần thiếu, `run` dịch dần.
+
+const isErdNotation = (v: unknown): v is ErdNotation => v === "chen" || v === "crowsfoot" || v === "idef1x";
+const isSequenceLevel = (v: unknown): v is SequenceLevel => v === "system" || v === "component";
 
 /** Số đơn vị chữ của tài liệu mock (BE: mỗi field theo id một đơn vị). */
 export const MOCK_TRANSLATION_UNITS = 100;
@@ -494,7 +570,7 @@ const buildMockDocument = (state: MockState): RenderedDocument => {
     })),
     flagsAppendix: {
       redOpen: state.spine.flags
-        .filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user)
+        .filter((f) => f.level === "red" && !f.resolved_at)
         .map((f) => ({ id: f.id, rule_id: f.rule_id, section: sectionLabelOf(f.section_id), message: f.message })),
       staleCount: 0,
       waived: state.spine.flags
@@ -581,16 +657,55 @@ export const handlers = [
     return ok([mockState.project].filter((p) => !status || p.status === status));
   }),
   http.post(api("/projects"), async ({ request }) => {
-    const body = (await request.json()) as { name: string; mode?: ProjectMode; documentLanguage?: DocumentLanguage };
+    const body = (await request.json()) as { name: string; mode?: ProjectMode; source?: "new" | "existing"; has_required_template?: boolean; documentLanguage?: DocumentLanguage };
     if (body.documentLanguage !== undefined && !isLocale(body.documentLanguage)) {
       return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
     }
     const now = new Date().toISOString();
-    const mode = body.mode ?? "fpt";
-    const project: Project = { _id: "650000000000000000000099", name: body.name, domain: null, status: "active", mode, import_state: null, createdAt: now, updatedAt: now };
+    // FLF-335: BE suy ra mode từ `source` — mới không mẫu ⇒ fpt; mới có mẫu bắt buộc / có sẵn ⇒ import
+    const mode: ProjectMode = body.source ? (body.source === "new" && !body.has_required_template ? "fpt" : "import") : (body.mode ?? "fpt");
+    const project: Project = {
+      _id: "650000000000000000000099",
+      name: body.name,
+      domain: null,
+      status: "active",
+      mode,
+      import_state: null,
+      start_kind: body.source ?? null,
+      has_required_template: body.source === "new" ? Boolean(body.has_required_template) : null,
+      template_intent: body.source === "new" && body.has_required_template ? "fixed" : null,
+      createdAt: now,
+      updatedAt: now,
+    };
     // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en` (tài khoản mock không có ngôn ngữ riêng)
     if (mode !== "import") project.documentLanguage = body.documentLanguage ?? "en";
     return ok(project, { status: 201 });
+  }),
+  // FLF-337: mức duyệt / phần không hỏi lại / thay đổi tự qua chưa xem
+  http.patch(api("/projects/:projectId/review-mode"), async ({ request }) => {
+    const body = ((await request.json()) ?? {}) as { review_mode?: string };
+    if (!["strict", "balanced", "fast", "milestones"].includes(body.review_mode ?? "")) return fail(400, "VALIDATION_ERROR", "review_mode không hợp lệ");
+    mockState.spine.project.review_mode = body.review_mode as ReviewMode;
+    mockState.spine.spine_version += 1;
+    return ok({ review_mode: body.review_mode, spine_version: mockState.spine.spine_version });
+  }),
+  http.patch(api("/projects/:projectId/skip-confirm-sections"), async ({ request }) => {
+    const body = ((await request.json()) ?? {}) as { add?: string[]; remove?: string[] };
+    const current = new Set(mockState.spine.project.skip_confirm_sections ?? []);
+    for (const id of body.add ?? []) current.add(id);
+    for (const id of body.remove ?? []) current.delete(id);
+    mockState.spine.project.skip_confirm_sections = [...current];
+    mockState.spine.spine_version += 1;
+    return ok({ skip_confirm_sections: [...current], spine_version: mockState.spine.spine_version });
+  }),
+  http.get(api("/projects/:projectId/auto-passed"), () => {
+    const items = autoPassedItems;
+    return ok({ total: items.length, unseen: items.filter((i) => !i.seen).length, items });
+  }),
+  http.post(api("/projects/:projectId/auto-passed/seen"), async ({ request }) => {
+    const body = ((await request.json()) ?? {}) as { ids?: string[] };
+    for (const item of autoPassedItems) if (!body.ids?.length || body.ids.includes(item.id)) item.seen = true;
+    return ok({ unseen: autoPassedItems.filter((i) => !i.seen).length });
   }),
   // FLF-265 #1a: body strict `{ documentLanguage }`; dự án mode import ⇒ 409 DOCUMENT_LANGUAGE_LOCKED
   http.patch(api("/projects/:projectId/document-language"), async ({ params, request }) => {
@@ -607,6 +722,96 @@ export const handlers = [
     if (documentLanguage !== mockState.project.documentLanguage) mockTranslation.missing = MOCK_TRANSLATION_UNITS;
     mockState.project = { ...mockState.project, documentLanguage, updatedAt: new Date().toISOString() };
     return ok(mockState.project);
+  }),
+  // FLF-324: body strict { erdNotation }; mọi mode đổi được (không có 409)
+  http.patch(api("/projects/:projectId/erd-notation"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const { erdNotation } = body;
+    if (!isErdNotation(erdNotation) || Object.keys(body).length !== 1) {
+      return fail(400, "VALIDATION_ERROR", "erdNotation: Invalid option: expected one of \"chen\"|\"crowsfoot\"|\"idef1x\"");
+    }
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    mockState.project = { ...mockState.project, erdNotation, updatedAt: new Date().toISOString() };
+    return ok(mockState.project);
+  }),
+  // FLF-418: body strict { sequenceLevel }; mọi mode đổi được
+  http.patch(api("/projects/:projectId/sequence-level"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const { sequenceLevel } = body;
+    if (!isSequenceLevel(sequenceLevel) || Object.keys(body).length !== 1) {
+      return fail(400, "VALIDATION_ERROR", "sequenceLevel: Invalid option: expected one of \"system\"|\"component\"");
+    }
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    mockState.project = { ...mockState.project, sequenceLevel, updatedAt: new Date().toISOString() };
+    return ok(mockState.project);
+  }),
+  // FLF-410: theme mockup màn — body strict, ít nhất một field; domain nhận URL ⇒ hostname; null = về mặc định
+  http.patch(api("/projects/:projectId/screen-theme"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const keys = Object.keys(body);
+    const allowed = ["primaryColor", "domain", "platforms"];
+    const color = body.primaryColor;
+    const platforms = body.platforms;
+    const domain = typeof body.domain === "string" ? body.domain.trim().toLowerCase().replace(/^https?:\/\//, "").replace(/\/.*$/, "") : body.domain;
+    const valid =
+      keys.length > 0 &&
+      keys.every((k) => allowed.includes(k)) &&
+      (color === undefined || color === null || (typeof color === "string" && /^#[0-9A-Fa-f]{6}$/.test(color))) &&
+      (domain === undefined || domain === null || domain === "" || (typeof domain === "string" && /^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domain))) &&
+      (platforms === undefined || platforms === null || (Array.isArray(platforms) && platforms.length > 0 && platforms.every((p) => p === "web" || p === "mobile") && new Set(platforms).size === platforms.length));
+    if (!valid) return fail(400, "VALIDATION_ERROR", "screenTheme: invalid");
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    const before = mockState.project.screenTheme ?? { primaryColor: null, domain: null, platforms: null };
+    const screenTheme = {
+      primaryColor: color === undefined ? before.primaryColor : typeof color === "string" ? color.toUpperCase() : null,
+      domain: domain === undefined ? before.domain : domain ? (domain as string) : null,
+      platforms: platforms === undefined ? before.platforms : (platforms as ("web" | "mobile")[] | null),
+    };
+    mockState.project = { ...mockState.project, screenTheme, updatedAt: new Date().toISOString() };
+    return ok(mockState.project);
+  }),
+  // FLF-410: dự án mock không có ảnh gốc ⇒ tóm tắt rỗng; ước tính 0; POST màn không có ảnh gốc ⇒ 400
+  http.get(api("/projects/:projectId/screen-mockups"), ({ params, request }) => {
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    if (new URL(request.url).searchParams.get("mode")) return ok({ screens: 0, ai_calls: 0, credits: 0, reenable: 0, groups: { draw: [], reenable: [], skip: [] } });
+    return ok({ with_original: 0, using_mockup: 0, screens: [], originals: [] });
+  }),
+  http.post(api("/projects/:projectId/screen-mockups"), async ({ params, request }) => {
+    const body = ((await request.json()) ?? {}) as Record<string, unknown>;
+    const ids = typeof body.screen_id === "string" ? [body.screen_id] : Array.isArray(body.screen_ids) ? (body.screen_ids as unknown[]) : [];
+    const strict = Object.keys(body).every((k) => ["mode", "scope", "screen_id", "screen_ids"].includes(k));
+    if (!strict || !(body.mode === "system" || body.mode === "original") || !(body.scope === "screen" || body.scope === "all") || (body.scope === "screen" && ids.length === 0))
+      return fail(400, "VALIDATION_ERROR", "screen-mockups: invalid");
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    // Như BE: màn không có trong Spine ⇒ 404; có màn nhưng dự án mock không có ảnh gốc ⇒ 400
+    if (body.scope === "screen") {
+      const known = new Set(mockState.spine.screens.map((s) => s.id));
+      if (ids.some((id) => !known.has(id as string))) return fail(404, "SCREEN_NOT_FOUND", "Không tìm thấy màn hình.");
+      return fail(400, "SCREEN_HAS_NO_ORIGINAL", "Màn này không có ảnh gốc trong tài liệu.");
+    }
+    // Như BE: 202 + tiến độ ban đầu; dự án mock không có ảnh gốc ⇒ lượt xong ngay, 0 màn
+    return ok(
+      { run_id: "mock-run", status: "done", stopping: false, total: 0, completed: 0, done: [], failed: [], fell_back_to_system: [], pending: [], suggested_color: null },
+      { status: 202 }
+    );
+  }),
+  // Chưa từng chạy lượt nào ⇒ null; dừng khi không có lượt ⇒ null; ảnh gốc ⇒ 404
+  http.get(api("/projects/:projectId/screen-mockups/run"), ({ params }) => {
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    return ok(null);
+  }),
+  http.post(api("/projects/:projectId/screen-mockups/run/cancel"), ({ params }) => {
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    return ok(null);
+  }),
+  http.get(api("/projects/:projectId/screen-mockups/:screenId/original"), () => fail(404, "SCREEN_HAS_NO_ORIGINAL", "No original picture")),
+  http.delete(api("/projects/:projectId/screen-mockups"), async ({ params, request }) => {
+    const body = ((await request.json().catch(() => null)) ?? {}) as Record<string, unknown>;
+    const strict = Object.keys(body).every((k) => k === "scope" || k === "screen_id");
+    if (!strict || !(body.scope === "screen" || body.scope === "all") || (body.scope === "screen" && typeof body.screen_id !== "string"))
+      return fail(400, "VALIDATION_ERROR", "screen-mockups: invalid");
+    if (params.projectId !== mockState.project._id) return fail(404, "PROJECT_NOT_FOUND", "Project not found");
+    return ok({ disabled: [] });
   }),
   // FLF-265 #26: đếm + ước tính, không gọi model; ngôn ngữ = gốc ⇒ total 0
   http.get(api("/projects/:projectId/translations/status"), ({ params }) => {
@@ -670,9 +875,19 @@ export const handlers = [
     return ok(null);
   }),
   http.post(api("/projects/:projectId/chats/:chatId/messages/stream"), async ({ params, request }) => {
-    const body = (await request.json()) as { content: string; step?: string };
+    const body = (await request.json()) as { content: string; step?: string; knowledge?: boolean };
     const session = mockState.sessions.find((s) => s._id === params.chatId);
     if (!session) return fail(404, "NOT_FOUND", "Không tìm thấy cuộc trò chuyện");
+
+    // Lượt hỏi tri thức (contract §1.2): không stream chữ, phát đúng một `finish`. Tắt tính năng thì
+    // 409 và KHÔNG ghi gì vào phiên — FE phải tự gỡ tin hiện tạm.
+    if (body.knowledge) {
+      if (mockState.knowledgeDisabled) {
+        return fail(409, "KNOWLEDGE_DISABLED", "Tính năng hỏi kiến thức đang tắt trên máy chủ");
+      }
+      return knowledgeStream(session, body);
+    }
+
     const reply = `(mock) Đã ghi nhận: "${body.content}". Bạn có thể chạy step ${mockState.spine.progress.current_step} ở thanh tiến độ.`;
     const encoder = new TextEncoder();
     const stream = new ReadableStream<Uint8Array>({
@@ -693,7 +908,25 @@ export const handlers = [
 
   http.get(api("/projects/:projectId/spine"), () => ok(mockState.spine)),
   http.get(api("/projects/:projectId/progress"), () => ok(progressOf(mockState))),
+  // Nhịp theo dõi bản mới của tài liệu: revision mock = `spine_version` (mock không có lớp bản dịch riêng)
+  http.get(api("/projects/:projectId/version"), () =>
+    ok({ spine_version: mockState.spine.spine_version, document_revision: mockDocumentRevision() })
+  ),
+  // FLF-332: ước tính credit lượt chạy liền — số tròn cho thẻ xác nhận
+  http.get(api("/projects/:projectId/run-estimate"), ({ request }) => {
+    const url = new URL(request.url);
+    const scope = (url.searchParams.get("scope") ?? "all") as "unit" | "all";
+    const from = url.searchParams.get("from") ?? "S-1.1";
+    const units = scope === "unit" ? [{ unit: from.replace(/\.\d+$/, ""), steps: 4, ai_steps: 4, interview_credits: 1, credits: 17 }] : [
+      { unit: "S-1", steps: 4, ai_steps: 4, interview_credits: 1, credits: 17 },
+      { unit: "S-2", steps: 5, ai_steps: 5, interview_credits: 1, credits: 21 },
+    ];
+    const credits_total = units.reduce((n, u) => n + u.credits, 0);
+    return ok({ scope, from_step: from, units, steps_total: units.reduce((n, u) => n + u.steps, 0), ai_steps_total: units.reduce((n, u) => n + u.ai_steps, 0), credits_total, available_credits: (mockState.user as { balance?: number }).balance ?? 120 });
+  }),
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
+  // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
+  http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),
 
   http.get(api("/projects/:projectId/steps"), () => {
     const response: StepsResponse = {
@@ -824,6 +1057,10 @@ export const handlers = [
 
   // ─── T16: preview / reconcile / undo / traceability / flags waive+recompute / document / export ───
 
+  // BF §3.2 (trước baseline): mục có bản xem trước chưa áp của người khác — contract #8c; mock một người dùng ⇒ rỗng
+  http.get(api("/projects/:projectId/changes/pending-sections"), () => ok([])),
+  // Bỏ bản xem trước của chính mình — contract #8d
+  http.delete(api("/projects/:projectId/changes/preview/:previewId"), () => ok({ discarded: true })),
   http.post(api("/projects/:projectId/changes/preview"), async ({ request }) => {
     const body = (await request.json()) as ChangeRequest;
     if (body.base_version !== mockState.spine.spine_version) return conflict(mockState);
@@ -908,12 +1145,26 @@ export const handlers = [
     const flag = mockState.spine.flags.find((f) => f.id === params.flagId);
     if (!flag) return fail(404, "FLAG_NOT_FOUND", "Không tìm thấy cờ");
     if (!body.reason || body.reason.trim().length < 20) return fail(400, "VALIDATION_ERROR", "Lý do cần tối thiểu 20 ký tự");
-    if (FLAG_NOT_WAIVABLE_RULES.includes(flag.rule_id as (typeof FLAG_NOT_WAIVABLE_RULES)[number])) {
-      return fail(400, "FLAG_NOT_WAIVABLE", "Luật này không cho waive");
+    // FLF-329 (BR-04): mọi cờ đỏ không waive được
+    if (flag.level === "red" || FLAG_NOT_WAIVABLE_RULES.includes(flag.rule_id as (typeof FLAG_NOT_WAIVABLE_RULES)[number])) {
+      return fail(400, "FLAG_NOT_WAIVABLE", "Cờ đỏ không bỏ qua được — chọn Giữ nguyên kèm lý do hoặc sửa dữ liệu.");
     }
     flag.waived_by_user = true;
     flag.waive_reason = body.reason.trim();
     flag.waived_at_version = mockState.spine.spine_version;
+    return ok(flag);
+  }),
+
+  // FLF-329 #35: giữ nguyên + lý do — cờ vẫn mở
+  http.post(api("/projects/:projectId/flags/:flagId/keep"), async ({ params, request }) => {
+    const body = (await request.json()) as { reason: string };
+    const flag = mockState.spine.flags.find((f) => f.id === params.flagId);
+    if (!flag) return fail(404, "FLAG_NOT_FOUND", "Không tìm thấy cờ");
+    if (flag.resolved_at) return fail(400, "FLAG_NOT_KEEPABLE", "Cờ này đã đóng.");
+    if (!body.reason || body.reason.trim().length < 20) return fail(400, "VALIDATION_ERROR", "Lý do cần tối thiểu 20 ký tự");
+    flag.kept_reason = body.reason.trim();
+    flag.kept_by = "u1";
+    flag.kept_at = new Date().toISOString();
     return ok(flag);
   }),
 
@@ -936,8 +1187,16 @@ export const handlers = [
       assembled_at_version: mockAssembledAtVersion,
       spine_version: mockState.spine.spine_version,
       stale: false,
+      document_revision: mockDocumentRevision(),
       ...(locale !== source_locale ? { translation: { locale, source_locale, missing: mockTranslation.missing } } : {}),
     });
+  }),
+
+  // Ảnh tài liệu theo tham chiếu (`image-ref:…@hash`): PNG 1×1 — test dựng token riêng và ghi đè handler khi cần lỗi
+  http.get(api("/projects/:projectId/document/image"), ({ request }) => {
+    const ref = new URL(request.url).searchParams.get("ref") ?? "";
+    if (!/^image-ref:(diagram|media):[^:@]+(:[a-z]{2})?@[0-9a-f]{16}$/.test(ref)) return fail(404, "IMAGE_NOT_FOUND", "Không tìm thấy ảnh");
+    return new HttpResponse(MOCK_PNG_BYTES, { headers: { "Content-Type": "image/png", "Cache-Control": "private, max-age=31536000, immutable" } });
   }),
 
   http.get(api("/projects/:projectId/export/word"), ({ request }) => {
@@ -952,6 +1211,23 @@ export const handlers = [
         "X-Assembled-At-Version": String(mockAssembledAtVersion),
         "X-Spine-Version": String(mockState.spine.spine_version),
         // FLF-265 #18: file ra theo ngôn ngữ tài liệu của dự án
+        "X-Document-Language": mockDocumentLanguages().locale,
+      },
+    });
+  }),
+
+  // FLF-316 #34: cùng query/header với Word, file là bản Word chuyển sang PDF ở BE
+  http.get(api("/projects/:projectId/export/pdf"), ({ request }) => {
+    const url = new URL(request.url);
+    const source = url.searchParams.get("source") ?? "draft";
+    if (source === "baseline") return fail(404, "BASELINE_NOT_FOUND", "Chưa có baseline nào (T19 chưa nối)");
+    mockAssembledAtVersion = mockState.spine.spine_version;
+    return new HttpResponse("%PDF-1.7\n% mock pdf — nội dung thật do Gotenberg chuyển từ .docx\n%%EOF\n", {
+      headers: {
+        "Content-Type": "application/pdf",
+        "Content-Disposition": `attachment; filename="${mockState.project.name}${source === "draft" ? "-draft" : ""}.pdf"`,
+        "X-Assembled-At-Version": String(mockAssembledAtVersion),
+        "X-Spine-Version": String(mockState.spine.spine_version),
         "X-Document-Language": mockDocumentLanguages().locale,
       },
     });
@@ -973,13 +1249,14 @@ export const handlers = [
     const section = buildMockDocument(mockState).sections.find((s) => s.id === body.anchor.section_id);
     if (!section) return fail(422, "COMMENT_ANCHOR_NOT_FOUND", "Nội dung được ghim không tồn tại trong phiên bản này.");
     const heading = [section.number, section.heading].filter(Boolean).join(" ");
+    const blockIndex = body.anchor.block_index ?? null;
     const comment: SrsComment = {
       comment_id: `CM-${String(mockComments.length + 1).padStart(3, "0")}`,
       version: { source: body.version.source, baseline_id: body.version.baseline_id ?? null, label: body.version.source === "draft" ? "draft" : "v1.0" },
       anchor: {
         section_id: section.id,
-        block_index: body.anchor.block_index,
-        label: body.anchor.block_index === null ? heading : `${heading} › Block ${body.anchor.block_index + 1}`,
+        block_index: blockIndex,
+        label: blockIndex === null ? heading : `${heading} › Block ${blockIndex + 1}`,
         excerpt: null,
       },
       author: mockCommentAuthor(),
@@ -989,6 +1266,7 @@ export const handlers = [
       cr_id: null,
       handled_by: null,
       handled_at: null,
+      resolution: null,
       replies: [],
       created_at: new Date().toISOString(),
     };
@@ -1002,11 +1280,17 @@ export const handlers = [
     comment.replies = [...comment.replies, { author: mockCommentAuthor(), author_role: "lead", text, at: new Date().toISOString() }];
     return ok(comment, { status: 201 });
   }),
-  http.post(api("/projects/:projectId/comments/:commentId/resolve"), ({ params }) => {
+  http.post(api("/projects/:projectId/comments/:commentId/resolve"), async ({ params, request }) => {
     const comment = mockComments.find((c) => c.comment_id === params.commentId);
     if (!comment) return fail(404, "COMMENT_NOT_FOUND", "Không tìm thấy comment.");
     if (comment.status !== "open") return fail(409, "COMMENT_NOT_OPEN", "Comment đã được xử lý.");
-    Object.assign(comment, { status: "resolved", handled_by: mockCommentAuthor(), handled_at: new Date().toISOString() });
+    const { kind, reason } = (await request.json()) as CommentResolutionInput;
+    Object.assign(comment, {
+      status: "resolved",
+      handled_by: mockCommentAuthor(),
+      handled_at: new Date().toISOString(),
+      resolution: { kind, reason: kind === "kept" ? (reason ?? null) : null },
+    });
     return ok(comment);
   }),
 ];

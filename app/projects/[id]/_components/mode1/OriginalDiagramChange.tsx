@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { CrLocation } from "@/types/change-request";
 import type { OriginalDiagramKind } from "@/types/spine";
 
@@ -9,12 +10,8 @@ import type { OriginalDiagramKind } from "@/types/spine";
  * không đổi ⇒ không liên quan. Hiển thị bằng lời thay cho diff JSON của khối ảnh.
  */
 
-export const ORIGINAL_DIAGRAM_LABELS: Record<OriginalDiagramKind, string> = {
-  context: "Sơ đồ ngữ cảnh",
-  usecase: "Sơ đồ use case",
-  screen_flow: "Sơ đồ luồng màn hình",
-  erd: "Sơ đồ quan hệ thực thể",
-};
+/** Translator của namespace `mode1.originalDiagram` — tên loại sơ đồ + tiêu đề vị trí. */
+export type DiagramTranslator = ReturnType<typeof useTranslations<"mode1.originalDiagram">>;
 
 export const isDiagramLocation = (loc: Pick<CrLocation, "found_by">): boolean => loc.found_by.includes("diagram");
 
@@ -38,27 +35,28 @@ export const replacedDiagrams = (loc: Pick<CrLocation, "proposal" | "current_tex
 };
 
 /** Tên hiển thị của vị trí: "Hình gốc — Sơ đồ use case" thay cho "Mục riêng CS03". */
-export const diagramLocationTitle = (loc: Pick<CrLocation, "proposal" | "current_text">): string => {
+export const diagramLocationTitle = (loc: Pick<CrLocation, "proposal" | "current_text">, t: DiagramTranslator): string => {
   const kinds = [...new Set(blocksOf(loc.proposal?.old_text ?? loc.current_text).flatMap((b) => (b.kind === "image" && b.diagram ? [b.diagram.kind] : [])))];
-  return kinds.length ? `Hình gốc — ${kinds.map((k) => ORIGINAL_DIAGRAM_LABELS[k]).join(", ")}` : "Hình gốc của tài liệu";
+  return kinds.length ? t("title", { kinds: kinds.map((k) => t(`kinds.${k}`)).join(", ") }) : t("titleFallback");
 };
 
 /** Nội dung đề xuất `edit` của vị trí sơ đồ gốc: hình nào bị thay, thay bằng gì. */
 export default function OriginalDiagramChange({ loc }: { loc: Pick<CrLocation, "proposal" | "current_text"> }) {
+  const t = useTranslations("mode1.originalDiagram");
   const replaced = replacedDiagrams(loc);
   if (!replaced.length) return null;
   return (
-    <div className="rounded-[8px] bg-[#F2F1FB] px-2.5 py-1.5 text-body text-[#3F3894]" aria-label="Thay hình gốc">
-      <p className="font-bold">🖼 Thay hình gốc bằng sơ đồ FlintFlow vẽ lại từ dữ liệu mới</p>
+    <div className="rounded-[8px] bg-[#F2F1FB] px-2.5 py-1.5 text-body text-[#3F3894]" aria-label={t("aria")}>
+      <p className="font-bold">{t("replace")}</p>
       <ul className="list-disc pl-5">
         {replaced.map((r, i) => (
           <li key={i}>
-            {ORIGINAL_DIAGRAM_LABELS[r.kind]}
-            {r.caption ? ` (“${r.caption}”)` : ""}
+            {t(`kinds.${r.kind}`)}
+            {r.caption ? t("caption", { caption: r.caption }) : ""}
           </li>
         ))}
       </ul>
-      <p className="text-body text-[#6B6862]">Không đồng ý ⇒ giữ hình gốc của bạn; tài liệu có cờ vàng “Hình gốc lệch dữ liệu”.</p>
+      <p className="text-body text-[#6B6862]">{t("decline")}</p>
     </div>
   );
 }

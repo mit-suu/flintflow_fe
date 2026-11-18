@@ -77,7 +77,7 @@ beforeEach(() => {
   getActiveRunState.mockReset().mockResolvedValue({ data: null });
 });
 
-describe("gate_ready.auto — bước im", () => {
+describe("gate_ready.auto - bước im", () => {
   it("không dựng thẻ cổng; chuỗi vẫn bận, sự kiện vào nhật ký", () => {
     const started = stepRunnerReducer(initialRunnerState, { type: "startPhase", phase: "B-1" });
     const state = stepRunnerReducer(started, { type: "event", event: gateAt("B-1.2", { auto: true }) });
@@ -145,7 +145,7 @@ describe("409 ở cổng của bước server đã tự chốt", () => {
 
     // server đã sang B-1.3
     getActiveRunState.mockResolvedValue({ data: runState({ step_id: "B-1.3", status: "running", stage: "draft", gate_payload: null, phase_gate: null }) });
-    submitGate.mockRejectedValue(new ApiClientError(409, "STEP_NOT_RUNNABLE", "Bước B-1.2 đang chạy ở lượt trước (bắt đầu 11:51) — huỷ lượt đó rồi chạy lại"));
+    submitGate.mockRejectedValue(new ApiClientError(409, "STEP_NOT_RUNNABLE", "Bước B-1.2 đang chạy ở lượt trước (bắt đầu 11:51) - huỷ lượt đó rồi chạy lại"));
 
     let outcome: string | undefined;
     await act(async () => {

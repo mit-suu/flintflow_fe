@@ -1,10 +1,11 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { Spine } from "@/types/spine";
 import Icon from "@/components/ui/Icon";
 import Skeleton from "@/components/ui/Skeleton";
-import { assumptionText, briefVisionGoals, formFactorLabel, isBriefCoreTopic, stakesLabel } from "./brief-labels";
+import { assumptionText, briefVisionGoals, formFactorLabel, formFactorList, isBriefCoreTopic, stakesLabel } from "./brief-labels";
 
 interface BriefPanelProps {
   spine: Pick<Spine, "project" | "assumptions" | "addendum"> | null;
@@ -29,8 +30,8 @@ export const briefHasData = (spine: Pick<Spine, "project" | "assumptions" | "add
   const project = spine.project;
   return Boolean(
     project.system_name?.trim() ||
-      formFactorLabel(project.form_factor) ||
-      stakesLabel(project.stakes) ||
+      formFactorList(project.form_factor).length ||
+      project.stakes ||
       briefVisionGoals(spine).vision ||
       briefVisionGoals(spine).goals.length ||
       spine.addendum.some((entry) => entry.content.trim() !== "") ||
@@ -44,12 +45,15 @@ export const briefHasData = (spine: Pick<Spine, "project" | "assumptions" | "add
  * nào ở pha này, chỉ có ý tưởng đang được chốt dần. SRS pane quay lại từ S-1.
  */
 export default function BriefPanel({ spine, updating = false, width = 400 }: BriefPanelProps) {
+  const t = useTranslations("workspace.brief.panel");
+  const tLabel = useTranslations("workspace.briefLabels");
+  const locale = useLocale();
   const headingId = "brief-panel-title";
   // Điều AI đang tạm hiểu mà bạn chưa xác nhận — chỉ đọc; sửa hay xác nhận bằng cách nhắn ở ô chat
   const understood = (spine?.assumptions ?? []).filter((a) => a.status === "unconfirmed");
   const project = spine?.project;
-  const formFactor = formFactorLabel(project?.form_factor);
-  const stakes = stakesLabel(project?.stakes);
+  const formFactor = formFactorLabel(project?.form_factor, tLabel);
+  const stakes = stakesLabel(project?.stakes, tLabel);
   const systemName = project?.system_name?.trim();
   const { vision, goals } = spine ? briefVisionGoals(spine) : { vision: null, goals: [] };
   // Điều user đã kể mà chưa thành field của project (mục đích, người dùng, quy mô…) — bằng chính lời user
@@ -73,22 +77,22 @@ export default function BriefPanel({ spine, updating = false, width = 400 }: Bri
             </span>
             <div className="flex-1 min-w-0">
               <h2 id={headingId} className="text-subtitle font-bold tracking-tight text-on-surface">
-                Tóm tắt đang hình thành
+                {t("title")}
               </h2>
-              <p className="text-body text-on-surface-variant">Tóm tắt ý tưởng — chưa phải tài liệu SRS</p>
+              <p className="text-body text-on-surface-variant">{t("subtitle")}</p>
             </div>
             <p aria-live="polite" className="shrink-0 text-body font-semibold text-primary">
               {updating ? (
                 <span className="inline-flex items-center gap-1.5 bg-primary-soft rounded-full px-2.5 py-1">
                   <Icon name="spinner" size={12} className="animate-spin motion-reduce:animate-none" />
-                  AI đang cập nhật
+                  {t("updating")}
                 </span>
               ) : null}
             </p>
           </header>
 
           {!spine ? (
-            <div className="flex flex-col gap-3" aria-busy="true" aria-label="Đang tải tóm tắt">
+            <div className="flex flex-col gap-3" aria-busy="true" aria-label={t("loadingAria")}>
               <Skeleton className="h-16 w-full rounded-card" />
               <Skeleton className="h-16 w-full rounded-card" />
               <Skeleton className="h-24 w-full rounded-card" />
@@ -99,28 +103,28 @@ export default function BriefPanel({ spine, updating = false, width = 400 }: Bri
               {hasProjectInfo ? (
                 <dl className="grid grid-cols-1 gap-2.5">
                   {systemName ? (
-                    <Tile label="Tên hệ thống">
+                    <Tile label={t("systemName")}>
                       <span className="text-subtitle font-bold text-on-surface break-words">{systemName}</span>
                     </Tile>
                   ) : null}
                   {/* Chỉ có một trong hai ô ngắn ⇒ ô đó chiếm cả hàng cho khỏi lệch. */}
                   {formFactor ? (
-                    <Tile label="Nền tảng">
+                    <Tile label={t("platform")}>
                       {formFactor}
                     </Tile>
                   ) : null}
                   {stakes ? (
-                    <Tile label="Mức độ quan trọng">
+                    <Tile label={t("stakes")}>
                       {stakes}
                     </Tile>
                   ) : null}
                   {vision ? (
-                    <Tile label="Tầm nhìn">
+                    <Tile label={t("vision")}>
                       <p className="leading-relaxed">{vision}</p>
                     </Tile>
                   ) : null}
                   {goals.length ? (
-                    <Tile label={`Mục tiêu (${goals.length})`}>
+                    <Tile label={t("goalsCount", { count: goals.length })}>
                       <ul className="flex flex-col gap-1 leading-relaxed">
                         {goals.map((goal) => (
                           <li key={goal.id} className="flex gap-2">
@@ -137,7 +141,7 @@ export default function BriefPanel({ spine, updating = false, width = 400 }: Bri
               {notes.length ? (
                 <section aria-labelledby="brief-panel-notes" className="bg-surface-container rounded-card px-4 py-2.5 flex flex-col gap-2">
                   <h3 id="brief-panel-notes" className="text-caption font-semibold text-on-surface-variant">
-                    Điều bạn đã kể ({notes.length})
+                    {t("notesCount", { count: notes.length })}
                   </h3>
                   <ul className="flex flex-col gap-1.5">
                     {notes.map((entry) => (
@@ -153,13 +157,13 @@ export default function BriefPanel({ spine, updating = false, width = 400 }: Bri
               {understood.length ? (
                 <section aria-labelledby="brief-panel-understood" className="bg-surface-container rounded-card px-4 py-2.5 flex flex-col gap-2">
                   <h3 id="brief-panel-understood" className="text-caption font-semibold text-on-surface-variant">
-                    Những điều tôi đang hiểu ({understood.length})
+                    {t("understoodCount", { count: understood.length })}
                   </h3>
                   <ul className="flex flex-col gap-1.5">
                     {understood.map((assumption) => (
                       <li key={assumption.id} className="flex gap-2 text-body text-on-surface leading-relaxed">
                         <span aria-hidden className="mt-[7px] size-1.5 shrink-0 rounded-full bg-on-surface-muted" />
-                        <span className="min-w-0">{assumptionText(assumption)}</span>
+                        <span className="min-w-0">{assumptionText(assumption, locale)}</span>
                       </li>
                     ))}
                   </ul>

@@ -7,8 +7,9 @@ export type DocumentSource = "draft" | "baseline";
 
 /*
  * RenderedDocument — ĐỒNG BỘ TAY, nguồn là BE `modules/render/rendered-document.types.ts` (T05).
- * Ảnh qua HTTP là chuỗi base64 (có thể kèm tiền tố `data:image/png;base64,`), hoặc tham chiếu
- * `diagram-ref:<diagramId>` khi BE lộ cache nội bộ — FE tải lại qua `GET /diagrams/:id.png`.
+ * Ảnh qua HTTP là chuỗi base64 (có thể kèm tiền tố `data:image/png;base64,`; ảnh giữ chỗ "đang chờ vẽ" luôn là base64),
+ * tham chiếu `image-ref:<diagram|media>:<id>[:<locale>]@<hash>` (`GET /document` bản nháp — FE tải ảnh qua
+ * `GET /document/image?ref=`, `hash` đổi khi ảnh đổi), hoặc `diagram-ref:<diagramId>` (dạng cũ — `GET /diagrams/:id.png`).
  */
 
 export interface InlineRun {
@@ -84,6 +85,11 @@ export interface DraftMeta {
   assembled_at_version: number;
   spine_version: number;
   stale: boolean;
+  /**
+   * Revision của tài liệu bản nháp, tính TRƯỚC khi dựng bản này (chuỗi mờ — chỉ so bằng nhau với `GET /version`).
+   * BE cũ không gửi ⇒ vắng.
+   */
+  document_revision?: string;
 }
 
 // ─── Ngôn ngữ tài liệu (FLF-265) — `pipeline-contract.md` #16, #26, #27; schema ở BE `pipeline.dto.ts` ───
@@ -119,6 +125,22 @@ export interface TranslationRunResult {
 }
 
 /** Tài liệu đính kèm của project (`/projects/:id/documents`). */
+/**
+ * Business-flow §3.6: file .docx có trông như SRS không (Code nhận diện như preflight, không gọi AI) — FE gợi ý chuyển ô /
+ * cập nhật phiên bản mới, không chặn. `heading_overlap` (0–1) chỉ có khi dự án đã có SRS.
+ */
+export interface DocxPrecheck {
+  /** = `srs_suggestion === "strong"`. */
+  looks_like_srs: boolean;
+  /**
+   * FLF-409: `strong` ⇒ hỏi chuyển sang ô SRS; `possible` (chỉ có nội dung yêu cầu, thiếu hình thức SRS - vd bảng Use Case)
+   * ⇒ nhắc nhẹ; `none` ⇒ không gợi ý. Thiếu (BE cũ) ⇒ suy từ `looks_like_srs`.
+   */
+  srs_suggestion?: "strong" | "possible" | "none";
+  stamp: { project_id: string } | null;
+  heading_overlap?: number;
+}
+
 export interface ProjectDocument {
   _id: string;
   projectId: string;
@@ -134,6 +156,32 @@ export interface ProjectDocument {
   tokenCount?: number | null;
   summary?: string | null;
   summaryStatus: "pending" | "success" | "failed";
+  /** Số tài liệu `D<n>` (FLF-292). */
+  docCode?: number | null;
+  /** FLF-398: SHA-256 nội dung file — FE so lúc chọn tệp để báo "đã có trong dự án". Tài liệu cũ chưa có ⇒ `null`. */
+  contentHash?: string | null;
+  /** FLF-398: các bản cũ tài liệu này đã thay ("Thay bản cũ") — chỉ có ở `GET /documents`. */
+  replaces?: DocumentRef[];
   createdAt: string;
   updatedAt: string;
 }
+
+/** FLF-398: tham chiếu gọn tới một tài liệu tham khảo (trong `meta` lỗi upload và `replaces`). */
+export interface DocumentRef {
+  id: string;
+  name: string;
+  doc_code: number | null;
+}
+
+/**
+ * FLF-398: tài liệu đang dùng mà file vừa tải có thể là bản mới của nó (`409 POSSIBLE_NEW_VERSION` → `meta.candidates`).
+ * `same_name`: cùng tên gốc sau khi bỏ dấu phiên bản (`_v1`, `(1)`, `- Copy`…); `similar_content`: nội dung giống ≥ 70%.
+ */
+export interface DocumentVersionCandidate extends DocumentRef {
+  reason: "same_name" | "similar_content";
+  /** Độ giống nội dung 0..1. */
+  similarity: number;
+}
+
+/** FLF-398: lựa chọn gửi kèm lần tải lại sau `POSSIBLE_NEW_VERSION`. */
+export type DocumentUploadChoice = { replaceDocumentId: string } | { keepBoth: true };

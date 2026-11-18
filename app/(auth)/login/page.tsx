@@ -1,12 +1,14 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import GoogleButton from "../../../components/GoogleButton";
 import { getRememberedEmail, saveAuthToken, setRememberedEmail } from "../../../lib/auth";
 import { buildVerifyEmailHref } from "../../../lib/otp";
 import { localizeApiError } from "@/lib/api/error-messages";
+import { ACCOUNT_SUSPENDED, suspensionFromMeta, takeSuspension, type SuspensionNotice } from "@/lib/account-suspended";
+import { resolvePostAuthDestination, type PostAuthContext } from "@/lib/post-auth-redirect";
 import { applyAccountLocale } from "@/lib/i18n";
 import {
   AuthAlert,
@@ -28,6 +30,7 @@ export default function LoginPage() {
   const tc = useTranslations("auth.common");
   const tg = useTranslations("auth.google");
   const router = useRouter();
+  const format = useFormatter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -35,11 +38,16 @@ export default function LoginPage() {
   const [isUnverified, setIsUnverified] = useState(false);
   const [resending, setResending] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  // UC-03 (FLF-345): tài khoản bị khoá ⇒ khối báo riêng có lý do + ngày khoá thay cho câu lỗi chung
+  const [suspension, setSuspension] = useState<SuspensionNotice | null>(null);
 
   // Lần trước có tick "Ghi nhớ đăng nhập" ⇒ điền sẵn email và giữ tick. Đọc sau khi mount (localStorage
   // không có lúc prerender); lùi một microtask vì setState thẳng trong effect bị lint chặn.
   useEffect(() => {
     queueMicrotask(() => {
+      // Bị khoá giữa phiên ⇒ client.ts đã đăng xuất về đây và để lại lý do
+      const notice = takeSuspension();
+      if (notice) setSuspension(notice);
       const remembered = getRememberedEmail();
       if (!remembered) return;
       setEmail((current) => current || remembered);
@@ -52,7 +60,8 @@ export default function LoginPage() {
     accessToken: string | undefined,
     userRole: string | undefined,
     loginEmail?: string,
-    accountLocale?: unknown
+    accountLocale?: unknown,
+    postAuthCtx?: PostAuthContext
   ) => {
     if (accessToken) {
       saveAuthToken(accessToken, userRole, { persistent: rememberMe });
@@ -60,7 +69,13 @@ export default function LoginPage() {
     setRememberedEmail(rememberMe && loginEmail ? loginEmail.trim().toLowerCase() : null);
     // FLF-259: ghi cookie trước khi tải trang ⇒ trang đầu đã đúng ngôn ngữ tài khoản. Chưa chọn ⇒ /home lưu sau.
     applyAccountLocale(accountLocale);
-    window.location.href = userRole === "admin" ? "/admin/metrics" : "/home";
+    const destination = resolvePostAuthDestination({
+      role: userRole,
+      needsOnboarding: postAuthCtx?.needsOnboarding,
+      activeOrgId: postAuthCtx?.activeOrgId,
+      organizations: postAuthCtx?.organizations,
+    });
+    window.location.href = destination;
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -68,6 +83,7 @@ export default function LoginPage() {
     setLoading(true);
     setError(null);
     setIsUnverified(false);
+    setSuspension(null);
 
     try {
       const res = await fetch(`${API_BASE_URL}/auth/login`, {
@@ -83,10 +99,24 @@ export default function LoginPage() {
         if (json.error?.code === "EMAIL_NOT_VERIFIED") {
           setIsUnverified(true);
         }
+        if (json.error?.code === ACCOUNT_SUSPENDED) {
+          setSuspension(suspensionFromMeta(json.meta ?? json.error?.meta));
+          return;
+        }
         throw new Error(localizeApiError(json.error?.code, json.error?.message || t("failed")));
       }
 
-      completeLogin(json.data?.accessToken, json.data?.user?.role || json.data?.role, email, json.data?.user?.locale);
+      completeLogin(
+        json.data?.accessToken,
+        json.data?.user?.role || json.data?.role,
+        email,
+        json.data?.user?.locale,
+        {
+          needsOnboarding: json.data?.needsOnboarding,
+          activeOrgId: json.data?.activeOrgId,
+          organizations: json.data?.organizations,
+        }
+      );
     } catch (err) {
       setError(userErrorMessage(err, tc("genericError")));
     } finally {
@@ -122,6 +152,7 @@ export default function LoginPage() {
   const handleGoogle = async (idToken: string) => {
     setLoading(true);
     setError(null);
+    setSuspension(null);
     try {
       const res = await fetch(`${API_BASE_URL}/auth/google`, {
         method: "POST",
@@ -131,13 +162,22 @@ export default function LoginPage() {
       });
       const json = await res.json();
       if (!res.ok || json.error) {
+        if (json.error?.code === ACCOUNT_SUSPENDED) {
+          setSuspension(suspensionFromMeta(json.meta ?? json.error?.meta));
+          return;
+        }
         throw new Error(localizeApiError(json.error?.code, json.error?.message || t("googleFailed")));
       }
       completeLogin(
         json.data?.accessToken,
         json.data?.user?.role || json.data?.role,
         json.data?.user?.email,
-        json.data?.user?.locale
+        json.data?.user?.locale,
+        {
+          needsOnboarding: json.data?.needsOnboarding,
+          activeOrgId: json.data?.activeOrgId,
+          organizations: json.data?.organizations,
+        }
       );
     } catch (err) {
       setError(userErrorMessage(err, t("googleFailed")));
@@ -145,6 +185,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
+
+  const suspendedDate = suspension?.suspendedAt ? new Date(suspension.suspendedAt) : null;
 
   return (
     <AuthCard>
@@ -156,6 +198,18 @@ export default function LoginPage() {
       <Divider>{t("orEmail")}</Divider>
 
       {error && <AuthAlert tone="error">{error}</AuthAlert>}
+      {suspension && (
+        <AuthAlert tone="error">
+          <p>
+            <strong>{t("suspendedTitle")}</strong>
+          </p>
+          {suspension.reason && <p>{t("suspendedReason", { reason: suspension.reason })}</p>}
+          {suspendedDate && !Number.isNaN(suspendedDate.getTime()) && (
+            <p>{t("suspendedAt", { date: format.dateTime(suspendedDate, { dateStyle: "medium" }) })}</p>
+          )}
+          <p className="mt-1">{t("suspendedHelp")}</p>
+        </AuthAlert>
+      )}
       {isUnverified && (
         <AuthAlert tone="warning">
           <p>

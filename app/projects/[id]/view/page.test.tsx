@@ -20,6 +20,8 @@ const orgId = vi.hoisted(() => ({ value: null as string | null }));
 vi.mock("next/navigation", () => ({
   useParams: () => ({ id: P }),
   useSearchParams: () => new URLSearchParams(nav.search),
+  // Nút đổi ngôn ngữ ở header + "Tạo CR" trong menu thẻ comment dùng router
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), refresh: vi.fn() }),
 }));
 
 vi.mock("@/lib/api/token-store", async (importOriginal) => ({
@@ -42,7 +44,7 @@ afterAll(() => mockServer.close());
 
 const version = async () => (await getSpine(P)).data!.spine_version;
 
-describe("view/page.tsx — read-only projection (UC 1.14)", () => {
+describe("view/page.tsx - read-only projection (UC 1.14)", () => {
   it("có heading section, ẩn hoàn toàn flags/readiness/stale/by/reason của change", async () => {
     const base_version = await version();
     await applyChanges(P, {
@@ -64,7 +66,30 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
     expect(screen.queryByLabelText("Tóm tắt độ sẵn sàng")).not.toBeInTheDocument();
   });
 
-  it("section bắt buộc chưa accepted (Use Case Descriptions, chưa có use_cases) hiện 'chưa hoàn thiện'", async () => {
+  it("FLF-411 (#13): có bảng I. Record of Changes của tài liệu trước các mục, cột theo ngôn ngữ tài liệu", async () => {
+    const doc = {
+      projectId: P,
+      projectName: "Demo",
+      version: "v0.2",
+      source: "draft",
+      generatedAt: "2026-11-12T00:00:00.000Z",
+      sections: [{ id: "fixed:1", number: "1", heading: "Product Overview", level: 1, blocks: [{ type: "paragraph", runs: [{ text: "Vision" }] }] }],
+      recordOfChanges: [{ date: "2026-11-12", version: "v0.2", change_type: "M", in_charge: "Tuan Anh", description: "CR-001: Update system name" }],
+    };
+    mockServer.use(http.get("*/projects/:projectId/document", () => HttpResponse.json({ data: doc, error: null, meta: { assembled_at_version: 1, spine_version: 1, stale: false } })));
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    const roc = (await screen.findByText("I. Record of Changes", { selector: "h3" })).closest("article")!;
+    expect(within(roc).getByText("In charge")).toBeInTheDocument();
+    expect(within(roc).getByText("Tuan Anh")).toBeInTheDocument();
+    expect(within(roc).getByText("CR-001: Update system name")).toBeInTheDocument();
+    // Bảng đứng trước mục đầu tiên như bản Word
+    const headings = Array.from(document.querySelectorAll("h3")).map((h) => h.textContent);
+    expect(headings.indexOf("I. Record of Changes")).toBeLessThan(headings.indexOf("1. Product Overview"));
+  });
+
+  it("section bắt buộc chưa accepted (Use Case Descriptions, chưa có use_cases) hiện 'chưa soạn'", async () => {
     await assembleDocument(P, await version());
 
     renderWithIntl(<ReadOnlyDocumentPage />);
@@ -72,17 +97,17 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
     expect(await screen.findByText(/2\.2\.2\. Use Case Descriptions/)).toBeInTheDocument();
     const section = screen.getByText(/2\.2\.2\. Use Case Descriptions/).closest("article");
     expect(section).not.toBeNull();
-    expect(section!.textContent).toContain("chưa hoàn thiện");
+    expect(section!.textContent).toContain("chưa soạn");
   });
 
-  it("section đã accepted (Product Overview) không hiện 'chưa hoàn thiện'", async () => {
+  it("section đã accepted (Product Overview) không hiện 'chưa soạn'", async () => {
     await assembleDocument(P, await version());
 
     renderWithIntl(<ReadOnlyDocumentPage />);
 
     const section = (await screen.findByText(/1\. Product Overview/)).closest("article");
     expect(section).not.toBeNull();
-    expect(section!.textContent).not.toContain("chưa hoàn thiện");
+    expect(section!.textContent).not.toContain("chưa soạn");
   });
 
   it("đọc tài liệu hỏng thì hiện lỗi, không crash trang trắng", async () => {
@@ -94,7 +119,7 @@ describe("view/page.tsx — read-only projection (UC 1.14)", () => {
   });
 });
 
-describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
+describe("view/page.tsx - comment ghim vào nội dung (UC-49)", () => {
   it("bấm 💬 ở một mục ⇒ soạn comment ghim vào mục đó trên bản nháp ⇒ đăng xong hiện trong panel + số comment cạnh mục", async () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
 
@@ -127,13 +152,14 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
     const card = await screen.findByRole("listitem", { name: "Comment CM-001" });
     expect(card.textContent).toContain("› Block 1");
 
-    fireEvent.click(within(card).getByRole("button", { name: "Trả lời" }));
-    fireEvent.change(within(card).getByLabelText("Trả lời comment"), { target: { value: "Đã ghi nhận" } });
-    fireEvent.click(within(card).getByRole("button", { name: "Trả lời" }));
-    // Chờ danh sách trả lời — đừng tìm theo chữ: ô nhập trả lời (textarea) cũng mang đúng chữ đó cho tới khi đóng
+    const box = within(card).getByRole("textbox", { name: "Trả lời…" });
+    fireEvent.focus(box);
+    fireEvent.change(box, { target: { value: "Đã ghi nhận" } });
+    fireEvent.click(within(card).getByRole("button", { name: "Gửi" }));
+    // Chờ danh sách trả lời — đừng tìm theo chữ: ô trả lời (textarea) cũng mang đúng chữ đó cho tới khi gửi xong
     const replies = await within(screen.getByRole("listitem", { name: "Comment CM-001" })).findByRole("list", { name: "Trả lời" });
     expect(within(replies).getByText("Đã ghi nhận")).toBeInTheDocument();
-    await waitFor(() => expect(screen.queryByLabelText("Trả lời comment")).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.getByRole("textbox", { name: "Trả lời…" })).toHaveValue(""));
   });
 
   it("Viewer, dự án chưa có baseline ⇒ không có nút 💬, panel nói chỉ comment trên bản đã phát hành", async () => {
@@ -142,9 +168,35 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
 
     renderWithIntl(<ReadOnlyDocumentPage />);
 
-    expect(await screen.findByText(/Viewer chỉ comment được trên phiên bản đã phát hành — dự án chưa có bản nào/)).toBeInTheDocument();
+    expect(await screen.findByText(/Viewer chỉ comment được trên phiên bản đã phát hành - dự án chưa có bản nào/)).toBeInTheDocument();
     expect(await screen.findByText(/1\. Product Overview/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Comment mục/ })).not.toBeInTheDocument();
+    // Không có bản phát hành ⇒ không có nút tải; quay về danh sách dự án, không về workspace
+    expect(screen.queryByRole("button", { name: /^Tải bản/ })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /Về danh sách dự án/ })).toHaveAttribute("href", "/home");
+  });
+
+  it("Viewer mở bản đã phát hành ⇒ tải .docx của đúng bản đó (source=baseline)", async () => {
+    orgId.value = "org-1";
+    let query = "";
+    mockServer.use(
+      http.get("*/orgs/org-1", () => HttpResponse.json({ data: { _id: "org-1", name: "Org", role: "viewer" }, error: null })),
+      http.get("*/projects/:projectId/baselines", () =>
+        HttpResponse.json({ data: [{ id: "bl-1", version: "1.0", spine_version: 1, signed_by: "u", signed_at: "2026-10-01T00:00:00.000Z" }], error: null })
+      ),
+      http.get("*/projects/:projectId/export/word", ({ request }) => {
+        query = new URL(request.url).search;
+        return new HttpResponse("docx", { headers: { "Content-Disposition": 'attachment; filename="SRS_v1.0.docx"' } });
+      })
+    );
+    const createUrl = vi.fn(() => "blob:x");
+    Object.assign(URL, { createObjectURL: createUrl, revokeObjectURL: vi.fn() });
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Tải bản 1.0 (.docx)" }));
+    await waitFor(() => expect(createUrl).toHaveBeenCalled());
+    expect(query).toBe("?source=baseline&baseline_id=bl-1");
   });
   it("Lead đánh dấu đã xử lý ⇒ comment rời tab Đang mở sang tab Đã đóng, số đếm cập nhật", async () => {
     orgId.value = "org-1";
@@ -155,7 +207,8 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
 
     const card = await screen.findByRole("listitem", { name: "Comment CM-001" });
-    fireEvent.click(within(card).getByRole("button", { name: "Đánh dấu đã xử lý" }));
+    fireEvent.click(within(card).getByRole("button", { name: "Xử lý comment" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Đã sửa" }));
     expect(await screen.findByRole("tab", { name: "Đang mở (0)" })).toHaveAttribute("aria-selected", "true");
     expect(screen.queryByRole("listitem", { name: "Comment CM-001" })).not.toBeInTheDocument();
     expect(screen.getByText("Không có comment nào đang mở.")).toBeInTheDocument();
@@ -171,7 +224,7 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
     expect(await screen.findByRole("listitem", { name: "Comment CM-001" })).toBeInTheDocument();
 
-    await resolveComment(P, "CM-001");
+    await resolveComment(P, "CM-001", { kind: "fixed" });
     fireEvent(window, new Event("focus"));
 
     expect(await screen.findByRole("tab", { name: "Đã đóng (1)" })).toBeInTheDocument();
@@ -205,7 +258,7 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
   it("link thông báo ?comment= tới comment đã đóng ⇒ tự mở tab Đã đóng", async () => {
     await assembleDocument(P, await version());
     await createComment(P, { version: { source: "draft" }, anchor: { section_id: "fixed:1", block_index: null }, text: "Tầm nhìn còn chung chung" });
-    await resolveComment(P, "CM-001");
+    await resolveComment(P, "CM-001", { kind: "fixed" });
     nav.search = "comment=CM-001";
 
     renderWithIntl(<ReadOnlyDocumentPage />);
@@ -215,7 +268,7 @@ describe("view/page.tsx — comment ghim vào nội dung (UC-49)", () => {
   });
 });
 
-describe("view/page.tsx — chip ngôn ngữ chỉ đọc (FLF-265)", () => {
+describe("view/page.tsx - chip ngôn ngữ chỉ đọc (FLF-265)", () => {
   beforeEach(() => resetMockTranslationState());
 
   const chip = async () => {

@@ -1,7 +1,11 @@
 "use client";
 
 import { useRef, useState, type DragEvent } from "react";
+import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
+import { Button } from "@/components/ui";
+import GoogleDrivePickButton from "@/components/integrations/GoogleDrivePickButton";
+import { GOOGLE_DOC_MIME, type PickedGoogleFile } from "@/lib/google-picker";
 
 /** Giới hạn contract #2 (40 MB, §4.16) — BE vẫn là nơi quyết định (nhận file theo magic bytes, không theo đuôi). */
 export const MAX_IMPORT_MB = 40;
@@ -16,24 +20,34 @@ interface UploadStepProps {
   /** Tiêu đề khác cho re-upload. */
   title?: string;
   hint?: string;
+  /**
+   * Cho chọn Google Doc / .docx trên Google Drive (contract #46) — chỉ truyền ở lần import đầu, không ở tải lại. Bỏ trống ⇒
+   * không có nút Google Drive.
+   */
+  onGoogleImport?: (file: PickedGoogleFile) => void;
 }
 
-/** 1.1 Upload .docx (UC-20): kéo thả hoặc chọn file. */
+/** 1.1 Upload .docx (UC-20): kéo thả hoặc chọn file; tuỳ chọn chọn từ Google Drive. */
 export default function UploadStep({
   onUpload,
   busy = false,
-  title = "Tải lên SRS có sẵn (.docx)",
-  hint = `File Word .docx tối đa ${MAX_IMPORT_MB} MB. Track Changes/comment của người khác phải được Accept/Reject trước khi tải lên.`,
+  title: titleProp,
+  hint: hintProp,
+  onGoogleImport,
 }: UploadStepProps) {
+  const t = useTranslations("mode1.uploadStep");
+  const title = titleProp ?? t("title");
+  const hint = hintProp ?? t("hint", { max: MAX_IMPORT_MB });
   const inputRef = useRef<HTMLInputElement>(null);
   const [dragging, setDragging] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [picked, setPicked] = useState<PickedGoogleFile | null>(null);
 
   const pick = (file: File | undefined) => {
     if (!file) return;
     if (file.size > MAX_IMPORT_BYTES) {
       setLocalError(
-        `File ${file.name} nặng ${toMb(file.size)} MB, lớn hơn giới hạn ${MAX_IMPORT_MB} MB — hãy nén ảnh trong Word (File → Compress Pictures) hoặc tách phụ lục rồi thử lại.`
+        t("tooLarge", { name: file.name, size: toMb(file.size), max: MAX_IMPORT_MB })
       );
       return;
     }
@@ -66,7 +80,7 @@ export default function UploadStep({
         } ${busy ? "opacity-60 cursor-wait" : ""}`}
       >
         <Icon name="upload" size={34} className="text-[#6A62C4]" />
-        <p className="font-extrabold text-[#191817] text-heading">{busy ? "Đang tải lên và kiểm tra file…" : title}</p>
+        <p className="font-extrabold text-[#191817] text-heading">{busy ? t("uploading") : title}</p>
         <p className="text-body text-[#8A867E] max-w-[420px] leading-relaxed">{hint}</p>
         <input
           ref={inputRef}
@@ -81,6 +95,30 @@ export default function UploadStep({
         />
       </div>
       {localError && <p className="text-body text-[#B03030]">{localError}</p>}
+      {onGoogleImport &&
+        (picked ? (
+          <div className="flex flex-wrap items-center gap-3 rounded-[12px] border border-[#ECEAE5] bg-[#FAF9F7] px-3.5 py-3 text-body text-[#4B4842]">
+            <span className="min-w-0 flex-1 truncate">
+              {t("picked")}{" "}
+              <span className="font-bold text-[#191817]">{picked.name}</span>{" "}
+              <span className="text-[#8A867E]">({picked.mimeType === GOOGLE_DOC_MIME ? t("pickedGoogleDoc") : t("pickedWord")})</span>
+            </span>
+            <button
+              type="button"
+              aria-label={t("removePicked")}
+              disabled={busy}
+              onClick={() => setPicked(null)}
+              className="p-1 rounded-full text-[#8A867E] hover:bg-[#F0EEEA] cursor-pointer disabled:cursor-not-allowed"
+            >
+              ✕
+            </button>
+            <Button loading={busy} disabled={busy} onClick={() => onGoogleImport(picked)}>
+              {t("continue")}
+            </Button>
+          </div>
+        ) : (
+          <GoogleDrivePickButton onPicked={setPicked} disabled={busy} />
+        ))}
     </div>
   );
 }

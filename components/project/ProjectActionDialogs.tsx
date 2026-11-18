@@ -5,15 +5,18 @@ import { useState } from "react";
 import Button from "@/components/ui/Button";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import Modal from "@/components/ui/Modal";
-import { deleteProject, renameProject, setDocumentLanguage } from "@/lib/api/projects";
+import { deleteProject, renameProject, setDocumentLanguage, setErdNotation, setSequenceLevel } from "@/lib/api/projects";
 import { getTranslationStatus } from "@/lib/api/translations";
 import type { TranslationStatus } from "@/types/document";
-import type { DocumentLanguage, Project } from "@/types/project";
+import type { DocumentLanguage, ErdNotation, Project, SequenceLevel } from "@/types/project";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import DocumentLanguagePicker from "./DocumentLanguagePicker";
+import ErdNotationPicker from "./ErdNotationPicker";
+import SequenceLevelPicker from "./SequenceLevelPicker";
+import ScreenThemeDialog from "./ScreenThemeDialog";
 import TranslateDialog from "./TranslateDialog";
 
-export type ProjectAction = "rename" | "archive" | "delete" | "documentLanguage";
+export type ProjectAction = "rename" | "archive" | "delete" | "documentLanguage" | "erdNotation" | "sequenceLevel" | "screenTheme";
 
 export interface ProjectActionTarget {
   action: ProjectAction;
@@ -30,9 +33,9 @@ interface ProjectActionDialogsProps {
 }
 
 /** Icon của mỗi thao tác xác nhận; chữ lấy từ `app.projectDialogs.<action>.*`. */
-const CONFIRM_ICON: Record<Exclude<ProjectAction, "rename" | "documentLanguage">, IconName> = { archive: "archive", delete: "trash" };
+const CONFIRM_ICON: Record<Exclude<ProjectAction, "rename" | "documentLanguage" | "erdNotation" | "sequenceLevel" | "screenTheme">, IconName> = { archive: "archive", delete: "trash" };
 
-/** Dialog thao tác trên card: đổi tên, đổi ngôn ngữ tài liệu (FLF-265), lưu trữ, xoá vĩnh viễn. */
+/** Dialog thao tác trên card: đổi tên, ngôn ngữ tài liệu (FLF-265), ký pháp ERD (FLF-324), mức Sequence Diagram (FLF-418), giao diện màn hình (FLF-410), lưu trữ, xoá. */
 export default function ProjectActionDialogs({ target, onClose, onDone, onCreditsSpent }: ProjectActionDialogsProps) {
   // `key` theo dự án + thao tác ⇒ mỗi lần mở là form mới (tên điền sẵn, không còn lỗi cũ)
   if (!target) return null;
@@ -47,6 +50,12 @@ function ActionDialog({ target, onClose, onDone, onCreditsSpent }: ProjectAction
   // Dự án cũ chưa có field ⇒ BE đọc `en` (D1)
   const currentLanguage: DocumentLanguage = project.documentLanguage ?? "en";
   const [language, setLanguage] = useState<DocumentLanguage>(currentLanguage);
+  // Dự án cũ chưa có field ⇒ `chen` (FLF-324)
+  const currentNotation: ErdNotation = project.erdNotation ?? "chen";
+  const [notation, setNotation] = useState<ErdNotation>(currentNotation);
+  // Chưa chọn ⇒ BE vẽ mức `system` (FLF-418)
+  const currentLevel: SequenceLevel = project.sequenceLevel ?? "system";
+  const [level, setLevel] = useState<SequenceLevel>(currentLevel);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   /** Đổi ngôn ngữ xong mà nội dung cũ còn mục chưa dịch ⇒ hộp chuyển sang "Dịch tài liệu" với ước tính vừa đọc (phase 1 §1.7). */
@@ -142,6 +151,60 @@ function ActionDialog({ target, onClose, onDone, onCreditsSpent }: ProjectAction
             </Button>
             <Button type="submit" loading={submitting} disabled={!name.trim() || name.trim() === project.name}>
               {t("saveChanges")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  if (action === "screenTheme") return <ScreenThemeDialog project={project} onClose={onClose} onDone={onDone} />;
+
+  if (action === "erdNotation") {
+    return (
+      <Modal open onClose={close} title={t("erdNotation.title")}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (notation !== currentNotation) void run(() => setErdNotation(project._id, notation), t("erdNotation.failed"));
+          }}
+          className="flex flex-col gap-4"
+        >
+          <ErdNotationPicker value={notation} onChange={setNotation} disabled={submitting} />
+          <p className="text-body text-on-surface-variant leading-[1.55]">{t("erdNotation.detail")}</p>
+          {errorBox}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={close} disabled={submitting}>
+              {tc("cancel")}
+            </Button>
+            <Button type="submit" loading={submitting} disabled={notation === currentNotation}>
+              {submitting ? t("erdNotation.busy") : t("erdNotation.cta")}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    );
+  }
+
+  if (action === "sequenceLevel") {
+    return (
+      <Modal open onClose={close} title={t("sequenceLevel.title")}>
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (level !== currentLevel) void run(() => setSequenceLevel(project._id, level), t("sequenceLevel.failed"));
+          }}
+          className="flex flex-col gap-4"
+        >
+          <SequenceLevelPicker value={level} onChange={setLevel} disabled={submitting} />
+          <p className="text-body text-on-surface-variant leading-[1.55]">{t("sequenceLevel.detail")}</p>
+          {errorBox}
+          <div className="flex justify-end gap-2">
+            <Button variant="secondary" onClick={close} disabled={submitting}>
+              {tc("cancel")}
+            </Button>
+            <Button type="submit" loading={submitting} disabled={level === currentLevel}>
+              {submitting ? t("sequenceLevel.busy") : t("sequenceLevel.cta")}
             </Button>
           </div>
         </form>

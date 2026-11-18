@@ -9,8 +9,11 @@ export type IsoDateTime = string;
 
 export type WorkingMode = "fast" | "coaching";
 
-/** Mức độ dừng lại hỏi ý user (02-reduce-stops-plan R5): Chặt · Cân bằng · Nhanh. */
-export type ReviewMode = "strict" | "balanced" | "fast";
+/**
+ * Mức duyệt (FLF-337, business-flow §1.2): `strict` mọi bước · `fast` cuối giai đoạn · `milestones` chỉ ở mốc chốt (cổng
+ * cứng). `balanced` là giá trị cũ, BE đọc như `fast`. Không bao giờ do độ tự tin của AI.
+ */
+export type ReviewMode = "strict" | "balanced" | "fast" | "milestones";
 
 /** Một quyết định đã chốt trong lúc hỏi đáp — khoá chống hỏi lặp là `topic_key`. */
 export interface Decision {
@@ -42,8 +45,10 @@ export interface SpineProject {
   form_factor: string[];
   stakes: string | null;
   working_mode: WorkingMode | null;
-  /** Mức độ dừng lại hỏi ý (FLF-208 R5). */
+  /** Mức độ dừng lại hỏi ý (FLF-208 R5, FLF-337). */
   review_mode: ReviewMode;
+  /** FLF-337: section đã bấm "Chấp nhận, không hỏi lại" — bản sửa chỉ chạm chúng tự qua. Spine cũ thiếu ⇒ `[]`. */
+  skip_confirm_sections?: string[];
   release_scope: ReleaseScope;
 }
 
@@ -214,8 +219,8 @@ export interface Addendum {
   captured_at: IsoDateTime;
 }
 
-/** Loại sơ đồ gốc đọc được từ ảnh của file upload (§4.13). */
-export type OriginalDiagramKind = "context" | "usecase" | "screen_flow" | "erd";
+/** Loại sơ đồ gốc đọc được từ ảnh của file upload (§4.13; FLF-390 thêm sequence, activity — của một function — và deployment). */
+export type OriginalDiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "sequence" | "activity" | "deployment";
 
 /** Khối nguyên văn của mục riêng (FLF-182). */
 export interface CustomBlock {
@@ -224,7 +229,7 @@ export interface CustomBlock {
   rows: string[][] | null;
   image_ref: string | null;
   /** Ảnh là sơ đồ gốc của người dùng (§4.13): giữ y hình, PlantUML cùng loại không in. */
-  diagram?: { kind: OriginalDiagramKind; source_hash: string } | null;
+  diagram?: { kind: OriginalDiagramKind; owner_id?: string | null; source_hash: string } | null;
 }
 
 /** Mục ngoài mẫu FPT của template người dùng (mode 1 v2) — render ở section `custom:<id>`. */
@@ -236,12 +241,17 @@ export interface CustomSection {
   source: "import" | "manual";
 }
 
-export type DiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "screen_layout";
+export type DiagramKind = "context" | "usecase" | "screen_flow" | "erd" | "class" | "state_machine" | "sequence" | "activity" | "deployment" | "screen_layout";
+
+/** Engine vẽ (BE FLF-339): `puml` = text PlantUML, `svg` = SVG tự dựng. */
+export type DiagramFormat = "puml" | "svg";
 
 export interface Diagram {
   id: string;
   kind: DiagramKind;
-  puml: string;
+  format: DiagramFormat;
+  /** Nguồn hình: text PlantUML (`format = puml`) hoặc markup SVG (`format = svg`). FE hiển thị qua file `.svg`/`.png`. */
+  source: string;
   section: string;
   owner_kind: string | null;
   owner_id: string | null;
@@ -307,6 +317,10 @@ export interface Flag {
   waived_by_user: boolean;
   waive_reason: string | null;
   waived_at_version: number | null;
+  /** FLF-329 "Giữ nguyên + lý do": cờ vẫn mở, cờ đỏ vẫn chặn. Spine cũ ⇒ null / thiếu. */
+  kept_reason?: string | null;
+  kept_by?: string | null;
+  kept_at?: IsoDateTime | null;
 }
 
 /** `sections[]` chỉ lưu `asset_version`; status là hàm tính ở BE (`srs-spine.md` §5). */
@@ -320,7 +334,7 @@ export type BaselineType = "generated" | "imported" | "release";
 
 export interface Baseline {
   id: string;
-  /** Mode 2: `v1.0`, `v1.0-conditional`… Mode 1: `0.0`, `1.0`… */
+  /** Mode 2: `v1.0`, `v1.1`… Mode 1: `0.1`, `1.0`… Mức `-conditional` đã bỏ (BR-04: cờ đỏ không waive được). */
   version: string;
   type: BaselineType;
   /** Mode 1: version tài liệu baseline chụp; mode 2 luôn `null`. */
@@ -329,6 +343,26 @@ export interface Baseline {
   snapshot_ref: string;
   checked_at_version: number;
   waived_count: number;
+}
+
+export type BaselineSubmissionStatus = "pending" | "rejected";
+
+/**
+ * Lượt nộp baseline đang chờ Lead quyết (UC-45) hoặc vừa bị từ chối (UC-46). `null` = chưa ai nộp —
+ * Lead tự duyệt đi thẳng từ trạng thái này. Đọc từ `GET /spine`, không có endpoint riêng.
+ */
+export interface BaselineSubmission {
+  status: BaselineSubmissionStatus;
+  submitted_by: string;
+  submitted_at: IsoDateTime;
+  /** `spine_version` lúc nộp — Lead biết tài liệu có đổi sau khi nộp hay không. */
+  spine_version: number;
+  decided_by: string | null;
+  decided_at: IsoDateTime | null;
+  /** Lý do từ chối; `null` khi đang chờ duyệt. */
+  reason: string | null;
+  /** `CM-nnn` Lead ghim kèm lần từ chối — phải kết luận hết mới gửi lại được (UC-47). */
+  rejection_comment_ids: string[];
 }
 
 /** Loại op (`op.types.ts` của T08) và `revert` do engine ghi lại. */
@@ -399,4 +433,6 @@ export interface Spine {
   flags: Flag[];
   sections: SectionState[];
   baselines: Baseline[];
+  /** Lượt nộp baseline đang chờ Lead quyết hoặc vừa bị từ chối. Spine cũ ⇒ `null`. */
+  baseline_submission: BaselineSubmission | null;
 }

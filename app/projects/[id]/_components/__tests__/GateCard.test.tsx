@@ -2,14 +2,41 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import GateCard, { groupSummary, joinSummaryTexts, unsettledAssumptions, type GateNewFlag } from "../GateCard";
-import { fallbackGateMessage } from "../gate-helpers";
+import { createTranslator } from "next-intl";
+import { MESSAGES } from "@/test/intl";
+import { fallbackGateMessage, projectFieldText, type GateHelpersT } from "../gate-helpers";
 import type { GateAction, GateReadyEvent } from "@/types/pipeline";
+
+const helpersT = (locale: "vi" | "en") =>
+  createTranslator({ locale, messages: MESSAGES[locale], namespace: "workspace.gateHelpers" }) as unknown as GateHelpersT;
+const tVi = helpersT("vi");
+const tEn = helpersT("en");
 
 const ALL: GateAction[] = ["accept", "revision", "regenerate"];
 
 const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "Thêm lựa chọn" }));
 
-describe("GateCard — tin nhắn AI + chip", () => {
+describe("GateCard - FLF-337 Chấp nhận, không hỏi lại phần này", () => {
+  it("bước chạm section ⇒ menu có mục không hỏi lại; chọn ⇒ gửi section rồi Accept; bước không chạm section ⇒ không có mục", () => {
+    const onAction = vi.fn();
+    const onSkip = vi.fn();
+    const payload = { type: "gate_ready", step_id: "S-2.1", actions: ALL, regenerate_used: 0, calls_used: 2, summary: [
+      { kind: "add", collection: "glossary", id: "G01", title_vi: "Thuật ngữ", section_id: "fixed:5" },
+      { kind: "update", collection: "glossary", id: "G02", title_vi: "Thuật ngữ", section_id: "fixed:5" },
+    ] } as GateReadyEvent;
+    renderWithIntl(<GateCard stepId="S-2.1" actions={ALL} regenerateUsed={0} payload={payload} onAcceptSkipSections={onSkip} onAction={onAction} />);
+    openMenu();
+    fireEvent.click(screen.getByRole("menuitem", { name: "Chấp nhận, không hỏi lại phần này" }));
+    expect(onSkip).toHaveBeenCalledWith(["fixed:5"]);
+    expect(onAction).toHaveBeenCalledWith("accept");
+
+    renderWithIntl(<GateCard stepId="S-2.2" actions={ALL} regenerateUsed={0} payload={{ ...payload, summary: [] }} onAcceptSkipSections={onSkip} onAction={onAction} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Thêm lựa chọn" })[1]);
+    expect(screen.queryByRole("menuitem", { name: /không hỏi lại/ })).toBeNull();
+  });
+});
+
+describe("GateCard - tin nhắn AI + chip", () => {
   it("hiện lời AI (message_vi), chip Đúng rồi đi tiếp / Tôi muốn sửa, và không còn khung form cũ", () => {
     const payload = { type: "gate_ready", step_id: "B-0.1", actions: ALL, regenerate_used: 0, calls_used: 2, message_vi: "Mình hiểu đây là app đặt lịch khám. Bạn xem giúp nhé." } as GateReadyEvent;
     renderWithIntl(<GateCard stepId="B-0.1" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
@@ -101,7 +128,7 @@ describe("GateCard — tin nhắn AI + chip", () => {
         empty_sections: [],
         summary: [],
         new_assumptions: [],
-        no_change_reason: "Nền tảng đã chốt ở bước Kể hết ý tưởng — không cần hỏi lại.",
+        no_change_reason: "Nền tảng đã chốt ở bước Kể hết ý tưởng - không cần hỏi lại.",
       } as unknown as GateReadyEvent;
       renderWithIntl(<GateCard stepId="B-0.2" actions={ALL} regenerateUsed={0} wroteOps={false} payload={settled} onAction={vi.fn()} />);
       expect(screen.queryByText(/AI không soạn được nội dung nào ở lượt này/)).not.toBeInTheDocument();
@@ -133,7 +160,7 @@ describe("GateCard — tin nhắn AI + chip", () => {
   });
 });
 
-describe("GateCard — dự án cũ chưa có message_vi", () => {
+describe("GateCard - dự án cũ chưa có message_vi", () => {
   const payload: GateReadyEvent = {
     type: "gate_ready",
     step_id: "S-4.3",
@@ -169,20 +196,37 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
       fallbackGateMessage([
         { kind: "update", collection: "project", id: null, title_vi: "complexity: small" },
         { kind: "add", collection: "assumptions", id: "AS3", title_vi: "Small internal tool" },
-      ])
+      ], undefined, tVi)
     ).toBe("Tôi đã cập nhật: sửa 1 thông tin dự án (Độ phức tạp: Nhỏ). Bạn xem giúp, ổn thì mình đi tiếp nhé.");
   });
 
   it("chỉ có giả định hoặc không có gì ⇒ vẫn là một câu đọc được", () => {
-    expect(fallbackGateMessage([])).toBe("Tôi đã xong bước này. Bạn xem giúp, ổn thì mình đi tiếp nhé.");
+    expect(fallbackGateMessage([], undefined, tVi)).toBe("Tôi đã xong bước này. Bạn xem giúp, ổn thì mình đi tiếp nhé.");
     // FLF-260: lý do "không đổi gì" theo ngôn ngữ phiên ⇒ câu bọc cùng ngôn ngữ
-    expect(fallbackGateMessage([], "Nền tảng đã chốt — không cần hỏi lại.")).toBe(
-      "Bước này không thay đổi tài liệu: Nền tảng đã chốt — không cần hỏi lại. Bạn xem giúp, ổn thì mình đi tiếp nhé."
+    expect(fallbackGateMessage([], "Nền tảng đã chốt - không cần hỏi lại.", tVi, "vi")).toBe(
+      "Bước này không thay đổi tài liệu: Nền tảng đã chốt - không cần hỏi lại. Bạn xem giúp, ổn thì mình đi tiếp nhé."
     );
-    expect(fallbackGateMessage([], "The platform is already settled — no need to ask again.")).toBe(
-      "This step doesn't change the document: The platform is already settled — no need to ask again. Take a look — if it looks right, let's move on."
+    expect(fallbackGateMessage([], "The platform is already settled - no need to ask again.", tVi, "vi")).toBe(
+      "This step doesn't change the document: The platform is already settled - no need to ask again. Take a look - if it looks right, let's move on."
     );
-    expect(fallbackGateMessage([{ kind: "add", collection: "assumptions", id: "AS3", title_vi: "X" }])).toMatch(/^Tôi đã xong bước này/);
+    expect(fallbackGateMessage([{ kind: "add", collection: "assumptions", id: "AS3", title_vi: "X" }], undefined, tVi)).toMatch(/^Tôi đã xong bước này/);
+  });
+
+  it("giao diện tiếng Anh: câu tạm tiếng Anh; lý do tiếng Việt vẫn giữ câu bọc cùng ngôn ngữ với lý do", () => {
+    expect(
+      fallbackGateMessage([{ kind: "update", collection: "project", id: null, title_vi: "complexity: small" }], undefined, tEn, "en")
+    ).toBe("I’ve updated: updated 1 project info (Complexity: Small). Take a look - if it looks right, let’s move on.");
+    expect(fallbackGateMessage([], undefined, tEn, "en")).toBe("I’ve finished this step. Take a look - if it looks right, let’s move on.");
+    expect(fallbackGateMessage([], "Already settled", tEn, "en")).toBe(
+      "This step doesn’t change the document: Already settled. Take a look - if it looks right, let’s move on."
+    );
+    expect(fallbackGateMessage([], "Nền tảng đã chốt", tEn, "en")).toMatch(/^Bước này không thay đổi tài liệu: Nền tảng đã chốt\./);
+  });
+
+  it("projectFieldText: dịch theo translator; vắng translator ⇒ tiếng Việt như cũ", () => {
+    expect(projectFieldText("complexity: small", tEn)).toBe("Complexity: Small");
+    expect(projectFieldText("complexity: small", tVi)).toBe("Độ phức tạp: Nhỏ");
+    expect(projectFieldText("unknown_field: x", tEn)).toBe("unknown_field: x");
   });
 
   it("Duyệt vẫn xác nhận các giả định mới trước khi chốt bước (chưa có ô Đúng/Sửa/Bỏ)", async () => {
@@ -267,7 +311,7 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
         stepId="S-5.3@S03"
         actions={ALL}
         regenerateUsed={0}
-        payload={{ ...payload, summary: [], new_assumptions: [], no_change_reason: "Bước sổ sách của vòng màn hình — không có nội dung để ghi." }}
+        payload={{ ...payload, summary: [], new_assumptions: [], no_change_reason: "Bước sổ sách của vòng màn hình - không có nội dung để ghi." }}
         onAction={vi.fn()}
       />
     );
@@ -275,7 +319,8 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
   });
 
   it("groupSummary gộp theo loại thay đổi và collection", () => {
-    expect(groupSummary(payload.summary ?? []).map((g) => g.label)).toEqual(["+2 quyền", "~1 chức năng"]);
+    expect(groupSummary(payload.summary ?? [], tVi).map((g) => g.label)).toEqual(["+2 quyền", "~1 chức năng"]);
+    expect(groupSummary(payload.summary ?? [], tEn).map((g) => g.label)).toEqual(["+2 permissions", "~1 functions"]);
   });
 
   it("nối tóm tắt: bỏ dấu câu cuối mỗi mục, nối bằng '; '", () => {
@@ -285,7 +330,7 @@ describe("GateCard — dự án cũ chưa có message_vi", () => {
   });
 });
 
-describe("GateCard — cờ và bảng", () => {
+describe("GateCard - cờ và bảng", () => {
   it("cờ đỏ chặn baseline ⇒ một câu + chip Xem chỗ bị chặn dẫn tới step xử lý", () => {
     const onGoToStep = vi.fn();
     renderWithIntl(
@@ -304,6 +349,14 @@ describe("GateCard — cờ và bảng", () => {
     // Chip Duyệt không bị chặn: BE vẫn là nơi quyết định. Ở S-9.5 chip nói thẳng là ký (FLF-248)
     expect(screen.getByRole("button", { name: "Ký baseline" })).not.toBeDisabled();
     expect(screen.queryByRole("button", { name: /Đúng rồi, đi tiếp/ })).toBeNull();
+  });
+
+  it("S-9.5 với Analyst (canSignOff=false): không có Ký baseline / Duyệt như hiện tại, nhắc nộp cho Lead", () => {
+    renderWithIntl(<GateCard stepId="S-9.5" actions={ALL} regenerateUsed={3} canSignOff={false} onAction={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Ký baseline" })).toBeNull();
+    expect(screen.getByText(/Chỉ Lead ký được baseline/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Thêm lựa chọn" }));
+    expect(screen.queryByText(/Duyệt như hiện tại/)).toBeNull();
   });
 
   const flag: GateNewFlag = { id: "FL07", level: "red", message: "Use case UC03 chưa có chức năng", waivable: true };
@@ -334,6 +387,21 @@ describe("GateCard — cờ và bảng", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận giữ nguyên" }));
     await waitFor(() => expect(screen.queryByLabelText(/Vì sao bạn muốn giữ nguyên/)).toBeNull());
+  });
+
+  it("FLF-411 U1-4: ô lý do Giữ nguyên đang mở ⇒ khoá Đúng rồi, đi tiếp; huỷ ô ⇒ mở lại", () => {
+    const onAction = vi.fn();
+    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[flag]} onFixFlag={vi.fn()} onKeepFlag={vi.fn()} onAction={onAction} />);
+    const accept = screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ });
+    expect(accept).toBeEnabled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên" }));
+    expect(accept).toBeDisabled();
+    fireEvent.click(accept);
+    expect(onAction).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+    expect(accept).toBeEnabled();
   });
 
   it("cờ không waive được ⇒ chỉ có Sửa theo đề xuất", () => {
@@ -405,7 +473,7 @@ describe("unsettledAssumptions", () => {
     expect(unsettledAssumptions(undefined, [A("AS-STEP")], undefined).map((a) => a.id)).toEqual(["AS-STEP"]);
   });
 
-  it("bỏ giả định đã chốt trong Spine — khôi phục sau reload không xác nhận lại", () => {
+  it("bỏ giả định đã chốt trong Spine - khôi phục sau reload không xác nhận lại", () => {
     expect(unsettledAssumptions([A("AS1"), A("AS2")], undefined, new Set(["AS2"])).map((a) => a.id)).toEqual(["AS1"]);
     expect(unsettledAssumptions(undefined, undefined, new Set(["AS1"]))).toEqual([]);
   });

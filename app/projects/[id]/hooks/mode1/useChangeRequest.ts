@@ -18,7 +18,7 @@ import {
 } from "@/lib/api/change-requests";
 import { getSpine } from "@/lib/api/spine";
 import type { CrDetail, PatchLocationRequest } from "@/types/change-request";
-import { errorText } from "../../_components/mode1/errors";
+import { useErrorText } from "../../_components/mode1/i18n";
 
 export type CrBusy = CrAction | "answers" | "material" | "patch" | "owner_draft" | "decide" | "close" | "cancel";
 
@@ -32,6 +32,8 @@ export function useChangeRequest(projectId: string, crId: string) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<CrBusy | null>(null);
   const alive = useRef(true);
+  // Hàm ổn định (đọc nhãn qua ref) — đổi ngôn ngữ không tải lại CR
+  const errorText = useErrorText();
 
   useEffect(() => {
     alive.current = true;
@@ -44,9 +46,9 @@ export function useChangeRequest(projectId: string, crId: string) {
     () =>
       getCr(projectId, crId)
         .then((res) => alive.current && setDetail(res.data))
-        .catch((err: unknown) => alive.current && setError(errorText(err, "Không tải được change request")))
+        .catch((err: unknown) => alive.current && setError(errorText(err, "loadCr")))
         .finally(() => alive.current && setLoading(false)),
-    [projectId, crId]
+    [projectId, crId, errorText]
   );
 
   useEffect(() => {
@@ -71,7 +73,7 @@ export function useChangeRequest(projectId: string, crId: string) {
         if (alive.current) setBusy(null);
       }
     },
-    [reload]
+    [reload, errorText]
   );
 
   return {

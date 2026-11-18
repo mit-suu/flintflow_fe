@@ -9,10 +9,16 @@ export const HOOK_ERROR = {
   spineNotReady: "@spineNotReady",
   flagsLoadFailed: "@flagsLoadFailed",
   waiveFailed: "@waiveFailed",
+  keepFailed: "@keepFailed",
   recomputeFailed: "@recomputeFailed",
   actionFailed: "@actionFailed",
+  documentChanged: "@documentChanged",
   spineLoadFailed: "@spineLoadFailed",
   progressLoadFailed: "@progressLoadFailed",
+  commentsLoadFailed: "@commentsLoadFailed",
+  commentCreateFailed: "@commentCreateFailed",
+  commentResolveFailed: "@commentResolveFailed",
+  sourcesLoadFailed: "@sourcesLoadFailed",
 } as const;
 
 export type HookErrorKey = keyof typeof HOOK_ERROR;

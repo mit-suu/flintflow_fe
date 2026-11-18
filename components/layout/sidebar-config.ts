@@ -1,7 +1,7 @@
 import type { IconName } from "@/components/ui/Icon";
 
 /** `id` vừa là khoá React vừa là key nhãn trong `app.shell.items.*` — thêm mục thì thêm key ở cả hai bản messages. */
-export type SidebarItemId = "projects" | "notifications" | "orgSwitcher" | "members" | "billing";
+export type SidebarItemId = "projects" | "notifications" | "members" | "library" | "billing";
 
 interface SidebarItemBase {
   id: SidebarItemId;
@@ -42,14 +42,22 @@ export const SIDEBAR_SECTIONS: readonly SidebarSection[] = [
   {
     id: "org",
     labelKey: "sectionOrg",
-    // Đổi tổ chức nằm trong nhóm Tổ chức — không chiếm vị trí đầu sidebar (task-26: BE đã có module org)
+    // Đổi tổ chức không nằm ở đây: nó là đổi ngữ cảnh chứ không phải điều hướng, nên là bộ chọn ngay trên nhãn
+    // nhóm (`OrgSwitcher`). Mục bên dưới là quản lý CHÍNH tổ chức đang mở: thành viên, lời mời, xoá tổ chức.
     items: [
-      { id: "orgSwitcher", icon: "building", status: "ready", href: "/home/organizations" },
       { id: "members", icon: "users", status: "ready", href: "/home/members" },
+      // FLF-278: mẫu SRS và nội dung chuẩn dùng lại giữa các dự án theo mẫu bắt buộc
+      { id: "library", icon: "file-template", status: "ready", href: "/home/library" },
       { id: "billing", icon: "credit-card", status: "ready", href: "/home/billing" },
     ],
   },
 ];
+
+/**
+ * Cookie bản sao của trạng thái thu gọn sidebar (bản chính ở localStorage, `AppShell`). Server đọc nó để khung chờ xác
+ * thực (`ShellSkeleton`) có đúng bề ngang ngay trong HTML đầu tiên. Để ở đây vì file này không phải module client.
+ */
+export const SIDEBAR_COLLAPSED_COOKIE = "ff_sidebar_collapsed";
 
 export const isSidebarItemActive = (item: ReadySidebarItem, pathname: string): boolean =>
   item.match === "exact" ? pathname === item.href : pathname === item.href || pathname.startsWith(`${item.href}/`);

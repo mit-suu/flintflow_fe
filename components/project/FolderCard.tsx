@@ -56,12 +56,13 @@ export default function FolderCard({ folder, onOpen, onRename, onDelete, onDropP
 
   return (
     <article
-      // Đang kéo dự án qua ⇒ cả thư mục (lưng + tab + thân) phóng to, đổ bóng theo đúng hình thư mục (drop-shadow, không ring), nổi trên tiêu đề mục dính (z-25)
-      // Đang mở menu ⋮ ⇒ giữ nổi như lúc hover, để menu không bị nút ⋮ (z-20) của thẻ bên cạnh đè lên khi chuột rời thẻ
-      className={`relative pt-[22px] transition-[transform,filter] duration-200 has-[[aria-expanded=true]]:z-[26] ${
-        // Hover: bóng đổ theo hình cả thư mục (có tab) và nổi trên tiêu đề mục dính (z-25) để bóng không bị nền tiêu đề cắt
+      // Thang z ở đây phải đọc cùng tiêu đề mục dính của dashboard (`SectionTitle`, z-27):
+      //   hover      → 26, DƯỚI tiêu đề: thẻ cuộn chui xuống dưới tiêu đề thì khuất gọn, không nhảy lên che chữ
+      //   mở menu ⋮  → 28, TRÊN tiêu đề: menu bung ra phải đọc được, không bị nền tiêu đề cắt ngang
+      //   kéo thả qua → 28, TRÊN tiêu đề: đang là đích thả thì phải thấy rõ thẻ phóng to và bóng của nó
+      className={`relative pt-[22px] transition-[transform,filter] duration-200 has-[[aria-expanded=true]]:z-[28] ${
         dragOver
-          ? "z-[26] scale-[1.04] drop-shadow-[0_14px_22px_rgba(25,24,23,0.16)]"
+          ? "z-[28] scale-[1.04] drop-shadow-[0_14px_22px_rgba(25,24,23,0.16)]"
           : "hover:z-[26] hover:drop-shadow-[0_10px_18px_rgba(25,24,23,0.10)]"
       }`}
       data-drop-target={dragOver || undefined}

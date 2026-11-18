@@ -6,9 +6,21 @@
  * ghi bên dưới), không phải số đếm nội bộ ("còn thiếu 5 mục", "Hỏi bạn 3 câu", "Đã nhận 0 câu trả lời") hay thời lượng
  * từng dòng. Việc đã có thẻ riêng trên màn hình (câu hỏi, cổng duyệt) không lặp lại thành dòng.
  */
+import { createTranslator } from "next-intl";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import en from "@/messages/en.json";
+import vi from "@/messages/vi.json";
 import { workspaceStepLabel as stepLabel } from "./phase-labels";
 import type { ChangeSummary, StepEvent } from "@/types/pipeline";
-import { projectFieldText } from "./GateCard";
+import { projectFieldText, type GateHelpersT } from "./gate-helpers";
+
+const MESSAGES = { vi, en } as const;
+/** Helper thuần (không hook) ⇒ dịch qua `createTranslator` theo locale nơi gọi truyền vào. */
+const translatorFor = (locale: Locale) => createTranslator({ locale, messages: MESSAGES[locale], namespace: "workspace.activityLog" });
+type ActivityTranslator = ReturnType<typeof translatorFor>;
+/** Field lẻ của `project` dịch bằng helper của cổng chốt (`workspace.gateHelpers`, key động ⇒ translator dạng lỏng). */
+const gateHelpersFor = (locale: Locale) =>
+  createTranslator({ locale, messages: MESSAGES[locale], namespace: "workspace.gateHelpers" }) as unknown as GateHelpersT;
 
 /** Sự kiện đã lưu kèm thời điểm: SSE sống ⇒ ms (reducer gắn), run-state sau reload ⇒ ISO (BE gắn). */
 export type LoggedEvent = StepEvent & { at?: number | string };
@@ -26,36 +38,27 @@ export interface ActivityLine {
   details: string[];
 }
 
-const COLLECTION_LABEL: Record<string, string> = {
-  project: "thông tin dự án",
-  addendum: "ghi chú",
-  assumptions: "điều tôi tạm hiểu",
-  other_requirements: "yêu cầu khác",
-  actors: "actor",
-  roles: "vai trò",
-  use_cases: "use case",
-  features: "tính năng",
-  screens: "màn hình",
-  functions: "chức năng",
-  entities: "thực thể",
-  nfrs: "NFR",
-  business_rules: "quy tắc",
-  messages: "thông báo",
-  glossary: "thuật ngữ",
-  permissions: "phân quyền",
-};
+/** Nhóm dữ liệu có nhãn đời thường (`workspace.activityLog.collections`); nhóm lạ hiện nguyên tên. */
+const COLLECTIONS = new Set([
+  "project", "addendum", "assumptions", "other_requirements", "actors", "roles", "use_cases", "features",
+  "screens", "functions", "entities", "nfrs", "business_rules", "messages", "glossary", "permissions",
+] as const);
+type KnownCollection = typeof COLLECTIONS extends Set<infer K> ? K : never;
+
+const collectionLabel = (collection: string, t: ActivityTranslator): string =>
+  COLLECTIONS.has(collection as KnownCollection) ? t(`collections.${collection as KnownCollection}`) : collection;
 
 const PREFIX: Record<ChangeSummary["kind"], string> = { add: "+", update: "~", remove: "−" };
-const VERB: Record<ChangeSummary["kind"], string> = { add: "Thêm", update: "Cập nhật", remove: "Xoá" };
 
 /** Số mục chi tiết tối đa dưới một việc ghi — còn lại gộp thành "và N mục khác". */
 const MAX_DETAILS = 5;
 
 /** "+3 actor ~1 use case" — gộp theo loại thay đổi và nhóm dữ liệu. */
-export const summaryCounts = (rows: readonly ChangeSummary[]): string => {
+export const summaryCounts = (rows: readonly ChangeSummary[], locale: Locale = DEFAULT_LOCALE): string => {
+  const t = translatorFor(locale);
   const counts = new Map<string, number>();
   for (const row of rows) {
-    const key = `${PREFIX[row.kind]}|${COLLECTION_LABEL[row.collection] ?? row.collection}`;
+    const key = `${PREFIX[row.kind]}|${collectionLabel(row.collection, t)}`;
     counts.set(key, (counts.get(key) ?? 0) + 1);
   }
   return [...counts.entries()].map(([key, n]) => {
@@ -64,42 +67,44 @@ export const summaryCounts = (rows: readonly ChangeSummary[]): string => {
   }).join(" ");
 };
 
-/** Nhật ký nói "điều tôi tạm hiểu" như panel Brief, không dùng chữ "giả định" của tài liệu. */
+/** Nhật ký nói "điều tôi tạm hiểu" như panel Brief, không dùng chữ "giả định" của tài liệu (chỉ chữ tiếng Việt). */
 const plainWording = (text: string): string => text.replace(/giả định/gi, "điều tôi tạm hiểu");
 
 /** Một dòng thay đổi bằng lời thường: "Tên hệ thống: Internal Hub", "Tôi tạm hiểu: …". */
-const changeText = (row: ChangeSummary): string => {
-  if (row.collection === "project") return projectFieldText(row.title_vi);
-  if (row.collection === "assumptions") return `${row.kind === "add" ? "Tôi tạm hiểu" : row.kind === "update" ? "Cập nhật điều tôi tạm hiểu" : "Bỏ điều tôi tạm hiểu"}: ${plainWording(row.title_vi)}`;
+const changeText = (row: ChangeSummary, t: ActivityTranslator, locale: Locale): string => {
+  if (row.collection === "project") return projectFieldText(row.title_vi, gateHelpersFor(locale));
+  // `title_vi` là dữ liệu BE — giữ nguyên, chỉ phần lời quanh nó theo ngôn ngữ giao diện
+  if (row.collection === "assumptions") return t(`assumption.${row.kind}`, { title: plainWording(row.title_vi) });
+  const verb = t(`verbs.${row.kind}`);
   // Yêu cầu khác chỉ có bản tiếng Anh (statement) — khung chat pha Brief không hiện câu tiếng Anh, chỉ nói có thêm mục
-  if (row.collection === "other_requirements") return `${VERB[row.kind]} ${COLLECTION_LABEL[row.collection]}`;
-  return `${VERB[row.kind]} ${COLLECTION_LABEL[row.collection] ?? row.collection}: ${row.title_vi}`;
+  if (row.collection === "other_requirements") return t("changeShort", { verb, collection: collectionLabel(row.collection, t) });
+  return t("change", { verb, collection: collectionLabel(row.collection, t), title: row.title_vi });
 };
 
-const changeDetails = (rows: readonly ChangeSummary[]): string[] => {
-  const shown = rows.slice(0, MAX_DETAILS).map(changeText);
-  return rows.length > MAX_DETAILS ? [...shown, `và ${rows.length - MAX_DETAILS} mục khác`] : shown;
+const changeDetails = (rows: readonly ChangeSummary[], t: ActivityTranslator, locale: Locale): string[] => {
+  const shown = rows.slice(0, MAX_DETAILS).map((row) => changeText(row, t, locale));
+  return rows.length > MAX_DETAILS ? [...shown, t("more", { count: rows.length - MAX_DETAILS })] : shown;
 };
 
 /** Một sự kiện ⇒ một dòng việc (null ⇒ không đáng thành một dòng: nội bộ, hoặc đã có thẻ riêng trên màn hình). */
-const taskOf = (event: StepEvent): { text: string; details?: string[]; failed?: boolean; transient?: boolean } | null => {
+const taskOf = (event: StepEvent, t: ActivityTranslator, locale: Locale): { text: string; details?: string[]; failed?: boolean; transient?: boolean } | null => {
   switch (event.type) {
     case "answer_received":
       // Chỉ là trạng thái lúc AI đang đọc — xong thì lời đáp của AI đã nói điều đó, không để lại thành dòng
-      return { text: event.count > 0 ? "Đọc câu trả lời của bạn" : "Đọc tin nhắn của bạn", transient: true };
+      return { text: event.count > 0 ? t("readingAnswers") : t("readingMessage"), transient: true };
     case "draft":
       // Lượt soạn lại do bản nháp sai khuôn là việc nội bộ — với user vẫn chỉ là một việc "Soạn nội dung"
-      return event.attempt > 1 ? null : { text: "Soạn nội dung" };
+      return event.attempt > 1 ? null : { text: t("drafting") };
     case "ops_applied": {
       const rows = event.summary ?? [];
-      if (rows.length === 0) return { text: `Ghi ${event.changes.length} thay đổi` };
-      return { text: `Ghi ${summaryCounts(rows)}`, details: changeDetails(rows) };
+      if (rows.length === 0) return { text: t("wroteCount", { count: event.changes.length }) };
+      return { text: t("wrote", { summary: summaryCounts(rows, locale) }), details: changeDetails(rows, t, locale) };
     }
     case "render":
       // Mã sơ đồ (D-UC-01) là id nội bộ — không nằm trong chữ hiện ra
-      return event.render_status === "error" ? { text: "Chưa vẽ được một sơ đồ", failed: true } : { text: "Vẽ sơ đồ" };
+      return event.render_status === "error" ? { text: t("renderFailed"), failed: true } : { text: t("rendered") };
     case "flags":
-      return (event.red_delta ?? 0) > 0 ? { text: `Phát hiện ${event.red_delta} lỗi cần sửa`, failed: true } : null;
+      return (event.red_delta ?? 0) > 0 ? { text: t("flagsFound", { count: event.red_delta ?? 0 }), failed: true } : null;
     case "error":
       // Thẻ lỗi ngay dưới nhật ký đã nói câu này, kèm việc user làm được. Nhắc lại ở đây chỉ thành tiếng vọng.
       return null;
@@ -112,22 +117,23 @@ const taskOf = (event: StepEvent): { text: string; details?: string[]; failed?: 
  * Dòng việc theo thứ tự thời gian. Chạy liền nhiều bước (cả giai đoạn) thì có dòng tiêu đề mỗi khi sang bước khác;
  * một bước lẻ thì không — thẻ ngay dưới đã nói bước nào. Dòng cuối là việc đang làm khi `running`.
  */
-export const activityLines = (events: readonly LoggedEvent[], running: boolean): ActivityLine[] => {
+export const activityLines = (events: readonly LoggedEvent[], running: boolean, locale: Locale = DEFAULT_LOCALE): ActivityLine[] => {
+  const t = translatorFor(locale);
   const lines: ActivityLine[] = [];
   let currentStep: string | null = null;
   // Việc "tạm" chỉ hiện khi nó là việc cuối và lượt còn đang chạy
-  const lastTaskIndex = events.reduce((last, event, index) => (taskOf(event) ? index : last), -1);
+  const lastTaskIndex = events.reduce((last, event, index) => (taskOf(event, t, locale) ? index : last), -1);
 
   events.forEach((event, index) => {
-    const task = taskOf(event);
+    const task = taskOf(event, t, locale);
     if (!task) return;
     if (task.transient && !(running && index === lastTaskIndex)) return;
     if (event.step_id !== currentStep && event.type !== "error") {
       currentStep = event.step_id;
       // Chữ hiện ra chỉ có tên bước; mã bước nằm ở tooltip
-      const label = stepLabel(event.step_id);
+      const label = stepLabel(event.step_id, locale);
       const named = label !== event.step_id;
-      lines.push({ key: `step-${event.step_id}-${index}`, kind: "step", text: named ? plainWording(label) : "Bước tiếp theo", title: event.step_id, status: "done", details: [] });
+      lines.push({ key: `step-${event.step_id}-${index}`, kind: "step", text: named ? plainWording(label) : t("nextStep"), title: event.step_id, status: "done", details: [] });
     }
     lines.push({ key: `${event.type}-${index}`, kind: "task", text: task.text, status: task.failed ? "failed" : "done", details: task.details ?? [] });
   });

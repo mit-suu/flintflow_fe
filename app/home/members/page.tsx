@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useFormatter, useTranslations } from "next-intl";
-import Button from "@/components/ui/Button";
-import Modal from "@/components/ui/Modal";
+import TopBar from "@/components/layout/TopBar";
+import { Avatar, Badge, Button, DropdownMenu, FilterSelect, IconButton, Modal } from "@/components/ui";
 import {
   changeMemberRole,
   createInvitation,
@@ -14,10 +14,11 @@ import {
   fetchOrganization,
   leaveOrganization,
   removeMember,
+  renameOrganization,
   revokeInvitation,
-  switchOrganization,
 } from "@/lib/api/orgs";
-import { decodeJwt, getActiveOrgId, getStoredAuthToken } from "@/lib/api/token-store";
+import { refreshSession } from "@/lib/api/client";
+import { decodeJwt, getAccessToken, getActiveOrgId } from "@/lib/api/token-store";
 import type {
   CreatedInvitation,
   Invitation,
@@ -26,11 +27,15 @@ import type {
   OrgRole,
   OrganizationDetail,
 } from "@/types/organization";
-import { ONBOARDING_PATH } from "@/components/OrgGuard";
+import { ONBOARDING_PATH, ORGANIZATIONS_PATH } from "@/components/OrgGuard";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import MembersShell, { InvitationsSkeleton, MembersListSkeleton } from "@/components/page-shells/MembersShell";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 
 const ROLES: OrgRole[] = ["lead", "analyst", "viewer"];
 const INVITABLE: InvitableRole[] = ["analyst", "viewer"];
+/** Như BE `ORG_NAME_MAX` (`organization.service.ts`) — ô nhập chặn sẵn, BE vẫn kiểm lại. */
+const ORG_NAME_MAX = 80;
 
 type Pending = { kind: "remove"; member: OrgMember } | { kind: "leave" } | { kind: "delete" } | null;
 
@@ -43,15 +48,16 @@ const STATE_KEYS = {
 } as const;
 
 /**
- * Thành viên của org đang mở — BPMN Flow 9: mời (9.1–9.2), đổi vai trò (9.5), xoá (9.6), rời (9.7).
- * BR-02 (org phải còn ít nhất một Lead) do BE giữ; FE chỉ hiện lỗi LAST_LEAD khi BE từ chối.
+ * Thành viên của org đang mở — BPMN Flow 9: mời (UC-08, chỉ Lead), đổi vai trò / tự hạ vai trò khi có >= 2 Lead
+ * (UC-14 / BR-02), xoá thành viên, tự rời tổ chức (UC-15), xoá tổ chức.
  */
 export default function MembersPage() {
   const t = useTranslations("app.org.members");
   const tRoles = useTranslations("app.org.roles");
+  const tc = useTranslations("app.common");
   const format = useFormatter();
   const orgId = getActiveOrgId();
-  const token = getStoredAuthToken();
+  const token = getAccessToken();
   const myUserId = token ? (decodeJwt(token)?.userId ?? null) : null;
 
   const [org, setOrg] = useState<OrganizationDetail | null>(null);
@@ -61,12 +67,20 @@ export default function MembersPage() {
   const [busy, setBusy] = useState(false);
   const [pending, setPending] = useState<Pending>(null);
 
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteRole, setInviteRole] = useState<InvitableRole>("analyst");
   const [inviteEmail, setInviteEmail] = useState("");
   const [createdCode, setCreatedCode] = useState<CreatedInvitation | null>(null);
   const [confirmText, setConfirmText] = useState("");
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameValue, setRenameValue] = useState("");
 
-  const isLead = org?.role === "lead";
+  // Vai trò và tên lấy từ chi tiết org; lúc trang chưa tải xong thì dùng tổ chức đang mở trong store chung (đã có bản
+  // nhớ / thanh bên đã đọc) ⇒ tiêu đề, nút Mời, cột phải của Lead vẽ đúng ngay, chỉ hai danh sách là khối giữ chỗ
+  const { org: activeOrg } = useActiveOrganizationState();
+  const role = org?.role ?? activeOrg?.role ?? null;
+  const orgName = org?.name ?? activeOrg?.name ?? null;
+  const isLead = role === "lead";
 
   /** Chỉ đọc dữ liệu, không đụng state — để effect bên dưới tự quyết khi nào gán. */
   const fetchAll = useCallback(async () => {
@@ -147,15 +161,44 @@ export default function MembersPage() {
     });
   };
 
-  /** Sau khi rời hoặc xoá org: token còn trỏ vào org cũ ⇒ mở org khác nếu còn, không thì về onboarding (Flow 8). */
+  /** Sau khi rời hoặc xoá org: cưỡng bức làm mới phiên để bỏ `orgId` cũ, rồi về chọn org hoặc onboarding (Flow 8). */
   const goToNextOrg = async () => {
+    await refreshSession({ force: true });
     const remaining = await fetchMyOrganizations();
-    if (remaining.length > 0) {
-      await switchOrganization(remaining[0].id);
-      window.location.assign("/home");
-    } else {
-      window.location.assign(ONBOARDING_PATH);
-    }
+    window.location.assign(remaining.length > 0 ? ORGANIZATIONS_PATH : ONBOARDING_PATH);
+  };
+
+  /** Đóng hộp thoại mời: xoá luôn mã vừa tạo — mã thô chỉ xem được một lần, giữ lại chỉ làm người sau tưởng còn dùng. */
+  const closeInvite = () => {
+    setInviteOpen(false);
+    setCreatedCode(null);
+    setInviteEmail("");
+    setError(null);
+  };
+
+  const openRename = () => {
+    setRenameValue(orgName ?? "");
+    setError(null);
+    setRenameOpen(true);
+  };
+
+  const closeRename = () => {
+    setRenameOpen(false);
+    setError(null);
+  };
+
+  const renameTrimmed = renameValue.trim();
+  const renameValid = renameTrimmed.length > 0 && renameTrimmed.length <= ORG_NAME_MAX && renameTrimmed !== orgName;
+
+  /** UC-80. `renameOrganization` phát sự kiện đổi tổ chức ⇒ thanh bên tự đọc lại tên. */
+  const handleRename = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!orgId || !renameValid) return;
+    void run(async () => {
+      const renamed = await renameOrganization(orgId, renameTrimmed);
+      setOrg((current) => (current ? { ...current, name: renamed.name } : current));
+      setRenameOpen(false);
+    });
   };
 
   const closePending = () => {
@@ -185,107 +228,189 @@ export default function MembersPage() {
   };
 
   const aloneAsLead = isLead && members.length === 1;
-  // BR-02: Lead duy nhất không rời được — khoá nút ngay từ đầu thay vì để bấm rồi mới báo lỗi.
-  const soleLead = isLead && members.filter((m) => m.role === "lead").length === 1;
+  // BR-02: Lead duy nhất không rời hay tự hạ vai trò được — khoá nút ngay từ đầu thay vì để bấm rồi mới báo lỗi.
+  const leadCount = members.filter((m) => m.role === "lead").length;
+  const soleLead = isLead && leadCount === 1;
   const deleteConfirmed = org !== null && confirmText.trim() === org.name;
 
+  // Lần tải đầu chưa xong (chưa có org, chưa lỗi) ⇒ chỉ vùng dữ liệu giữ chỗ; tiêu đề trang vẽ ngay
+  const loading = org === null && error === null;
+  const roleOptions = ROLES.map((role) => ({ value: role, label: tRoles(role) }));
+  const inviteRoleOptions = INVITABLE.map((role) => ({ value: role, label: tRoles(role) }));
   const displayName = (m: OrgMember) => m.name || m.email;
   const date = (iso: string) => format.dateTime(new Date(iso), { dateStyle: "medium" });
 
   return (
-    <section className="w-full max-w-[820px] mx-auto flex flex-col gap-8 pt-8 pb-12 px-4 sm:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
-        {org ? <p className="text-body text-on-surface-muted">{t("subtitle", { org: org.name })}</p> : null}
-        {org && !isLead ? <p className="text-body text-on-surface-muted">{t("leadOnly")}</p> : null}
-      </div>
+    <>
+      <TopBar trail={[tc("account"), t("title")]} />
 
-      {/* Đang mở hộp thoại thì lỗi hiện TRONG hộp thoại — ở đây sẽ nằm sau lớp mờ, người dùng không đọc được */}
-      {error && pending === null ? (
-        <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
-          {error}
-        </p>
-      ) : null}
-
-      <ul className="flex flex-col gap-2">
-        {members.map((m) => {
-          const isSelf = m.userId === myUserId;
-          return (
-            <li
-              key={m.userId}
-              className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-outline bg-surface-container-lowest px-4 py-3"
+      <MembersShell
+        role={role}
+        orgName={orgName ?? (loading ? null : undefined)}
+        count={members.length}
+        busy={busy}
+        onRename={openRename}
+        onInvite={() => setInviteOpen(true)}
+        alert={
+          error && pending === null && !inviteOpen && !renameOpen ? (
+            <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+              {error}
+            </p>
+          ) : null
+        }
+        list={
+          loading ? (
+            <MembersListSkeleton />
+          ) : (
+            <div
+              role="list"
+              className="flex flex-col gap-0.5 rounded-card bg-surface-container-low p-1.5 max-h-[60dvh] overflow-y-auto"
             >
-              <div className="min-w-0">
-                <p className="text-heading font-semibold text-on-surface truncate">
-                  {displayName(m)}
-                  {isSelf ? <span className="ml-2 text-body font-medium text-primary">{t("you")}</span> : null}
-                </p>
-                <p className="text-body text-on-surface-muted">{t("joined", { date: date(m.joinedAt) })}</p>
-                {isSelf && soleLead ? (
-                  <p id="sole-lead-hint" className="mt-1 text-body text-on-surface-muted">
-                    {aloneAsLead ? t("soleLeadAloneHint") : t("soleLeadHint")}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex items-center gap-2">
-                {isLead && !isSelf ? (
-                  <select
-                    aria-label={t("roleLabel", { name: displayName(m) })}
-                    value={m.role}
-                    disabled={busy}
-                    onChange={(e) => handleRoleChange(m, e.target.value as OrgRole)}
-                    className="rounded-lg border border-outline bg-surface px-2 py-1.5 text-body text-on-surface"
-                  >
-                    {ROLES.map((role) => (
-                      <option key={role} value={role}>
-                        {tRoles(role)}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <span className="text-body font-medium text-on-surface-variant">{tRoles(m.role)}</span>
-                )}
-                {isLead && !isSelf ? (
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => setPending({ kind: "remove", member: m })}>
-                    {t("remove")}
-                  </Button>
-                ) : null}
-                {isSelf ? (
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    disabled={busy || soleLead}
-                    aria-describedby={soleLead ? "sole-lead-hint" : undefined}
-                    onClick={() => setPending({ kind: "leave" })}
-                  >
-                    {t("leave")}
-                  </Button>
-                ) : null}
-              </div>
-            </li>
-          );
-        })}
-      </ul>
+            {members.map((m) => {
+              const isSelf = m.userId === myUserId;
+              const canChangeRole = isLead && (!isSelf || !soleLead);
+              const canRemoveMember = isLead && !isSelf;
+              return (
+                <div
+                  key={m.userId}
+                  role="listitem"
+                  className="flex flex-wrap items-center gap-3 rounded-control px-3 py-2.5 transition-colors hover:bg-surface-container-lowest"
+                >
+                  <Avatar name={m.name} email={m.email} size="md" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-heading font-semibold text-on-surface truncate">
+                      {displayName(m)}
+                      {isSelf ? <span className="ml-2 text-body font-medium text-primary">{t("you")}</span> : null}
+                    </p>
+                    {/* Email lấp đúng khoảng trống giữa tên và nút bằng thông tin phân biệt được người, thay vì để trắng */}
+                    <p className="text-body text-on-surface-muted truncate">
+                      {m.name ? <span className="mr-1">{m.email} ·</span> : null}
+                      <span className="tabular-nums">{t("joined", { date: date(m.joinedAt) })}</span>
+                    </p>
+                    {isSelf && soleLead ? (
+                      <p id="sole-lead-hint" className="mt-1 text-body text-on-surface-muted">
+                        {aloneAsLead ? t("soleLeadAloneHint") : t("soleLeadHint")}
+                      </p>
+                    ) : null}
+                  </div>
 
-      {isLead ? (
-        <div className="flex flex-col gap-4">
-          <h2 className="text-subtitle font-bold text-on-surface">{t("invite.title")}</h2>
-          <form onSubmit={handleInvite} className="flex flex-wrap items-end gap-3">
-            <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
-              {t("invite.roleLabel")}
-              <select
+                  {canChangeRole ? (
+                    // Danh sách nằm trong khung tự cuộn ⇒ `portal` để menu vai trò ở dòng cuối không bị khung cắt
+                    <FilterSelect
+                      className="shrink-0"
+                      label={t("roleLabel", { name: displayName(m) })}
+                      labelMode="value"
+                      portal
+                      value={m.role}
+                      disabled={busy}
+                      options={roleOptions}
+                      onChange={(role) => handleRoleChange(m, role)}
+                    />
+                  ) : (
+                    <Badge tone={m.role === "lead" ? "primary" : "neutral"}>{tRoles(m.role)}</Badge>
+                  )}
+
+                  {/* Hành động phá huỷ nằm trong menu ⋮: để "Xoá khỏi tổ chức" lặp trên mọi dòng vừa nặng mắt
+                      vừa dễ bấm nhầm. Dòng của chính mình thì hành động luôn là "Rời tổ chức". */}
+                  {canRemoveMember || isSelf ? (
+                    <DropdownMenu
+                      className="shrink-0"
+                      items={[
+                        canRemoveMember
+                          ? {
+                              label: t("remove"),
+                              icon: "trash",
+                              tone: "danger",
+                              disabled: busy,
+                              onSelect: () => setPending({ kind: "remove", member: m }),
+                            }
+                          : {
+                              label: t("leave"),
+                              icon: "logout",
+                              tone: "danger",
+                              // BR-02: Lead duy nhất không rời được — khoá sẵn, kèm lời giải thích ngay trên dòng
+                              disabled: busy || soleLead,
+                              onSelect: () => setPending({ kind: "leave" }),
+                            },
+                      ]}
+                      trigger={(props) => (
+                        <IconButton
+                          {...props}
+                          icon="more"
+                          size="sm"
+                          label={t("rowActions", { name: displayName(m) })}
+                          aria-describedby={isSelf && soleLead ? "sole-lead-hint" : undefined}
+                        />
+                      )}
+                    />
+                  ) : null}
+                </div>
+              );
+            })}
+            </div>
+        )
+        }
+        invitationsCount={invitations.length}
+        invitations={
+          loading ? (
+            <InvitationsSkeleton />
+          ) : invitations.length === 0 ? (
+            <p className="text-body text-on-surface-muted">{t("invitations.empty")}</p>
+          ) : (
+            <div
+              role="list"
+              className="flex flex-col gap-0.5 rounded-card bg-surface-container-low p-1.5 max-h-[40dvh] overflow-y-auto"
+            >
+              {invitations.map((inv) => (
+                <div
+                  key={inv.id}
+                  role="listitem"
+                  className="flex flex-wrap items-center gap-2 rounded-control px-3 py-2 transition-colors hover:bg-surface-container-lowest"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-body font-medium text-on-surface truncate">
+                      {inv.email ?? t("invitations.noEmail")}
+                    </p>
+                    <p className="text-caption text-on-surface-muted">
+                      {tRoles(inv.role)} · {t(STATE_KEYS[inv.state])}
+                      {inv.state === "pending"
+                        ? " · " + t("invitations.expires", { date: date(inv.expiresAt) })
+                        : ""}
+                    </p>
+                  </div>
+                  {inv.state === "pending" ? (
+                    <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleRevoke(inv)}>
+                      {t("invitations.revoke")}
+                    </Button>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          )
+        }
+        aloneAsLead={aloneAsLead}
+        onDeleteOrg={() => setPending({ kind: "delete" })}
+      >
+
+        <Modal open={inviteOpen} onClose={closeInvite} title={t("invite.title")}>
+          <form onSubmit={handleInvite} className="flex flex-col gap-4">
+            {/* Nhãn hiện phía trên là chữ thường, không phải <label for>: combobox tự mang tên qua aria-label */}
+            <div className="flex flex-col gap-1">
+              <span aria-hidden className="text-body font-semibold text-on-surface">
+                {t("invite.roleLabel")}
+              </span>
+              <FilterSelect
+                label={t("invite.roleLabel")}
+                labelMode="value"
+                fullWidth
+                portal
+                align="start"
                 value={inviteRole}
-                onChange={(e) => setInviteRole(e.target.value as InvitableRole)}
-                className="rounded-lg border border-outline bg-surface px-2 py-2 text-body font-normal"
-              >
-                {INVITABLE.map((role) => (
-                  <option key={role} value={role}>
-                    {tRoles(role)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex flex-1 min-w-[220px] flex-col gap-1 text-body font-semibold text-on-surface">
+                options={inviteRoleOptions}
+                onChange={setInviteRole}
+              />
+            </div>
+            <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
               {t("invite.emailLabel")}
               <input
                 type="email"
@@ -293,123 +418,121 @@ export default function MembersPage() {
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 placeholder={t("invite.emailPlaceholder")}
-                className="rounded-lg border border-outline bg-surface px-3 py-2 text-body font-normal"
+                className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
               />
             </label>
-            <Button type="submit" disabled={busy}>
-              {busy ? t("invite.creating") : t("invite.cta")}
-            </Button>
-          </form>
 
-          {createdCode ? (
-            <div className="rounded-xl border border-primary/40 bg-primary-fixed/40 px-4 py-3">
-              <p className="text-body font-semibold text-on-surface">{t("invite.codeTitle")}</p>
-              <p className="my-1 font-mono text-title font-bold tracking-[0.2em] text-primary" data-testid="invite-code">
-                {createdCode.code}
+            {error ? (
+              <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+                {error}
               </p>
-              <p className="text-body text-on-surface-muted">
-                {createdCode.email ? t("invite.codeSent", { email: createdCode.email }) : t("invite.codeBody")}
-              </p>
+            ) : null}
+
+            {/* Mã thô chỉ trả về đúng lượt tạo ⇒ hiện ngay trong hộp thoại và giữ đó cho tới khi người dùng đóng */}
+            {createdCode ? (
+              <div className="rounded-card bg-primary-soft px-4 py-3">
+                <p className="text-body font-semibold text-on-surface">{t("invite.codeTitle")}</p>
+                <p className="my-1 font-mono text-title font-bold tracking-[0.2em] text-primary" data-testid="invite-code">
+                  {createdCode.code}
+                </p>
+                <p className="text-body text-on-surface-muted">
+                  {createdCode.email ? t("invite.codeSent", { email: createdCode.email }) : t("invite.codeBody")}
+                </p>
+              </div>
+            ) : null}
+
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeInvite} disabled={busy}>
+                {createdCode ? tc("close") : t("cancel")}
+              </Button>
+              <Button type="submit" loading={busy}>
+                {busy ? t("invite.creating") : t("invite.cta")}
+              </Button>
             </div>
-          ) : null}
+          </form>
+        </Modal>
 
-          <div className="flex flex-col gap-2">
-            <h3 className="text-heading font-semibold text-on-surface">{t("invitations.title")}</h3>
-            {invitations.length === 0 ? (
-              <p className="text-body text-on-surface-muted">{t("invitations.empty")}</p>
-            ) : (
-              <ul className="flex flex-col gap-2">
-                {invitations.map((inv) => (
-                  <li
-                    key={inv.id}
-                    className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-outline px-3 py-2"
-                  >
-                    <div className="min-w-0 text-body">
-                      <span className="font-medium text-on-surface">{inv.email ?? t("invitations.noEmail")}</span>
-                      <span className="ml-2 text-on-surface-muted">
-                        {tRoles(inv.role)} · {t(STATE_KEYS[inv.state])}
-                        {inv.state === "pending" ? " · " + t("invitations.expires", { date: date(inv.expiresAt) }) : ""}
-                      </span>
-                    </div>
-                    {inv.state === "pending" ? (
-                      <Button size="sm" variant="ghost" disabled={busy} onClick={() => handleRevoke(inv)}>
-                        {t("invitations.revoke")}
-                      </Button>
-                    ) : null}
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      {isLead ? (
-        <div className="flex flex-col gap-3 rounded-xl border border-error/40 px-4 py-4">
-          <h2 className="text-subtitle font-bold text-error">{t("danger.title")}</h2>
-          <p className="text-body text-on-surface-muted leading-[1.6]">{t("danger.body")}</p>
-          {aloneAsLead ? null : <p className="text-body text-on-surface-muted">{t("danger.onlyWhenAlone")}</p>}
-          <Button
-            variant="danger"
-            className="self-start"
-            disabled={busy || !aloneAsLead}
-            onClick={() => setPending({ kind: "delete" })}
-          >
-            {t("danger.cta")}
-          </Button>
-        </div>
-      ) : null}
-
-      <Modal
-        open={pending !== null}
-        onClose={closePending}
-        title={
-          pending?.kind === "remove"
-            ? t("removeTitle")
-            : pending?.kind === "delete"
-              ? t("danger.dialogTitle")
-              : t("leaveTitle")
-        }
-      >
-        <div className="flex flex-col gap-4">
-          <p className="text-body text-on-surface-muted leading-[1.6]">
-            {pending?.kind === "remove"
-              ? t("removeBody", { name: displayName(pending.member) })
-              : pending?.kind === "delete"
-                ? t("danger.dialogBody", { org: org?.name ?? "" })
-                : t("leaveBody", { org: org?.name ?? "" })}
-          </p>
-          {error ? (
-            <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
-              {error}
-            </p>
-          ) : null}
-          {pending?.kind === "delete" ? (
+        {/* Đang gửi PATCH thì không đóng được (như nút Huỷ) — đóng giữa chừng sẽ mất lỗi BE trả về */}
+        <Modal open={renameOpen} onClose={busy ? () => undefined : closeRename} title={t("rename.title")}>
+          <form onSubmit={handleRename} className="flex flex-col gap-4">
             <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
-              {t("danger.confirmLabel", { org: org?.name ?? "" })}
+              {t("rename.label")}
               <input
-                value={confirmText}
-                onChange={(e) => setConfirmText(e.target.value)}
+                value={renameValue}
+                onChange={(e) => setRenameValue(e.target.value)}
+                maxLength={ORG_NAME_MAX}
                 autoComplete="off"
-                className="rounded-lg border border-outline bg-surface px-3 py-2 text-body font-normal"
+                className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
               />
+              <span className="text-caption font-normal text-on-surface-muted">{t("rename.hint", { max: ORG_NAME_MAX })}</span>
             </label>
-          ) : null}
-          <div className="flex justify-end gap-2">
-            <Button variant="secondary" onClick={closePending} disabled={busy}>
-              {t("cancel")}
-            </Button>
-            <Button
-              variant="danger"
-              onClick={confirmPending}
-              loading={busy}
-              disabled={pending?.kind === "delete" && !deleteConfirmed}
-            >
-              {pending?.kind === "delete" ? t("danger.confirmCta") : t("confirm")}
-            </Button>
+            {error ? (
+              <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+                {error}
+              </p>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closeRename} disabled={busy}>
+                {t("cancel")}
+              </Button>
+              <Button type="submit" loading={busy} disabled={!renameValid}>
+                {busy ? t("rename.saving") : t("rename.save")}
+              </Button>
+            </div>
+          </form>
+        </Modal>
+
+        <Modal
+          open={pending !== null}
+          onClose={closePending}
+          title={
+            pending?.kind === "remove"
+              ? t("removeTitle")
+              : pending?.kind === "delete"
+                ? t("danger.dialogTitle")
+                : t("leaveTitle")
+          }
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-body text-on-surface-muted leading-[1.6]">
+              {pending?.kind === "remove"
+                ? t("removeBody", { name: displayName(pending.member) })
+                : pending?.kind === "delete"
+                  ? t("danger.dialogBody", { org: org?.name ?? "" })
+                  : t("leaveBody", { org: org?.name ?? "" })}
+            </p>
+            {error ? (
+              <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
+                {error}
+              </p>
+            ) : null}
+            {pending?.kind === "delete" ? (
+              <label className="flex flex-col gap-1 text-body font-semibold text-on-surface">
+                {t("danger.confirmLabel", { org: org?.name ?? "" })}
+                <input
+                  value={confirmText}
+                  onChange={(e) => setConfirmText(e.target.value)}
+                  autoComplete="off"
+                  className="rounded-control bg-surface-container px-3 py-2 text-body font-normal outline-none focus:ring-2 focus:ring-primary"
+                />
+              </label>
+            ) : null}
+            <div className="flex justify-end gap-2">
+              <Button variant="secondary" onClick={closePending} disabled={busy}>
+                {t("cancel")}
+              </Button>
+              <Button
+                variant="danger"
+                onClick={confirmPending}
+                loading={busy}
+                disabled={pending?.kind === "delete" && !deleteConfirmed}
+              >
+                {pending?.kind === "delete" ? t("danger.confirmCta") : t("confirm")}
+              </Button>
+            </div>
           </div>
-        </div>
-      </Modal>
-    </section>
+        </Modal>
+      </MembersShell>
+    </>
   );
 }

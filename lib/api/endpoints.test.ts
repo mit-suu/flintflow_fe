@@ -38,6 +38,11 @@ type EndpointCase = [name: string, call: () => unknown, path: string, init?: Req
 
 const cases: EndpointCase[] = [
   ["listProjects", () => projects.listProjects("active"), "/projects?status=active"],
+  [
+    "listProjectsPage",
+    () => projects.listProjectsPage({ page: 2, limit: 24, status: "active", q: "ngan hang", sort: "updated", folder: "none" }),
+    "/projects?page=2&limit=24&status=active&q=ngan+hang&sort=updated&folder=none",
+  ],
   ["getProject", () => projects.getProject("p1"), "/projects/p1"],
   ["createProject", () => projects.createProject("App"), "/projects", post({ name: "App" })],
   ["createProject (mode 1)", () => projects.createProject("App", "import"), "/projects", post({ name: "App", mode: "import" })],
@@ -71,6 +76,18 @@ const cases: EndpointCase[] = [
     () => projects.moveProjectToFolder("p1", "f1"),
     "/projects/p1/folder",
     { method: "PATCH", body: JSON.stringify({ folderId: "f1" }) },
+  ],
+  [
+    "setErdNotation",
+    () => projects.setErdNotation("p1", "crowsfoot"),
+    "/projects/p1/erd-notation",
+    { method: "PATCH", body: JSON.stringify({ erdNotation: "crowsfoot" }) },
+  ],
+  [
+    "setSequenceLevel",
+    () => projects.setSequenceLevel("p1", "component"),
+    "/projects/p1/sequence-level",
+    { method: "PATCH", body: JSON.stringify({ sequenceLevel: "component" }) },
   ],
   [
     "setDocumentLanguage",
@@ -154,6 +171,7 @@ const cases: EndpointCase[] = [
     "/projects/p1/traceability?entity=actor&id=A01",
   ],
   ["getProgress", () => pipeline.getProgress("p1"), "/projects/p1/progress"],
+  ["getProjectVersion", () => pipeline.getProjectVersion("p1"), "/projects/p1/version"],
   ["listSteps", () => pipeline.listSteps("p1"), "/projects/p1/steps"],
   [
     "answerStep",
@@ -183,6 +201,12 @@ const cases: EndpointCase[] = [
     post({ reason: "Chấp nhận rủi ro vì phạm vi MVP" }),
   ],
   [
+    "keepFlag",
+    () => flags.keepFlag("p1", "f1", "Khách hàng chốt số đo ở bản sau, đã đồng ý"),
+    "/projects/p1/flags/f1/keep",
+    post({ reason: "Khách hàng chốt số đo ở bản sau, đã đồng ý" }),
+  ],
+  [
     "assembleDocument",
     () => exportApi.assembleDocument("p1", 4),
     "/projects/p1/assemble",
@@ -193,6 +217,30 @@ const cases: EndpointCase[] = [
   ["getTranslationStatus", () => translations.getTranslationStatus("p1"), "/projects/p1/translations/status"],
   ["runTranslation (số lô mặc định của BE)", () => translations.runTranslation("p1"), "/projects/p1/translations/run", post({})],
   ["runTranslation (max_batches)", () => translations.runTranslation("p1", 2), "/projects/p1/translations/run", post({ max_batches: 2 })],
+  // ─── FLF-334 B: ngôn ngữ đích + đích snapshot của lượt tải bị 409 ───
+  ["getTranslationStatus (locale)", () => translations.getTranslationStatus("p1", { locale: "vi" }), "/projects/p1/translations/status?locale=vi"],
+  [
+    "getTranslationStatus (locale + baseline)",
+    () => translations.getTranslationStatus("p1", { locale: "vi", baselineId: "BL001" }),
+    "/projects/p1/translations/status?locale=vi&baseline_id=BL001",
+  ],
+  [
+    "getTranslationStatus (locale + version)",
+    () => translations.getTranslationStatus("p1", { locale: "en", version: "1.0" }),
+    "/projects/p1/translations/status?locale=en&version=1.0",
+  ],
+  [
+    "runTranslation (locale + version)",
+    () => translations.runTranslation("p1", 2, { locale: "vi", version: "2.0" }),
+    "/projects/p1/translations/run",
+    post({ max_batches: 2, locale: "vi", version: "2.0" }),
+  ],
+  [
+    "runTranslation (locale + baseline)",
+    () => translations.runTranslation("p1", undefined, { locale: "vi", baselineId: "BL002" }),
+    "/projects/p1/translations/run",
+    post({ locale: "vi", baseline_id: "BL002" }),
+  ],
   ["listBaselines", () => exportApi.listBaselines("p1"), "/projects/p1/baselines"],
   ["listComments", () => comments.listComments("p1"), "/projects/p1/comments?status=open"],
   ["listComments all", () => comments.listComments("p1", "all"), "/projects/p1/comments?status=all"],
@@ -203,8 +251,21 @@ const cases: EndpointCase[] = [
     post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1", block_index: 0 }, text: "Rõ hơn" }),
   ],
   ["replyComment", () => comments.replyComment("p1", "CM-001", "Đồng ý"), "/projects/p1/comments/CM-001/replies", post({ text: "Đồng ý" })],
-  ["resolveComment", () => comments.resolveComment("p1", "CM-001"), "/projects/p1/comments/CM-001/resolve", post()],
   ["createBaseline", () => exportApi.createBaseline("p1", 12), "/projects/p1/baseline", post({ base_version: 12 })],
+  ["submitBaseline", () => exportApi.submitBaseline("p1", 12), "/projects/p1/baseline/submit", post({ base_version: 12 })],
+  [
+    "rejectBaseline",
+    () => exportApi.rejectBaseline("p1", 12, "Thiếu luồng huỷ", ["CM-001"]),
+    "/projects/p1/baseline/reject",
+    post({ base_version: 12, reason: "Thiếu luồng huỷ", comment_ids: ["CM-001"] }),
+  ],
+  [
+    "createComment (ghim cả section)",
+    () => comments.createComment("p1", { version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
+    "/projects/p1/comments",
+    post({ version: { source: "draft" }, anchor: { section_id: "fixed:2.1" }, text: "Xem lại" }),
+  ],
+  ["resolveComment", () => comments.resolveComment("p1", "CM-001", { kind: "fixed" }), "/projects/p1/comments/CM-001/resolve", post({ kind: "fixed" })],
   ["fetchNotifications", () => notifications.fetchNotifications({ unread: true }), "/notifications?unread=1"],
   ["fetchUnreadCount", () => notifications.fetchUnreadCount(), "/notifications/unread-count"],
   [
@@ -241,6 +302,13 @@ const cases: EndpointCase[] = [
     "/admin/ai-cost?groupBy=day",
   ],
   ["fetchAdminFeedback", () => admin.fetchAdminFeedback(), "/admin/feedback"],
+  ["fetchAdminFeedback (trang + tìm)", () => admin.fetchAdminFeedback({ page: 2, limit: 20, q: "dark" }), "/admin/feedback?page=2&limit=20&q=dark"],
+  ["fetchTemplateGaps", () => admin.fetchTemplateGaps(3, 20), "/admin/template-gaps?page=3&limit=20"],
+  [
+    "fetchAiCostPage",
+    () => admin.fetchAiCostPage({ groupBy: "user" }, 2, 20).catch(() => undefined),
+    "/admin/ai-cost?groupBy=user&page=2&limit=20",
+  ],
   // ─── mode 1: import (#3–#10) — route `/projects/:id/import…` ───
   ["confirmLatest", () => importApi.confirmLatest("p1", "i1"), "/projects/p1/import/confirm-latest", post({ import_id: "i1" })],
   ["getImport", () => importApi.getImport("p1"), "/projects/p1/import"],
@@ -270,10 +338,13 @@ const cases: EndpointCase[] = [
   ],
   // ─── mode 1: version + release (#12, #13, #15, #31) ───
   ["listVersions", () => versions.listVersions("p1"), "/projects/p1/versions"],
-  ["getVersionBlocks", () => versions.getVersionBlocks("p1", "0.1"), "/projects/p1/versions/0.1/blocks"],
-  ["getVersionBlocks (mã hoá version)", () => versions.getVersionBlocks("p1", "0.1/x"), "/projects/p1/versions/0.1%2Fx/blocks"],
-  ["compareVersions", () => versions.compareVersions("p1", "0.0", "0.1"), "/projects/p1/versions/compare?from=0.0&to=0.1"],
+  ["getVersionBlocks", () => versions.getVersionBlocks("p1", "0.2"), "/projects/p1/versions/0.2/blocks"],
+  ["getVersionBlocks (mã hoá version)", () => versions.getVersionBlocks("p1", "0.2/x"), "/projects/p1/versions/0.2%2Fx/blocks"],
+  ["compareVersions", () => versions.compareVersions("p1", "0.1", "0.2"), "/projects/p1/versions/compare?from=0.1&to=0.2"],
   ["releaseDocument", () => versions.releaseDocument("p1", 12), "/projects/p1/release", post({ base_version: 12 })],
+  ["getReviewPackage", () => versions.getReviewPackage("p1"), "/projects/p1/review-package"],
+  ["submitReviewPackage", () => versions.submitReviewPackage("p1", 12), "/projects/p1/review-package/submit", post({ base_version: 12 })],
+  ["requestPackageChanges", () => versions.requestPackageChanges("p1", 12, "Chưa đúng ý khách hàng"), "/projects/p1/review-package/request-changes", post({ base_version: 12, reason: "Chưa đúng ý khách hàng" })],
   // ─── mode 1: change request (#16–#30) ───
   [
     "createCr",
@@ -281,11 +352,11 @@ const cases: EndpointCase[] = [
       changeRequests.createCr("p1", {
         title: "T",
         description: "D",
-        source: { kind: "gap_report", ref: "gap-report 0.0", note: null },
+        source: { kind: "gap_report", ref: "gap-report 0.1", note: null },
         requester: "PM Lan",
       }),
     "/projects/p1/change-requests",
-    post({ title: "T", description: "D", source: { kind: "gap_report", ref: "gap-report 0.0", note: null }, requester: "PM Lan" }),
+    post({ title: "T", description: "D", source: { kind: "gap_report", ref: "gap-report 0.1", note: null }, requester: "PM Lan" }),
   ],
   ["listCrs", () => changeRequests.listCrs("p1"), "/projects/p1/change-requests"],
   ["listCrs (lọc trạng thái)", () => changeRequests.listCrs("p1", "in_review"), "/projects/p1/change-requests?status=in_review"],
@@ -360,6 +431,13 @@ describe("lib/api wrappers", () => {
     expect((init?.body as FormData).get("file")).toBe(file);
   });
 
+  it("getRunEstimate gọi /run-estimate với scope + from (FLF-332)", async () => {
+    await pipeline.getRunEstimate("p1", { scope: "all", from: "S-1" });
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate?scope=all&from=S-1");
+    await pipeline.getRunEstimate("p1");
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate");
+  });
+
   it("runStep mở luồng SSE của step", async () => {
     const handlers = { onEvent: vi.fn() };
 
@@ -429,6 +507,57 @@ describe("lib/api wrappers", () => {
     await expect(promise).rejects.toMatchObject({ status: 500, code: "EXPORT_FAILED" });
   });
 
+  it("downloadPdfExport gọi /export/pdf cùng query với Word, filename từ Content-Disposition (FLF-316)", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      new Response("%PDF-1.7", {
+        status: 200,
+        headers: { "Content-Type": "application/pdf", "Content-Disposition": 'attachment; filename="du-an-v1.0.pdf"' },
+      })
+    );
+
+    const result = await exportApi.downloadPdfExport("p1", "baseline", "BL001");
+
+    expect(authFetch).toHaveBeenCalledWith("/projects/p1/export/pdf?source=baseline&baseline_id=BL001");
+    expect(await result.blob.text()).toBe("%PDF-1.7");
+    expect(result.filename).toBe("du-an-v1.0.pdf");
+  });
+
+  it("FLF-334 B: downloadWordExport / downloadPdfExport gửi lang khi có; bỏ trống ⇒ URL như trước", async () => {
+    vi.mocked(authFetch).mockImplementation(async () => new Response("bytes", { status: 200 }));
+
+    await exportApi.downloadWordExport("p1", "draft", undefined, "en");
+    await exportApi.downloadPdfExport("p1", "baseline", "BL001", "vi");
+    await exportApi.downloadWordExport("p1", "baseline", "BL001");
+
+    expect(vi.mocked(authFetch).mock.calls.map((c) => c[0])).toEqual([
+      "/projects/p1/export/word?source=draft&lang=en",
+      "/projects/p1/export/pdf?source=baseline&baseline_id=BL001&lang=vi",
+      "/projects/p1/export/word?source=baseline&baseline_id=BL001",
+    ]);
+  });
+
+  it("FLF-334 B: 409 TRANSLATION_INCOMPLETE của export ⇒ ApiClientError mang meta { locale, missing, total }", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({ data: null, error: { code: "TRANSLATION_INCOMPLETE", message: "Còn 4 đoạn chưa dịch" }, meta: { locale: "vi", missing: 4, total: 30 } }),
+        { status: 409 }
+      )
+    );
+    await expect(exportApi.downloadWordExport("p1", "draft", undefined, "vi")).rejects.toMatchObject({
+      status: 409,
+      code: "TRANSLATION_INCOMPLETE",
+      meta: { locale: "vi", missing: 4, total: 30 },
+    });
+  });
+
+  it("downloadPdfExport ném PDF_EXPORT_UNAVAILABLE khi BE không chuyển được PDF", async () => {
+    vi.mocked(authFetch).mockResolvedValueOnce(
+      new Response(JSON.stringify({ error: { code: "PDF_EXPORT_UNAVAILABLE", message: "Chưa xuất được PDF lúc này." } }), { status: 503 })
+    );
+
+    await expect(exportApi.downloadPdfExport("p1")).rejects.toMatchObject({ status: 503, code: "PDF_EXPORT_UNAVAILABLE" });
+  });
+
   it("fetchDiagramSvg trả nội dung SVG", async () => {
     vi.mocked(authFetch).mockResolvedValueOnce(new Response("<svg/>", { status: 200 }));
 
@@ -462,6 +591,8 @@ describe("lib/api wrappers", () => {
     expect(uploadPath).toBe("/projects/p1/import");
     expect(uploadInit?.method).toBe("POST");
     expect((uploadInit?.body as FormData).get("file")).toBe(file);
+    // Ý định với file BE lấy từ dự án — không gửi kèm
+    expect((uploadInit?.body as FormData).get("intent")).toBeNull();
     expect(reuploadPath).toBe("/projects/p1/reupload");
     expect(reuploadInit?.method).toBe("POST");
     expect((reuploadInit?.body as FormData).get("file")).toBe(file);
@@ -482,24 +613,28 @@ describe("lib/api wrappers", () => {
   it("downloadVersion: mặc định variant=auto; tracked khi yêu cầu", async () => {
     vi.mocked(authFetch).mockImplementation(async () => new Response("docx", { status: 200 }));
 
-    await versions.downloadVersion("p1", "0.2");
+    await versions.downloadVersion("p1", "0.3");
     await versions.downloadVersion("p1", "1.0", "tracked");
+    await versions.downloadVersion("p1", "1.0", "auto", "pdf");
+    await versions.downloadVersion("p1", "2.0", "auto", "docx", "vi");
 
     expect(vi.mocked(authFetch).mock.calls.map((c) => c[0])).toEqual([
-      "/projects/p1/versions/0.2/download?variant=auto",
+      "/projects/p1/versions/0.3/download?variant=auto",
       "/projects/p1/versions/1.0/download?variant=tracked",
+      "/projects/p1/versions/1.0/download?variant=auto&format=pdf",
+      "/projects/p1/versions/2.0/download?variant=auto&lang=vi",
     ]);
   });
 
   it("fetchFile lỗi ⇒ ApiClientError mang code/meta của envelope; body không phải JSON ⇒ DOWNLOAD_FAILED", async () => {
     vi.mocked(authFetch).mockResolvedValueOnce(
-      new Response(JSON.stringify({ error: { code: "DOC_VERSION_NOT_FOUND", message: "Không có version 0.9" }, meta: { version: "0.9" } }), {
+      new Response(JSON.stringify({ error: { code: "DOC_VERSION_NOT_FOUND", message: "Không có version 0.10" }, meta: { version: "0.10" } }), {
         status: 404,
       })
     );
-    const failed = files.fetchFile("/projects/p1/versions/0.9/download?variant=auto");
+    const failed = files.fetchFile("/projects/p1/versions/0.10/download?variant=auto");
     await expect(failed).rejects.toBeInstanceOf(ApiClientError);
-    await expect(failed).rejects.toMatchObject({ status: 404, code: "DOC_VERSION_NOT_FOUND", meta: { version: "0.9" } });
+    await expect(failed).rejects.toMatchObject({ status: 404, code: "DOC_VERSION_NOT_FOUND", meta: { version: "0.10" } });
 
     vi.mocked(authFetch).mockResolvedValueOnce(new Response("<html>", { status: 502 }));
     await expect(files.fetchFile("/x")).rejects.toMatchObject({

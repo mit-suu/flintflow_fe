@@ -1,66 +1,94 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Badge, { type BadgeTone } from "@/components/ui/Badge";
+import { useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
+import { Badge } from "@/components/shadcn/badge";
+import { PagedDataList, SearchInput } from "@/components/ui";
 import { fetchAdminFeedback, formatDateTime, type AdminFeedbackItem } from "@/lib/api/admin";
 import type { FeedbackCategory } from "@/lib/api/feedback";
-import { AdminTopBar, ErrorBanner, LoadingBlock } from "../_components/AdminPage";
+import { useDebounce } from "@/lib/hooks/use-debounce";
+import { usePagedList } from "@/lib/hooks/use-paged-list";
+import AdminHeader from "../_components/AdminHeader";
+import { AdminMain, AdminPageHeader, AdminScroll, ErrorBanner } from "../_components/AdminPage";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
-const CATEGORY: Record<FeedbackCategory, { label: string; tone: BadgeTone }> = {
-  bug: { label: "Báo lỗi", tone: "danger" },
-  suggestion: { label: "Đề xuất", tone: "primary" },
-  other: { label: "Khác", tone: "neutral" },
+/** Badge nền trắng, phân loại bằng màu viền + chữ (cùng kiểu với badge trong bảng). Nhãn ở `admin.feedback.categories`. */
+const CATEGORY_CLASS: Record<FeedbackCategory, string> = {
+  bug: "border-error-border text-destructive",
+  suggestion: "border-primary/40 text-primary",
+  other: "text-muted-foreground",
 };
 
-export default function AdminFeedbackPage() {
-  const [items, setItems] = useState<AdminFeedbackItem[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+const PAGE_SIZE = 20;
 
-  useEffect(() => {
-    let cancelled = false;
-    fetchAdminFeedback()
-      .then((next) => {
-        if (!cancelled) setItems(next);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(userErrorMessage(err, "Không thể tải phản hồi"));
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+/**
+ * Góp ý người dùng (UC-12) — thanh số trang (FLF-404): phân trang và tìm (không dấu, theo nội dung / email / tên người gửi)
+ * chạy ở BE. Ô tìm nằm ngoài vùng cuộn nên luôn thấy được.
+ */
+export default function AdminFeedbackPage() {
+  const t = useTranslations("admin");
+  const locale = useLocale();
+  const [query, setQuery] = useState("");
+  // Gõ liên tục chỉ gọi BE một lần sau khi dừng gõ
+  const q = useDebounce(query.trim(), 300);
+
+  const list = usePagedList<AdminFeedbackItem>({
+    key: q,
+    fetchPage: (page) => fetchAdminFeedback({ page, limit: PAGE_SIZE, q: q || undefined }),
+  });
 
   return (
     <>
-      <AdminTopBar trail={["Phản hồi"]} />
-      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8">
-        <h1 className="text-[24px] font-extrabold text-on-surface tracking-tight">Phản hồi người dùng</h1>
-        {error && <ErrorBanner message={error} />}
-        <div className="bg-surface-container-lowest border border-outline-variant rounded-[16px]">
-          {items === null && !error ? (
-            <LoadingBlock label="Đang tải phản hồi…" variant="list" bare />
-          ) : !items || items.length === 0 ? (
-            <div className="py-16 text-center text-[13px] text-on-surface-subtle">Chưa có phản hồi nào.</div>
-          ) : (
-            <ul className="divide-y divide-outline-subtle">
-              {items.map((item) => (
-                <li key={item._id} className="flex flex-col gap-1.5 px-5 py-4">
-                  <div className="flex flex-wrap items-center gap-2 text-[11.5px] text-on-surface-muted">
-                    <Badge tone={CATEGORY[item.category].tone}>{CATEGORY[item.category].label}</Badge>
-                    <span className="font-semibold text-on-surface-dark">
-                      {item.user ? item.user.name || item.user.email : "Tài khoản đã xoá"}
-                    </span>
-                    {item.user?.name && <span>{item.user.email}</span>}
-                    <span className="ml-auto">{formatDateTime(item.createdAt)}</span>
-                  </div>
-                  <p className="text-[13px] text-on-surface leading-[1.6] whitespace-pre-wrap break-words">{item.message}</p>
-                </li>
-              ))}
-            </ul>
+      <AdminHeader />
+      <AdminMain>
+        <AdminPageHeader title={t("feedback.title")} description={t("feedback.description")} />
+        <div className="flex shrink-0 flex-wrap items-center gap-3">
+          <SearchInput
+            value={query}
+            onChange={setQuery}
+            label={t("feedback.searchLabel")}
+            placeholder={t("feedback.searchPlaceholder")}
+            className="sm:w-[360px]"
+          />
+          {q !== "" && !list.loading && (
+            <span className="text-muted-foreground text-body tabular-nums" aria-live="polite">
+              {t("feedback.results", { count: list.total })}
+            </span>
           )}
         </div>
-      </div>
+        {list.error ? <ErrorBanner message={userErrorMessage(list.error, t("feedback.loadFailed"))} /> : null}
+
+        <AdminScroll>
+          <PagedDataList
+            list={list}
+            getKey={(item) => item._id}
+            loadingLabel={t("feedback.loading")}
+            rowClassName="flex flex-col gap-2"
+            empty={
+              !list.error && (
+                <p className="bg-surface-container-low text-muted-foreground rounded-card px-4 py-16 text-center text-body">
+                  {q === "" ? t("feedback.empty") : t("feedback.noMatch", { query: q })}
+                </p>
+              )
+            }
+            renderItem={(item) => (
+              <>
+                <div className="text-muted-foreground flex flex-wrap items-center gap-2 text-caption">
+                  <Badge variant="outline" className={CATEGORY_CLASS[item.category]}>
+                    {t(`feedback.categories.${item.category}`)}
+                  </Badge>
+                  <span className="text-foreground font-semibold">
+                    {item.user ? item.user.name || item.user.email : t("feedback.deletedAccount")}
+                  </span>
+                  {item.user?.name && <span>{item.user.email}</span>}
+                  <span className="ms-auto">{formatDateTime(item.createdAt, locale)}</span>
+                </div>
+                <p className="text-body leading-[1.6] break-words whitespace-pre-wrap">{item.message}</p>
+              </>
+            )}
+          />
+        </AdminScroll>
+      </AdminMain>
     </>
   );
 }

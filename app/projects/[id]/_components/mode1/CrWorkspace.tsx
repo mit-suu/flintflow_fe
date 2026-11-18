@@ -2,31 +2,22 @@
 
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
-import { CR_MAX_MATERIALS, CR_TERMINAL_STATUSES, type CrDetail, type CrLocation } from "@/types/change-request";
+import { useTranslations } from "next-intl";
+import { CR_TERMINAL_STATUSES, type CrLocation } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
 import { useChangeRequest } from "../../hooks/mode1/useChangeRequest";
 import ChangeGroupPanel from "./ChangeGroupPanel";
 import ClarifyPanel from "./ClarifyPanel";
-import { MaterialAdder, MaterialList } from "./CrMaterials";
+import { MaterialList } from "./CrMaterials";
 import CrTimeline from "./CrTimeline";
 import ImpactList from "./ImpactList";
-import { CR_SOURCE_LABELS, CR_STATUS_LABELS, formatDateTime } from "./labels";
-import { sourceRefLabel } from "./spine-labels";
-import PausedBanner from "./PausedBanner";
+import { useMode1Labels } from "./i18n";
 import ReasonDialog from "./ReasonDialog";
 import { crListHref } from "./prefill";
 
 /** Vị trí AI cần (đề xuất lại): chưa kết luận, hoặc kiểm trượt mà không phải sửa tay — cùng luật `needsProposal` BE. */
 export const needsProposal = (l: CrLocation): boolean => !l.manual && (l.conclusion === null || (l.verify !== null && !l.verify.code_ok));
 
-/** Trạng thái BE cho phép sửa tay vị trí (`location.service`). */
-const EDITABLE = ["impact_review", "proposing", "manual_fix", "ready_to_submit"] as const;
-
-const PAUSED_WHAT: Partial<Record<CrDetail["change_request"]["status"], string>> = {
-  clarifying: "Làm rõ",
-  proposing: "Đề xuất sửa",
-  verifying: "Kiểm đề xuất",
-};
 
 interface CrWorkspaceProps {
   projectId: string;
@@ -35,21 +26,27 @@ interface CrWorkspaceProps {
   onChanged?: () => void;
   /** Viewer: chỉ xem CR — ẩn mọi nút hành động (BE cũng chặn ghi với 403). */
   readOnly?: boolean;
+  /** BF §3.2 / UC-45 A6: người đang xem — CR của người khác treo ở người tạo (không mở vào chat của mình). */
+  myUserId?: string | null;
+  /** UC-48 (AC-48.2): Huỷ CR chỉ người tạo hoặc Lead. */
+  orgRole?: string | null;
 }
 
 /**
  * Workspace một change request (3.1–3.14): mọi nút hành động chọn theo `status` BE trả. Bước AI (làm rõ, đề
  * xuất, kiểm) chạy đồng bộ; hết credit / lỗi AI ⇒ CR `paused` + nút tiếp tục.
  */
-export default function CrWorkspace({ projectId, crId, onChanged, readOnly = false }: CrWorkspaceProps) {
+export default function CrWorkspace({ projectId, crId, onChanged, readOnly = false, myUserId = null, orgRole = null }: CrWorkspaceProps) {
+  const t = useTranslations("mode1.crWorkspace");
+  const L = useMode1Labels();
   const cr = useChangeRequest(projectId, crId);
   const [dialog, setDialog] = useState<"cancel" | "close" | null>(null);
 
-  if (cr.loading) return <PageSkeleton rows={2} label="Đang tải change request" />;
+  if (cr.loading) return <PageSkeleton rows={2} label={t("loading")} />;
   if (!cr.detail) {
     return (
       <div role="alert" className="bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] rounded-[12px] px-4 py-3 text-body">
-        {cr.error ?? "Không tìm thấy change request"}
+        {cr.error ?? t("notFound")}
       </div>
     );
   }
@@ -59,18 +56,8 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
   const after = (p: Promise<boolean>) => void p.then((ok) => ok && onChanged?.());
   const terminal = CR_TERMINAL_STATUSES.includes(c.status);
   const allRejected = groups.length > 0 && groups.every((g) => g.decision === "rejected");
-  // Phase 7: tài liệu bổ sung chỉ thêm / xoá được trước khi tìm vị trí (BE: draft, awaiting_answers)
-  const materialsEditable = !readOnly && (c.status === "draft" || c.status === "awaiting_answers") && !c.paused;
-  const materialAdder = (
-    <MaterialAdder
-      busy={cr.busy === "material"}
-      full={c.materials.length >= CR_MAX_MATERIALS}
-      onAddText={(name, text) => cr.addMaterialText(name, text)}
-      onAddFile={(file) => cr.addMaterialFile(file)}
-    />
-  );
 
-  const primary = (label: string, onClick: () => void, busyLabel = "Đang chạy…") => (
+  const primary = (label: string, onClick: () => void, busyLabel = t("running")) => (
     <button
       type="button"
       onClick={onClick}
@@ -81,55 +68,22 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
     </button>
   );
 
-  /** Việc tiếp theo theo trạng thái — không suy diễn gì ngoài dữ liệu BE trả. */
+  /**
+   * FLF-375: popup CR chỉ để xem lại / Lead duyệt gói. Mọi bước của CR đang mở (làm rõ, đề xuất, kiểm, xác nhận) làm trong
+   * khung chat — một chỗ làm việc, không có bộ nút thứ hai.
+   */
+  // Không biết mình là ai (props cũ) ⇒ coi như của mình, giữ hành vi cũ; BE vẫn chặn 403 `CR_NOT_REQUESTER`
+  const mine = !myUserId || c.created_by === myUserId;
+  const canCancel = mine || orgRole === "lead";
   let next: ReactNode = null;
-  if (c.paused) {
-    next = <PausedBanner paused={c.paused} what={PAUSED_WHAT[c.status] ?? "Bước AI"} busy={cr.busy === "resume"} onResume={() => after(cr.action("resume"))} />;
-  } else if (c.status === "draft" || c.status === "clarifying") {
+  if (!mine && (c.paused || (!terminal && c.status !== "in_review"))) {
+    next = <Step text={t("heldByOther", { who: c.created_by_name || c.requester, status: L.crStatus(c.status) })} />;
+  } else if (c.paused || (!terminal && c.status !== "in_review")) {
     next = (
-      <Step text="AI đọc yêu cầu và tài liệu đính kèm, hỏi lại nếu còn mơ hồ hoặc thiếu dữ kiện để viết nội dung (tốn credit).">
-        {primary("Bắt đầu làm rõ (AI)", () => after(cr.action("clarify")), "AI đang làm rõ…")}
-      </Step>
-    );
-  } else if (c.status === "impact_review" && locations.length === 0) {
-    next = (
-      <Step text="Tìm mọi chỗ trong tài liệu liên quan tới yêu cầu (qua liên kết giữa các phần, mã được nhắc tới, từ khoá) và giữ chúng cho CR này để không ai sửa chồng — không tốn credit.">
-        {primary("Tìm vị trí ảnh hưởng & khoá", () => after(cr.action("impact")), "Đang tìm…")}
-      </Step>
-    );
-  } else if (c.status === "impact_review" || (c.status === "proposing" && locations.some(needsProposal))) {
-    const redo = locations.some((l) => l.verify && !l.verify.code_ok);
-    // AI đã chạy mà còn vị trí chưa kết luận (model bỏ sót) ⇒ nói rõ, cho chọn chạy lại hoặc sửa tay
-    const missed = c.status === "proposing" && !redo ? locations.filter((l) => l.conclusion === null).length : 0;
-    const text = redo
-      ? "Một số đề xuất trượt kiểm — AI đề xuất lại các vị trí đó (tối đa 2 lần)."
-      : missed > 0 && missed < locations.length
-        ? `AI chưa kết luận ${missed} vị trí. Bấm chạy lại, hoặc dùng "Sửa tay" ở từng vị trí bên dưới để tự kết luận.`
-        : "AI đề xuất cho từng vị trí: sửa, chỉ comment, hoặc không liên quan kèm lý do (tốn credit).";
-    next = (
-      <Step text={text}>
-        {primary(redo ? "AI làm lại vị trí trượt" : "AI đề xuất sửa", () => after(cr.action("propose")), "AI đang đề xuất…")}
-      </Step>
-    );
-  } else if (c.status === "proposing" || c.status === "verifying") {
-    next = (
-      <Step text="Kiểm tra tự động (nội dung gốc chưa bị sửa ở chỗ khác, dữ liệu hợp lệ, không phát sinh lỗi đỏ mới) và AI soát tính nhất quán (chỉ cảnh báo vàng).">
-        {primary("Kiểm đề xuất", () => after(cr.action("verify")), "Đang kiểm…")}
-      </Step>
-    );
-  } else if (c.status === "manual_fix") {
-    next = (
-      <Step
-        tone="warn"
-        text="AI đã làm lại 2 lần mà vẫn trượt kiểm. Sửa các vị trí chưa đạt bên dưới — “Nhờ AI sửa theo quy tắc” để AI viết lại theo quy tắc soạn của phần đó, hoặc sửa trực tiếp — rồi kiểm lại; hoặc huỷ change request."
-      >
-        {primary("Kiểm lại", () => after(cr.action("verify")), "Đang kiểm…")}
-      </Step>
-    );
-  } else if (c.status === "ready_to_submit") {
-    next = (
-      <Step text="Mọi vị trí đã có kết luận và đạt kiểm. Nộp để duyệt từng nhóm thay đổi.">
-        {primary("Nộp để duyệt", () => after(cr.action("submit")), "Đang nộp…")}
+      <Step text={t("inChatText", { status: L.crStatus(c.status) })}>
+        <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-body font-bold">
+          {t("openInChat")}
+        </Link>
       </Step>
     );
   } else if (c.status === "in_review") {
@@ -139,40 +93,36 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
       allRejected || groups.length === 0 ? (
         <Step
           tone="warn"
-          text={
-            groups.length === 0
-              ? 'Không có nhóm thay đổi nào để duyệt — mọi vị trí đều kết luận "không liên quan". Sửa lại CR để kết luận lại từng vị trí, hoặc đóng CR.'
-              : "Mọi nhóm đều bị từ chối. Sửa lại CR (khoá lại phần tử, AI đề xuất lại) hoặc đóng CR."
-          }
+          text={groups.length === 0 ? t("noGroupsText") : t("allRejectedText")}
         >
           <div className="flex gap-2">
             <button type="button" disabled={busy} onClick={() => setDialog("close")} className="px-4 py-2 rounded-[10px] border border-[#F2CACA] bg-white text-body font-bold text-[#B03030] disabled:opacity-50">
-              Đóng CR
+              {t("closeCr")}
             </button>
-            {primary("Sửa lại CR", () => after(cr.action("revise")), "Đang khoá lại…")}
+            {primary(t("reviseButton"), () => after(cr.action("revise")), t("reviseBusy"))}
           </div>
         </Step>
       ) : (
-        <Step text="Duyệt hoặc từ chối từng nhóm. Khi nhóm cuối được quyết mà có nhóm được duyệt ⇒ thay đổi được ghi vào tài liệu và tạo bản mới." />
+        <Step text={t("reviewText")} />
       );
   } else if (c.status === "written") {
     next = (
       <Step
         tone="ok"
-        text={`Đã ghi vào bản ${c.result_doc_version ?? "mới"} — tải bản có đánh dấu (Track Changes + comment, tác giả ${c.cr_id}) ở mục Version.`}
+        text={c.result_doc_version ? t("writtenText", { version: c.result_doc_version, crId: c.cr_id }) : t("writtenNewText", { crId: c.cr_id })}
       >
         <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] bg-[#1F7A45] text-white text-body font-bold">
-          Xem tài liệu
+          {t("viewDoc")}
         </Link>
       </Step>
     );
   } else if (c.status === "rejected" || c.status === "cancelled") {
-    next = <Step tone="muted" text={`${CR_STATUS_LABELS[c.status]}${c.closed_reason ? ` — ${c.closed_reason}` : ""}.`} />;
+    next = <Step tone="muted" text={c.closed_reason ? t("closedReasonText", { status: L.crStatus(c.status), reason: c.closed_reason }) : t("closedText", { status: L.crStatus(c.status) })} />;
   }
 
   // Viewer: thay bước tiếp theo (toàn nút hành động) bằng lời nhắc; CR đã kết thúc thì vẫn hiện kết quả như thường
   if (readOnly && !terminal) {
-    next = <Step tone="muted" text="Bạn đang xem với vai trò Viewer — chỉ Lead hoặc Analyst thao tác được change request." />;
+    next = <Step tone="muted" text={t("viewerText")} />;
   }
 
   return (
@@ -181,20 +131,21 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
         <div className="flex-1 min-w-[260px]">
           <p className="text-body">
             <Link href={crListHref(projectId)} scroll={false} className="text-[#8A867E] hover:text-[#191817] font-semibold">
-              Change request
+              {t("breadcrumb")}
             </Link>
             <span className="text-[#D6D2CB]"> / </span>
             <code className="font-bold text-[#6A62C4]">{c.cr_id}</code>
           </p>
           <h2 className="text-title font-extrabold text-[#191817]">{c.title}</h2>
           <p className="text-body text-[#8A867E]">
-            {CR_SOURCE_LABELS[c.source.kind]}
-            {sourceRefLabel(c.source.ref) ? ` · ${sourceRefLabel(c.source.ref)}` : ""} · yêu cầu bởi {c.requester} · tạo {formatDateTime(c.created_at)} · trên bản {c.base_doc_version}
+            {L.crSource(c.source.kind)}
+            {L.sourceRefLabel(c.source.ref) ? ` · ${L.sourceRefLabel(c.source.ref)}` : ""}
+            {t("meta", { requester: c.requester, created: L.formatDateTime(c.created_at), version: c.base_doc_version })}
           </p>
         </div>
-        {!terminal && !readOnly && (
+        {!terminal && !readOnly && canCancel && (
           <button type="button" onClick={() => setDialog("cancel")} disabled={busy} className="px-3 py-1.5 rounded-[8px] border border-[#F2CACA] bg-white text-body font-bold text-[#B03030] disabled:opacity-50">
-            Huỷ CR
+            {t("cancelCr")}
           </button>
         )}
       </div>
@@ -204,34 +155,25 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
       <p className="text-body text-[#33312D] whitespace-pre-wrap bg-white border border-[#ECEAE5] rounded-[14px] p-3.5">{c.description}</p>
 
       {c.seed && (
-        <p className="text-body text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] px-3.5 py-2.5" aria-label="Bản xem trước đính kèm">
-          Đính kèm bản xem trước ({c.seed.ops.length} thay đổi{c.seed.targets.length ? ` trên ${c.seed.targets.length} phần tử` : ""}) — AI dùng làm gợi ý khi làm rõ,
-          tìm vị trí và đề xuất.
+        <p className="text-body text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] px-3.5 py-2.5" aria-label={t("seedAria")}>
+          {c.seed.targets.length ? t("seedTargets", { count: c.seed.ops.length, targets: c.seed.targets.length }) : t("seed", { count: c.seed.ops.length })}
         </p>
       )}
 
-      {(c.materials.length > 0 || (materialsEditable && c.status === "draft")) && (
-        <section className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[14px] p-3.5" aria-label="Tài liệu bổ sung của CR">
-          <h3 className="font-bold text-[#191817] text-body">Tài liệu bổ sung ({c.materials.length})</h3>
-          {c.status === "draft" && (
-            <p className="text-body text-[#6B6862]">
-              Đính kèm email, biên bản, đặc tả… có dữ kiện cho thay đổi (con số, luật, luồng, trường dữ liệu) — AI viết theo đúng tài
-              liệu thay vì tự đoán.
-            </p>
-          )}
+      {c.materials.length > 0 && (
+        <section className="flex flex-col gap-2 bg-[#FAF9F7] border border-[#ECEAE5] rounded-[14px] p-3.5" aria-label={t("materialsAria")}>
+          <h3 className="font-bold text-[#191817] text-body">{t("materialsTitle", { count: c.materials.length })}</h3>
           <MaterialList
             items={c.materials.map((m) => ({ key: m.material_id, name: m.name, kind: m.kind, text: m.text, truncated: m.truncated, round: m.round }))}
-            onRemove={materialsEditable ? (id) => void cr.removeMaterial(id) : undefined}
-            busy={cr.busy === "material"}
+            busy={false}
           />
-          {materialsEditable && c.status === "draft" && materialAdder}
         </section>
       )}
 
       {cr.error && (
         <div role="alert" className="flex items-center gap-3 bg-[#FDEDED] border border-[#F2CACA] text-[#8A4141] px-4 py-3 rounded-[12px] text-body">
           <span className="flex-1">{cr.error}</span>
-          <button type="button" onClick={cr.clearError} className="font-bold hover:opacity-75" aria-label="Đóng thông báo lỗi">
+          <button type="button" onClick={cr.clearError} className="font-bold hover:opacity-75" aria-label={t("errorClose")}>
             ✕
           </button>
         </div>
@@ -243,16 +185,15 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
         <ClarifyPanel
           key={`${c.clarifications.length}:${pending_questions.join("|")}`}
           cr={c}
-          pendingQuestions={c.status === "awaiting_answers" && !readOnly ? pending_questions : []}
-          busy={cr.busy === "answers"}
-          onAnswer={(answers) => after(cr.answer(answers))}
-          materials={c.status === "awaiting_answers" && materialsEditable ? materialAdder : undefined}
+          pendingQuestions={[]}
+          busy={false}
+          onAnswer={() => undefined}
         />
       )}
 
       {c.missing_info.length > 0 && !terminal && (
-        <div className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] px-3.5 py-2.5 text-body text-[#8A6D1F]" aria-label="Dữ kiện còn thiếu">
-          <p className="font-bold">Còn thiếu dữ kiện — AI sẽ tự giả định và đánh dấu ở từng đề xuất để người duyệt xác nhận:</p>
+        <div className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] px-3.5 py-2.5 text-body text-[#8A6D1F]" aria-label={t("missingInfoAria")}>
+          <p className="font-bold">{t("missingInfoTitle")}</p>
           <ul className="list-disc pl-5">
             {c.missing_info.map((f, i) => (
               <li key={i}>{f}</li>
@@ -270,25 +211,15 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
           onDecide={(gid, decision, reason) => after(cr.decide(gid, decision, reason))}
         />
       ) : (
-        <ImpactList
-          locations={locations}
-          editable={!readOnly && (EDITABLE as readonly string[]).includes(c.status) && !c.paused}
-          busy={cr.busy === "patch"}
-          onPatch={(locId, body) => after(cr.patch(locId, body))}
-          onOwnerDraft={!readOnly && c.status === "manual_fix" && !c.paused ? (locId, instruction) => after(cr.ownerDraft(locId, instruction)) : undefined}
-        />
+        <ImpactList locations={locations} />
       )}
 
       <ReasonDialog
         key={dialog ?? "none"}
         open={dialog !== null}
-        title={dialog === "close" ? "Đóng change request" : "Huỷ change request"}
-        description={
-          dialog === "close"
-            ? "Mọi nhóm đã bị từ chối. Đóng CR sẽ mở khoá toàn bộ block, CR chuyển sang trạng thái từ chối."
-            : "Huỷ sẽ mở khoá mọi block CR đang giữ. Không ghi gì vào tài liệu."
-        }
-        confirmLabel={dialog === "close" ? "Đóng CR" : "Huỷ CR"}
+        title={dialog === "close" ? t("closeTitle") : t("cancelTitle")}
+        description={dialog === "close" ? t("closeDescription") : t("cancelDescription")}
+        confirmLabel={dialog === "close" ? t("closeCr") : t("cancelCr")}
         busy={cr.busy === "close" || cr.busy === "cancel"}
         onClose={() => setDialog(null)}
         onConfirm={(reason) => {
@@ -306,6 +237,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
 }
 
 function Step({ text, tone = "info", children }: { text: string; tone?: "info" | "warn" | "ok" | "muted"; children?: ReactNode }) {
+  const t = useTranslations("mode1.crWorkspace");
   const cls = {
     info: "bg-[#F2F1FB] border-[#DCD8F0] text-[#554DB0]",
     warn: "bg-[#FBF4E4] border-[#EFD9A6] text-[#8A6D1F]",
@@ -313,7 +245,7 @@ function Step({ text, tone = "info", children }: { text: string; tone?: "info" |
     muted: "bg-[#F0EEEA] border-[#E4E1DC] text-[#6B6862]",
   }[tone];
   return (
-    <div className={`flex flex-wrap items-center gap-3 rounded-[12px] border px-4 py-3 text-body ${cls}`} aria-label="Bước tiếp theo">
+    <div className={`flex flex-wrap items-center gap-3 rounded-[12px] border px-4 py-3 text-body ${cls}`} aria-label={t("stepAria")}>
       <p className="flex-1 min-w-[220px]">{text}</p>
       {children}
     </div>

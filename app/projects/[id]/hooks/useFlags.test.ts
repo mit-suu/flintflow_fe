@@ -1,4 +1,5 @@
 import { renderHook, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { applyChanges, getSpine } from "@/lib/api/spine";
 import { mockTiming, resetMockChangeFlowState } from "@/mocks/handlers";
@@ -81,15 +82,45 @@ describe("useFlags", () => {
     expect(result.current.flags.find((f) => f.id === "FLX")?.waived_by_user).toBe(false);
   });
 
+  it("FLF-329: waive cờ đỏ ⇒ FLAG_NOT_WAIVABLE; keep() ghi kept_reason mà cờ vẫn mở", async () => {
+    const spineVersion = await seedFlag({ id: "FLR", level: "red", rule_id: "nfr_missing_number" });
+    const { result } = renderHook(() => useFlags(P, spineVersion));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    await expect(result.current.waive("FLR", "Lý do đủ dài để vượt ngưỡng 20 ký tự")).rejects.toMatchObject({ code: "FLAG_NOT_WAIVABLE" });
+
+    await result.current.keep("FLR", "Khách hàng chốt số đo ở bản sau, đã đồng ý");
+    await waitFor(() => expect(result.current.flags.find((f) => f.id === "FLR")?.kept_reason).toBe("Khách hàng chốt số đo ở bản sau, đã đồng ý"));
+    const kept = result.current.flags.find((f) => f.id === "FLR")!;
+    expect(kept.resolved_at).toBeNull();
+    expect(kept.waived_by_user).toBe(false);
+    expect(result.current.error).toBeNull();
+  });
+
   it("recompute() tải lại danh sách cờ từ BE", async () => {
     const spineVersion = await seedFlag({ id: "FLZ", level: "yellow", rule_id: "orphan_actor" });
     const { result } = renderHook(() => useFlags(P, spineVersion));
     await waitFor(() => expect(result.current.loading).toBe(false));
 
-    await result.current.recompute();
+    const next = await result.current.recompute();
 
     expect(result.current.busy).toBe(false);
     expect(result.current.flags.some((f) => f.id === "FLZ")).toBe(true);
+    // Giá trị trả về là cờ MỚI (nơi gọi không phải đọc `flags` cũ trong closure)
+    expect(next.some((f) => f.id === "FLZ")).toBe(true);
+  });
+
+  it("recompute() lỗi ⇒ đặt error rồi ném, giữ danh sách cờ cũ", async () => {
+    const spineVersion = await seedFlag({ id: "FLE", level: "yellow", rule_id: "orphan_actor" });
+    const { result } = renderHook(() => useFlags(P, spineVersion));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    mockServer.use(http.post("*/projects/:projectId/flags/recompute", () => HttpResponse.json({ error: { code: "INTERNAL", message: "boom" } }, { status: 500 })));
+
+    await expect(result.current.recompute()).rejects.toBeDefined();
+
+    await waitFor(() => expect(result.current.error).toBeTruthy());
+    expect(result.current.busy).toBe(false);
+    expect(result.current.flags.some((f) => f.id === "FLE")).toBe(true);
   });
 
   it("spineVersion = null: không gọi API, giữ danh sách rỗng", () => {

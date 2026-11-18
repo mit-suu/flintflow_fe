@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import type { PreviewResult } from "@/types/pipeline";
+import type { Spine } from "@/types/spine";
 import DiffPreviewModal from "../DiffPreviewModal";
 import { crPrefillHref, titleFromInstruction } from "./prefill";
 
@@ -10,6 +12,8 @@ interface CreateCrPreviewModalProps {
   preview: PreviewResult;
   /** Câu lệnh của bản xem trước — thành tiêu đề + mô tả CR. */
   instruction: string;
+  /** Đổi mã tham chiếu trong diff thành tên (FLF-297). */
+  spine?: Spine | null;
   onCancel: () => void;
 }
 
@@ -18,7 +22,8 @@ interface CreateCrPreviewModalProps {
  * `preview_id` (nguồn gợi ý: yêu cầu miệng; nguồn và người yêu cầu do BA xác nhận). CR đi đủ 3.2 → 3.14, bản xem trước
  * chỉ là gợi ý cho AI. Tách riêng để panel của mode 2 không phụ thuộc router.
  */
-export default function CreateCrPreviewModal({ projectId, preview, instruction, onCancel }: CreateCrPreviewModalProps) {
+export default function CreateCrPreviewModal({ projectId, preview, instruction, spine, onCancel }: CreateCrPreviewModalProps) {
+  const t = useTranslations("mode1.crPreviewModal");
   const router = useRouter();
   // Bản xem trước lỗi (AI dựng op sai đường dẫn, vi phạm luật…) không chặn 3.1: vẫn tạo CR từ câu lệnh, chỉ không kèm
   // bản xem trước — CR vẫn đi đủ 3.2 → 3.6 để AI tự làm rõ, tìm vị trí và đề xuất (gặp khi chạy e2e thật 2026-09-22)
@@ -30,15 +35,12 @@ export default function CreateCrPreviewModal({ projectId, preview, instruction, 
   return (
     <DiffPreviewModal
       preview={preview}
+      spine={spine}
       onCancel={onCancel}
       onConfirm={create}
       confirmWhenInvalid
-      confirmLabel={usable ? "Tạo CR" : "Tạo CR (không kèm bản xem trước)"}
-      note={
-        usable
-          ? "Thay đổi này sẽ thành change request (điền nguồn và người yêu cầu ở bước sau). Tài liệu chỉ đổi khi CR được duyệt."
-          : "Bản xem trước lỗi — vẫn tạo được change request từ câu lệnh; AI sẽ làm rõ, tìm vị trí và đề xuất trong CR."
-      }
+      confirmLabel={usable ? t("create") : t("createNoPreview")}
+      note={usable ? t("note") : t("noteInvalid")}
     />
   );
 }

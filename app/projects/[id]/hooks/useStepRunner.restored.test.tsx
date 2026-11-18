@@ -53,7 +53,7 @@ beforeEach(() => {
 const setup = (onSpineChanged = vi.fn()) =>
   renderHook(() => useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 12, onSpineChanged }));
 
-describe("stepRunnerReducer — nguồn state và lượt đã tách", () => {
+describe("stepRunnerReducer - nguồn state và lượt đã tách", () => {
   it("state dựng lại từ run-state mang nguồn `restored`; lượt chạy trực tiếp là `live`", () => {
     expect(stepRunnerReducer(initialRunnerState, { type: "start", stepId: "S-3.1" }).source).toBe("live");
     expect(stepRunnerReducer(initialRunnerState, { type: "restored", state: run({}) }).source).toBe("restored");
@@ -85,7 +85,7 @@ describe("stepRunnerReducer — nguồn state và lượt đã tách", () => {
   });
 });
 
-describe("useStepRunner — trả lời khi không còn SSE", () => {
+describe("useStepRunner - trả lời khi không còn SSE", () => {
   it("reload giữa lúc chờ → trả lời → theo dõi run-state tới GateCard, không cần F5 thêm", async () => {
     getActiveRunState.mockResolvedValue({ data: run({}) });
     getRunState
@@ -105,6 +105,23 @@ describe("useStepRunner — trả lời khi không còn SSE", () => {
     await waitFor(() => expect(result.current.state.status).toBe("gate_ready"), { timeout: 8_000 });
     expect(result.current.state.gate?.actions).toEqual(["accept"]);
     expect(onSpineChanged).toHaveBeenCalledWith(21);
+  }, 20_000);
+
+  it("FLF-393: trả lời bằng chat khi không còn SSE → lượt nền hỏi tiếp ⇒ tải lại phiên chat để lời AI hiện ngay (không cần F5)", async () => {
+    getActiveRunState.mockResolvedValue({ data: run({}) });
+    getRunState
+      .mockResolvedValueOnce({ data: run({ status: "running", stage: "ask", alive: true, questions: null }) })
+      .mockResolvedValue({ data: run({ status: "waiting_answer", alive: true, questions: [{ id: "Q2", text: "Người dùng nạp credit bằng cách nào?" }] }) });
+    const onTranscriptChanged = vi.fn();
+    const { result } = renderHook(() => useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 12, onSpineChanged: vi.fn(), onTranscriptChanged }));
+
+    await act(async () => void (await result.current.restore()));
+    await act(async () => result.current.answer([], "Dự án có bao nhiêu use case?"));
+    expect(onTranscriptChanged).not.toHaveBeenCalled();
+
+    await waitFor(() => expect(result.current.state.status).toBe("needs_input"), { timeout: 15_000 });
+    expect(result.current.state.questions).toEqual([{ id: "Q2", text: "Người dùng nạp credit bằng cách nào?" }]);
+    expect(onTranscriptChanged).toHaveBeenCalledTimes(1);
   }, 20_000);
 
   it("lượt nền lỗi sau khi trả lời ⇒ hiện lỗi, dừng theo dõi", async () => {

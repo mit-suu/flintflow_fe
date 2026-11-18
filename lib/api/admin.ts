@@ -2,6 +2,8 @@ import { apiCall } from "./client";
 import type { CreditTransaction } from "./billing";
 import type { FeedbackCategory } from "./feedback";
 import type { OrgRole } from "@/types/organization";
+import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
+import type { ListPage } from "@/lib/hooks/use-infinite-list";
 
 export type AdminUserRole = "user" | "admin";
 export type AiCostGroupBy = "day" | "actionType" | "provider" | "user";
@@ -94,8 +96,12 @@ export interface FetchAiCostParams {
   groupBy?: AiCostGroupBy;
 }
 
-const unwrap = <T>(data: T | null, what: string): T => {
-  if (data === null) throw new Error(`Không nhận được dữ liệu ${what}`);
+/**
+ * BE trả `data: null` là lỗi lạ của máy chủ chứ không phải câu cho người: message mang mã kỹ thuật để
+ * `userErrorMessage` thay bằng câu dự phòng đã dịch của trang gọi.
+ */
+const unwrap = <T>(data: T | null, endpoint: string): T => {
+  if (data === null) throw new Error(`EMPTY_RESPONSE ${endpoint}`);
   return data;
 };
 
@@ -118,7 +124,7 @@ export async function fetchAdminUsers(params: FetchUsersParams = {}) {
 
 export async function fetchAdminUser(id: string): Promise<AdminUserDetail> {
   const res = await apiCall<AdminUserDetail>(`/admin/users/${id}`);
-  return unwrap(res.data, "người dùng");
+  return unwrap(res.data, "GET /admin/users/:id");
 }
 
 export interface AdminUserStatus {
@@ -143,17 +149,31 @@ export async function setAdminUserStatus(
     method: "PATCH",
     body: JSON.stringify(body),
   });
-  return unwrap(res.data, "trạng thái tài khoản");
+  return unwrap(res.data, "PATCH /admin/users/:id/status");
 }
 
 export async function fetchAdminMetrics(): Promise<AdminMetrics> {
   const res = await apiCall<AdminMetrics>("/admin/metrics");
-  return unwrap(res.data, "số liệu");
+  return unwrap(res.data, "GET /admin/metrics");
 }
 
 export async function fetchAiCost(params: FetchAiCostParams = {}): Promise<AiCostReport> {
   const res = await apiCall<AiCostReport>(`/admin/ai-cost${toQuery({ ...params })}`);
-  return unwrap(res.data, "chi phí AI");
+  return unwrap(res.data, "GET /admin/ai-cost");
+}
+
+/**
+ * Một trang dòng chi phí AI (FLF-404): `items` = `rows` của trang, `report` giữ phần còn lại (khoảng ngày, `totals` trên
+ * toàn bộ nhóm). Trang Metrics cần đủ mọi ngày thì gọi `fetchAiCost` (không `limit` ⇒ BE trả hết).
+ */
+export async function fetchAiCostPage(
+  params: FetchAiCostParams,
+  page: number,
+  limit: number
+): Promise<ListPage<AiCostRow> & { report: AiCostReport }> {
+  const res = await apiCall<AiCostReport>(`/admin/ai-cost${toQuery({ ...params, page, limit })}`);
+  const report = unwrap(res.data, "GET /admin/ai-cost");
+  return { items: report.rows, meta: res.meta as unknown as PageMeta, report };
 }
 
 /** Một góp ý (BE `feedback.service.listFeedback`): mới nhất trước, `user` null nếu tài khoản đã xoá. */
@@ -165,9 +185,38 @@ export interface AdminFeedbackItem {
   user: { _id: string; email: string; name: string | null } | null;
 }
 
-export async function fetchAdminFeedback(): Promise<AdminFeedbackItem[]> {
-  const res = await apiCall<AdminFeedbackItem[]>("/admin/feedback");
-  return res.data ?? [];
+export interface FetchAdminFeedbackParams {
+  page?: number;
+  limit?: number;
+  /** BE tìm không dấu trong nội dung, email hoặc tên người gửi. */
+  q?: string;
+}
+
+/** Góp ý theo trang (FLF-404) — BE phân trang + tìm, mới nhất trước. */
+export async function fetchAdminFeedback(params: FetchAdminFeedbackParams = {}): Promise<ListPage<AdminFeedbackItem>> {
+  const res = await apiCall<AdminFeedbackItem[]>(`/admin/feedback${toQuery({ ...params })}`);
+  const items = res.data ?? [];
+  return { items, meta: (res.meta as unknown as PageMeta) ?? { page: 1, limit: items.length, total: items.length, totalPages: 1 } };
+}
+
+/** FLF-278: heading của mẫu bắt buộc thành mục riêng (BE `import/template-gaps.ts`). */
+export interface TemplateGapRow {
+  key: string;
+  samples: string[];
+  projects: number;
+  empty: number;
+  suggested_destination: string | null;
+}
+
+/** Một trang thống kê (FLF-404): BE gom hết rồi cắt trang; `projects` là số dự án làm cơ sở, không theo trang. */
+export async function fetchTemplateGaps(page = 1, limit = 20): Promise<ListPage<TemplateGapRow> & { projects: number }> {
+  const res = await apiCall<{ projects: number; rows: TemplateGapRow[] }>(`/admin/template-gaps${toQuery({ page, limit })}`);
+  const data = res.data ?? { projects: 0, rows: [] };
+  return {
+    items: data.rows,
+    projects: data.projects,
+    meta: (res.meta as unknown as PageMeta) ?? { page, limit, total: data.rows.length, totalPages: 1 },
+  };
 }
 
 export type AdminOrgPlan = "free" | "pro";
@@ -226,13 +275,17 @@ export async function adjustAdminOrgCredits(
     method: "PATCH",
     body: JSON.stringify(body),
   });
-  return unwrap(res.data, "điều chỉnh credit");
+  return unwrap(res.data, "PATCH /admin/orgs/:id/credits");
 }
 
-export const formatNumber = (value: number) => value.toLocaleString("vi-VN");
+/** Thẻ BCP 47 cho `toLocaleString` theo ngôn ngữ giao diện — `vi` giữ nguyên cách hiển thị cũ (`vi-VN`). */
+const LOCALE_TAG: Record<Locale, string> = { vi: "vi-VN", en: "en-US" };
+
+/** Số theo ngôn ngữ giao diện (component truyền `useLocale()`): `1.234` ở vi, `1,234` ở en. */
+export const formatNumber = (value: number, locale: Locale = DEFAULT_LOCALE) => value.toLocaleString(LOCALE_TAG[locale]);
 
 export const formatUsd = (value: number) =>
   `$${value.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`;
 
-export const formatDateTime = (value: string | null) =>
-  value ? new Date(value).toLocaleString("vi-VN") : "—";
+export const formatDateTime = (value: string | null, locale: Locale = DEFAULT_LOCALE) =>
+  value ? new Date(value).toLocaleString(LOCALE_TAG[locale]) : "-";

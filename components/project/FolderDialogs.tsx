@@ -91,7 +91,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
           <ErrorBox error={error} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={close} disabled={submitting}>
-              Huỷ
+              {tc("cancel")}
             </Button>
             <Button variant="danger" loading={submitting} onClick={() => void run(() => deleteFolder(target.folder._id), t("deleteFailed"))}>
               {t("deleteTitle")}
@@ -136,7 +136,7 @@ function FolderDialog({ target, folders, onClose, onDone }: FolderDialogsProps &
           <ErrorBox error={error} />
           <div className="flex justify-end gap-2">
             <Button variant="secondary" onClick={close} disabled={submitting}>
-              Huỷ
+              {tc("cancel")}
             </Button>
             <Button type="submit" loading={submitting} disabled={folderId === sharedFolderId(target.projects)}>
               {t("move")}

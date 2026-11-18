@@ -1,12 +1,11 @@
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
 import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
-import { crSteps, importToGapReview, newCr } from "@/mocks/mode1/flows";
-import ChangeRequestForm from "./ChangeRequestForm";
+import { crSteps, crToReview, importToGapReview, newCr } from "@/mocks/mode1/flows";
 import CrWorkspace from "./CrWorkspace";
 
 const P = MODE1_PROJECT_ID;
@@ -28,83 +27,58 @@ afterAll(() => mockServer.close());
 
 const click = async (name: string | RegExp) => fireEvent.click(await screen.findByRole("button", { name }));
 
-describe("ChangeRequestForm (UC-48)", () => {
-  it("thiếu nguồn hoặc người yêu cầu ⇒ chặn ở FE, không tạo CR", async () => {
-    const onCreated = vi.fn();
-    renderWithIntl(<ChangeRequestForm projectId={P} prefill={{ title: "Sửa theo gap report", description: "- Thiếu mục 5.3" }} onCreated={onCreated} onCancel={vi.fn()} />);
-    fireEvent.click(screen.getByRole("button", { name: "Tạo change request" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Chọn nguồn");
+/** Nút bước cũ của popup CR — FLF-375: mọi bước làm trong khung chat, popup chỉ xem. */
+const STEP_BUTTONS = ["Bắt đầu làm rõ (AI)", "Tìm vị trí ảnh hưởng & khoá", "AI đề xuất sửa", "Kiểm đề xuất", "Kiểm lại", "Xác nhận & ghi vào bản nháp", "Tiếp tục"];
 
-    fireEvent.change(screen.getByLabelText("Nguồn *"), { target: { value: "gap_report" } });
-    fireEvent.click(screen.getByRole("button", { name: "Tạo change request" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("người yêu cầu");
-    expect(S().crs.size).toBe(0);
+describe("CrWorkspace - popup chỉ xem (FLF-375: CR làm trong khung chat)", () => {
+  it.each([
+    ["mới tạo", [] as const],
+    ["đã làm rõ", ["clarify"] as const],
+    ["đã tìm vị trí", ["clarify", "impact"] as const],
+    ["đã đề xuất", ["clarify", "impact", "propose"] as const],
+    ["đã kiểm", ["clarify", "impact", "propose", "verify"] as const],
+  ])("CR %s ⇒ lời nhắc làm trong khung chat + link mở khung chat, không nút bước", async (_label, steps) => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, [...steps]);
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
-    fireEvent.change(screen.getByLabelText("Người yêu cầu *"), { target: { value: "PM Lan" } });
-    fireEvent.click(screen.getByRole("button", { name: "Tạo change request" }));
-    await waitFor(() => expect(onCreated).toHaveBeenCalled());
-    expect(S().crs.get("CR-001")?.change_request).toMatchObject({ source: { kind: "gap_report" }, requester: "PM Lan", title: "Sửa theo gap report" });
+    expect(await screen.findByText(/Mọi việc .* làm trong khung chat/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Mở trong khung chat" })).toHaveAttribute("href", `/projects/${P}`);
+    for (const name of STEP_BUTTONS) expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
+    // không sửa tay trong popup
+    expect(screen.queryByRole("button", { name: /Sửa tay|Sửa trực tiếp/ })).not.toBeInTheDocument();
+    // Huỷ CR vẫn còn
+    expect(screen.getByRole("button", { name: "Huỷ CR" })).toBeInTheDocument();
+  });
+
+  it("CR tạm dừng (hết credit) ⇒ cũng chỉ trỏ về khung chat, không nút Tiếp tục", async () => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, ["clarify", "impact"]);
+    S().crs.get(change_request.cr_id)!.change_request.paused = { reason: "credits", at: "2026-11-10T00:00:00Z" };
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+
+    expect(await screen.findByRole("link", { name: "Mở trong khung chat" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Tiếp tục" })).not.toBeInTheDocument();
+  });
+
+  it("CR đã ghi (written) ⇒ báo bản nháp + link Xem tài liệu", async () => {
+    const { change_request } = await crToReview();
+    expect(change_request.status).toBe("written");
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+
+    expect(await screen.findByText(/Đã ghi vào bản nháp \(bản 0.2\)/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Xem tài liệu" })).toHaveAttribute("href", `/projects/${P}`);
+    expect(screen.queryByRole("link", { name: "Mở trong khung chat" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ CR" })).not.toBeInTheDocument();
   });
 });
 
-describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
-  it("làm rõ (hỏi lại) → trả lời → tìm vị trí + khoá → đề xuất → kiểm → nộp → duyệt ⇒ ghi bản 0.1", async () => {
-    const { change_request } = await newCr("Đăng xuất mọi thiết bị", "Yêu cầu còn mơ hồ: logging out must sign the user out of all devices.");
-    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
-
-    await click("Bắt đầu làm rõ (AI)");
-    // Câu hỏi như mode tạo SRS: từng câu, chọn gợi ý (câu chọn 1 tự sang câu kế), câu cuối gửi
-    const form = await screen.findByRole("region", { name: "Trả lời câu hỏi làm rõ" });
-    fireEvent.click(within(form).getByRole("radio", { name: "Có, áp cho mọi thiết bị" }));
-    fireEvent.click(within(form).getByRole("radio", { name: "Có, gửi email thông báo" }));
-    fireEvent.click(within(form).getByRole("button", { name: "Gửi câu trả lời" }));
-
-    await click("Tìm vị trí ảnh hưởng & khoá");
-    expect(await screen.findByText(/Vị trí ảnh hưởng \(/)).toBeInTheDocument();
-    expect([...S().locks.values()]).toContain("CR-001");
-
-    await click("AI đề xuất sửa");
-    await click("Kiểm đề xuất");
-    await click("Nộp để duyệt");
-    // BPMN 3.12 (mode 1 v3): duyệt cũng phải ghi lý do
-    await click("Duyệt");
-    fireEvent.change(await screen.findByLabelText(/^Lý do duyệt /), { target: { value: "Đúng yêu cầu của khách" } });
-    await click("Xác nhận duyệt");
-
-    expect(await screen.findByText(/vào bản 0.1/)).toBeInTheDocument();
-    expect(S().crs.get("CR-001")!.change_request.status).toBe("written");
-    expect(S().locks.size).toBe(0);
-  });
-
-  it("sửa tay vẫn trượt kiểm ⇒ manual_fix; sửa lại đúng thì kiểm đạt", async () => {
+describe("CrWorkspace - CR cũ in_review và huỷ CR", () => {
+  it("CR cũ in_review (nộp trước FLF-330): từ chối group cần lý do ≥ 10 ký tự; mọi group bị từ chối ⇒ đóng CR có lý do", async () => {
     const { change_request } = await newCr();
-    await crSteps(change_request.cr_id, ["clarify", "impact", "propose"]);
-    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
-
-    // FLF-186: sửa tay = giá trị mới của cả phần tử (JSON)
-    const setStatement = (article: HTMLElement, statement: string) => {
-      const box = within(article).getByLabelText("Giá trị mới (JSON)") as HTMLTextAreaElement;
-      fireEvent.change(box, { target: { value: JSON.stringify({ ...JSON.parse(box.value), statement }) } });
-    };
-    const first = (await screen.findAllByRole("article"))[0];
-    fireEvent.click(within(first).getByRole("button", { name: "Sửa tay" }));
-    setStatement(first, "FAIL text");
-    fireEvent.click(within(first).getByRole("button", { name: "Lưu sửa tay" }));
-    await click("Kiểm đề xuất");
-    expect(await screen.findByText(/AI đã làm lại 2 lần mà vẫn trượt/)).toBeInTheDocument();
-    expect(screen.getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
-
-    const again = (await screen.findAllByRole("article"))[0];
-    fireEvent.click(within(again).getByRole("button", { name: "Sửa tay" }));
-    setStatement(again, "The user is signed out of every device.");
-    fireEvent.click(within(again).getByRole("button", { name: "Lưu sửa tay" }));
-    await click("Kiểm lại");
-    expect(await screen.findByRole("button", { name: "Nộp để duyệt" })).toBeInTheDocument();
-  });
-
-  it("từ chối group cần lý do ≥ 10 ký tự; mọi group bị từ chối ⇒ đóng CR có lý do", async () => {
-    const { change_request } = await newCr();
-    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);
+    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify"]);
+    // FLF-330: xác nhận là ghi ngay ⇒ trạng thái in_review chỉ còn ở CR nộp theo luồng cũ
+    S().crs.get(change_request.cr_id)!.change_request.status = "in_review";
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     await click("Từ chối");
@@ -123,8 +97,9 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
 
   it("in_review mà không có nhóm nào để duyệt ⇒ vẫn có lối ra: Đóng CR / Sửa lại CR", async () => {
     const { change_request } = await newCr();
-    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify", "submit"]);
+    await crSteps(change_request.cr_id, ["clarify", "impact", "propose", "verify"]);
     // CR nộp trước khi BE chặn (mọi vị trí "không liên quan"): in_review nhưng 0 nhóm
+    S().crs.get(change_request.cr_id)!.change_request.status = "in_review";
     S().crs.get(change_request.cr_id)!.groups = [];
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
@@ -152,34 +127,10 @@ describe("CrWorkspace — luồng 3.1–3.14 trên mock", () => {
     await waitFor(() => expect(S().crs.get(change_request.cr_id)!.change_request.status).toBe("cancelled"));
     expect(S().locks.size).toBe(0);
   });
-
-  it("CR thứ hai chạm phần tử đang khoá ⇒ báo CR đang giữ (409 PATH_LOCKED)", async () => {
-    const first = await newCr();
-    await crSteps(first.change_request.cr_id, ["clarify", "impact"]);
-    const second = await newCr("Đăng xuất mọi thiết bị (lần 2)");
-    await crSteps(second.change_request.cr_id, ["clarify"]);
-    renderWithIntl(<CrWorkspace projectId={P} crId={second.change_request.cr_id} />);
-
-    await click("Tìm vị trí ảnh hưởng & khoá");
-    expect(await screen.findByRole("alert")).toHaveTextContent(/Phần tử đang bị change request khác giữ: .+ \(CR-001\)/);
-    expect(screen.getByRole("alert").textContent).not.toContain("[id=");
-  });
-
-  it("hết credit lúc đề xuất ⇒ banner paused, nạp xong tiếp tục", async () => {
-    const { change_request } = await newCr();
-    await crSteps(change_request.cr_id, ["clarify", "impact"]);
-    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
-    S().credits = 0;
-    await click("AI đề xuất sửa");
-    expect(await screen.findByText(/Đề xuất sửa đang tạm dừng — hết credit/)).toBeInTheDocument();
-    S().credits = 100;
-    await click("Tiếp tục");
-    expect(await screen.findByRole("button", { name: "Kiểm đề xuất" })).toBeInTheDocument();
-  });
 });
 
-describe("CrWorkspace — Viewer (readOnly)", () => {
-  it("chỉ xem: không có nút bước tiếp theo, không Huỷ CR — chỉ lời nhắc vai trò", async () => {
+describe("CrWorkspace - Viewer (readOnly)", () => {
+  it("chỉ xem: không có nút bước tiếp theo, không Huỷ CR - chỉ lời nhắc vai trò", async () => {
     const { change_request } = await newCr();
     await crSteps(change_request.cr_id, ["clarify", "impact"]);
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} readOnly />);
@@ -188,5 +139,20 @@ describe("CrWorkspace — Viewer (readOnly)", () => {
     expect(screen.getByText(change_request.title)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Huỷ CR" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "AI đề xuất sửa" })).not.toBeInTheDocument();
+  });
+});
+
+describe("CR của người khác (BF §3.2 / UC-45 A6, UC-48)", () => {
+  it("Analyst khác xem ⇒ dòng 'treo ở <người tạo>', không link mở khung chat, không Huỷ CR; Lead xem ⇒ còn Huỷ CR", async () => {
+    const { change_request } = await newCr();
+    await crSteps(change_request.cr_id, ["clarify", "impact"]);
+    const { unmount } = renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} myUserId="user-khac" orgRole="analyst" />);
+    expect(await screen.findByText(/đề xuất treo ở người đó/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Mở trong khung chat" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Huỷ CR" })).not.toBeInTheDocument();
+    unmount();
+
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} myUserId="user-lead" orgRole="lead" />);
+    expect(await screen.findByRole("button", { name: "Huỷ CR" })).toBeInTheDocument();
   });
 });

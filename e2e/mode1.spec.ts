@@ -93,7 +93,8 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
 
   const newProject = page.getByRole("button", { name: /Dự án mới/ }).first();
   if (await visible(newProject)) await newProject.click();
-  await page.getByRole("radio", { name: /Upload SRS có sẵn/ }).click();
+  // FLF-335: chọn "Dự án có sẵn" — chế độ do BE suy ra sau khi tải file
+  await page.getByRole("radio", { name: /Dự án có sẵn/ }).click();
   await page.getByLabel("Tên dự án").fill(PROJECT_NAME);
   await snap(page, "create-project");
   await page.getByRole("button", { name: "Bắt đầu" }).click();
@@ -122,17 +123,17 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   await expect(page.getByRole("progressbar")).toBeVisible({ timeout: 30_000 });
   await snap(page, "extracting");
   const fields = page.getByRole("button", { name: "Xác nhận tất cả field" });
-  const baseline = page.getByRole("button", { name: "Tạo baseline 0.0" });
+  const baseline = page.getByRole("button", { name: "Tạo baseline 0.1" });
   const pausedBanner = page.getByText(/đang tạm dừng/);
   const afterExtract = await firstVisible(page, [fields, baseline, pausedBanner], AI_TIMEOUT);
   await snap(page, "after-extract");
   expect(afterExtract, "I-4 không được dừng giữa chừng").not.toBe(2);
   if (afterExtract === 0) await fields.click();
 
-  // ── 4. Baseline 0.0 ⇒ gap report (1.10–1.13) ───────────────────────────────────────
+  // ── 4. Baseline 0.1 ⇒ gap report (1.10–1.13) ───────────────────────────────────────
   await baseline.click({ timeout: 60_000 });
   await page.waitForURL(/\/gap-report$/, { timeout: AI_TIMEOUT });
-  await expect(page.getByText(/Gap report — bản 0\.0/)).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(/Gap report - bản 0\.0/)).toBeVisible({ timeout: 30_000 });
   await snap(page, "gap-report");
   console.log(`[e2e] gap report: ${await saveDownload(page, () => page.getByRole("button", { name: "Tải gap report (.docx)" }).click())}`);
 
@@ -147,7 +148,7 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   expect(await visible(flagsPanel.getByRole("button", { name: "Waive" })), "mode 1 v3 không waive").toBe(false);
   await snap(page, "workspace");
 
-  // Bản 0.0 giữ được file gốc người dùng upload (FLF-184)
+  // Bản 0.1 giữ được file gốc người dùng upload (FLF-184)
   const original = page.getByRole("button", { name: "Tải file gốc" });
   if (await visible(original)) console.log(`[e2e] file gốc: ${await saveDownload(page, () => original.first().click())}`);
 
@@ -175,7 +176,7 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   }
   // Bản xem trước lỗi (AI dựng op sai) vẫn tạo được CR — chỉ không kèm bản xem trước (nhánh thật, ghi log)
   const withPreview = (await createCrButton.first().textContent())?.trim() === "Tạo CR";
-  if (!withPreview) console.log("[e2e] bản xem trước lỗi — tạo CR không kèm bản xem trước");
+  if (!withPreview) console.log("[e2e] bản xem trước lỗi - tạo CR không kèm bản xem trước");
   await createCrButton.first().click();
   await page.waitForURL(/\/change-requests\?new=1/, { timeout: 30_000 });
   if (withPreview) await expect(page.getByLabel("Bản xem trước đính kèm"), "form 3.1 phải báo đính kèm bản xem trước").toBeVisible({ timeout: 30_000 });
@@ -196,7 +197,7 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
     const form = page.getByRole("form", { name: "Trả lời câu hỏi làm rõ" });
     if ((await firstVisible(page, [form, btn("Tìm vị trí ảnh hưởng & khoá")], AI_TIMEOUT)) === 1) break;
     await snap(page, `cr-clarify-${round + 1}`);
-    for (const box of await form.getByRole("textbox").all()) await box.fill("Có — áp dụng cho mọi chỗ trong tài liệu.");
+    for (const box of await form.getByRole("textbox").all()) await box.fill("Có - áp dụng cho mọi chỗ trong tài liệu.");
     await form.getByRole("button", { name: "Gửi câu trả lời" }).click();
     await page.waitForTimeout(1500);
   }
@@ -288,13 +289,13 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   // BPMN 3.14 (mode 1 v3): bản có đánh dấu — Track Changes tác giả là mã CR
   const tracked = page.getByRole("button", { name: "Tải bản có đánh dấu" });
   if (await visible(tracked)) console.log(`[e2e] bản có đánh dấu: ${await saveDownload(page, () => tracked.first().click())}`);
-  else problems.push("version sau CR không có bản có đánh dấu (tracked_file_ref null — xem log BE [C-7])");
+  else problems.push("version sau CR không có bản có đánh dấu (tracked_file_ref null - xem log BE [C-7])");
   await snap(page, "versions");
 
   const release = page.getByRole("button", { name: "Release", exact: true });
   if (await release.isDisabled()) {
     await snap(page, "release-blocked");
-    console.log("[e2e] release bị khoá (còn cờ đỏ) — đúng BR-04");
+    console.log("[e2e] release bị khoá (còn cờ đỏ) - đúng BR-04");
   } else {
     await release.click();
     await page.getByRole("button", { name: "Xác nhận release" }).click();

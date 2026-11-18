@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type ReactNode
 } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import type { ChatMessage, DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
 import { workspaceStepLabel as stepLabelOf } from "./phase-labels";
@@ -16,6 +17,8 @@ import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput, { formatAnswers } from "./QuestionStepperInput";
 import { parseChatQuestion } from "@/lib/question-options";
+import type { Locale } from "@/lib/i18n";
+import { answeredQuestionMessages } from "./answered-questions";
 
 interface ChatPaneProps {
   width?: number;
@@ -30,6 +33,8 @@ interface ChatPaneProps {
   setInputMessage: (msg: string) => void;
   onSendMessage: (customContent?: string) => void;
   sending: boolean;
+  /** Dừng lượt AI đang chạy (chat stream hoặc lượt chạy step) — nút dừng + Esc trên ô nhập. */
+  onStop?: () => void;
   pendingAttachments: File[];
   onSelectAttachment: (e: ChangeEvent<HTMLInputElement>) => void;
   onRemoveAttachment: (name: string) => void;
@@ -40,6 +45,13 @@ interface ChatPaneProps {
   children?: ReactNode;
   /** Thẻ câu hỏi đặt ngay trên ô nhập (ô nhập vẫn giữ), ví dụ ElicitPanel khi step chờ câu trả lời. */
   questionCard?: ReactNode;
+  /**
+   * `questionCard` có thật sự vẽ thẻ không — `ElicitPanel` không vẽ gì khi mọi câu chờ đều là câu mở (không có lựa chọn).
+   * Khi đó ô nhập không thu gọn và không nói "Hoặc trả lời trực tiếp…" như thể có thẻ để chọn (FLF-393). Mặc định: có thẻ.
+   */
+  questionCardVisible?: boolean;
+  /** Thông báo / gợi ý ngay trên ô nhập (vd file đính kèm trông như SRS, kết quả đọc file lệch bản sơ bộ). */
+  inputNotice?: ReactNode;
   /**
    * Nhận lệnh sửa tài liệu (UC 6.8) — gửi khi chip "Sửa tài liệu" đang bật. Phiên phụ (`is_pipeline === false`) vẫn
    * hỏi đáp như thường; trước FLF-244 ô chat ở đó bị ép thành lệnh sửa.
@@ -54,6 +66,16 @@ interface ChatPaneProps {
   onToggleEditMode?: () => void;
   /** Lý do chưa sửa được lúc này (vd. step đang chạy) — chip bị khoá. */
   editDisabledReason?: string | null;
+  /** Chip "Hỏi kiến thức BA" trên ô nhập (FLF-279). */
+  knowledgeMode?: boolean;
+  onToggleKnowledgeMode?: () => void;
+  /** Máy chủ tắt Knowledge RAG ⇒ ẩn chip. */
+  knowledgeHidden?: boolean;
+  /**
+   * Đang chờ câu trả lời tri thức. Luồng này không stream chữ nên không có bong bóng chữ chạy để báo
+   * lượt còn sống — phải vẽ một dòng chờ riêng, nếu không khung chat im lặng hoàn toàn.
+   */
+  knowledgePending?: boolean;
   /** Nút thêm trên thanh công cụ ô nhập (menu cách AI làm việc). */
   inputTools?: ReactNode;
   /** Tiêu đề pane — mặc định của workspace pipeline (mode 2). */
@@ -95,6 +117,19 @@ export const stepDividers = (
  * Câu hỏi CÓ lựa chọn trong tin nhắn AI cuối (hỏi đáp tự do, không phải Elicit của step) — vào thẻ hỏi. Câu mở
  * hiện trong bong bóng AI (`ChatBubble`). Đọc cả tin nhắn cũ (`suggestedAnswers`) lẫn mới (`options`).
  */
+/**
+ * FLF-311: tin AI là câu hỏi làm rõ của LỆNH SỬA (vd màn hình riêng hay popup) ⇒ câu trả lời phải đi tiếp lệnh sửa
+ * (`onEditInstruction`), không phải lượt chat thường — nếu không BE coi "Popup mở từ My Grades" là một câu chat và lệnh
+ * thêm use case dở dang.
+ */
+export const isChangeClarification = (content: string): boolean => {
+  try {
+    return (JSON.parse(content) as { kind?: unknown }).kind === "change_clarification";
+  } catch {
+    return false;
+  }
+};
+
 const parseQuestions = (content: string): DiscoveryQuestion[] => {
   try {
     const parsed: unknown = JSON.parse(content);
@@ -127,10 +162,12 @@ export default function ChatPane({
   isStreaming = false,
   children,
   questionCard,
+  questionCardVisible,
+  inputNotice,
   onEditInstruction,
   onGoToPipeline,
   readOnlyNotice,
-  title = "Trò chuyện và duyệt",
+  title,
   emptyState,
   inputPlaceholder,
   editPlaceholder,
@@ -140,8 +177,16 @@ export default function ChatPane({
   editMode = false,
   onToggleEditMode,
   editDisabledReason = null,
-  inputTools
+  knowledgeMode = false,
+  onToggleKnowledgeMode,
+  knowledgeHidden = false,
+  knowledgePending = false,
+  inputTools,
+  onStop
 }: ChatPaneProps) {
+  const t = useTranslations("workspace.chatPane");
+  const locale = useLocale() as Locale;
+  const dividerLabel = (step: string) => stepLabelOf(step, locale);
   const scrollRef = useRef<HTMLDivElement>(null);
   // Ô nhập nổi đè lên đáy danh sách tin nhắn ⇒ đo chiều cao của nó để chừa chỗ cho tin nhắn cuối
   const footerRef = useRef<HTMLDivElement>(null);
@@ -174,6 +219,8 @@ export default function ChatPane({
   }, [messages, streamingMessage, children, footerHeight]);
 
   const dividers = useMemo(() => stepDividers(messages), [messages]);
+  // P05: tin hỏi đã có câu trả lời ngay sau ⇒ thu gọn trong lịch sử
+  const answered = useMemo(() => answeredQuestionMessages(messages), [messages]);
   const last = messages[messages.length - 1];
   const questionKey =
     last?.role === "ai" ? `${messages.length}:${last.content}` : null;
@@ -183,6 +230,8 @@ export default function ChatPane({
   );
   const showQuestions =
     !questionCard && latestQuestions.length > 0 && dismissedKey !== questionKey;
+  const cardShown = Boolean(questionCard) && (questionCardVisible ?? true);
+  const answersChangeQuestion = last?.role === "ai" && isChangeClarification(last.content);
 
   // Không có session hoặc session vắng field ⇒ coi như pipeline. Phiên phụ chỉ khác ở dải thông báo — gửi là hỏi đáp,
   // bật chip là lệnh sửa, như phiên chính (FLF-244).
@@ -203,7 +252,7 @@ export default function ChatPane({
           {/* Nhãn tĩnh không mang màu thương hiệu — tím để dành cho trạng thái (chip bước) và hành động.
               Dải mờ của vùng cuộn đã đặc trước khi chạm hàng này nên chữ trần vẫn đọc rõ. */}
           <h2 className="font-bold text-on-surface text-body truncate">
-            {title}
+            {title ?? t("title")}
           </h2>
         </div>
         {stepLabel && (
@@ -237,11 +286,10 @@ export default function ChatPane({
                     />
                   </div>
                   <h3 className="font-bold text-on-surface text-heading">
-                    Bắt đầu bước hiện tại
+                    {t("emptyTitle")}
                   </h3>
                   <p className="text-on-surface-muted text-body leading-relaxed">
-                    Gõ vào ô chat để AI bắt đầu: AI hỏi phần còn thiếu rồi soạn
-                    nháp. Có thể đính kèm tài liệu tham khảo.
+                    {t("emptyBody")}
                   </p>
                 </div>
               ))}
@@ -254,10 +302,10 @@ export default function ChatPane({
                   <div
                     className="flex items-center gap-2 pt-1"
                     title={msg.step}
-                    aria-label={`Bắt đầu bước ${stepLabelOf(msg.step)}`}>
+                    aria-label={t("stepDivider", { step: dividerLabel(msg.step) })}>
                     <span className="h-px flex-1 bg-outline-variant" />
                     <span className="text-caption font-bold uppercase tracking-wider text-on-surface-muted shrink-0">
-                      {stepLabelOf(msg.step)}
+                      {dividerLabel(msg.step)}
                     </span>
                     <span className="h-px flex-1 bg-outline-variant" />
                   </div>
@@ -267,33 +315,40 @@ export default function ChatPane({
                   messageIndex={idx}
                   onRequestRollback={onRequestRollback}
                   disabled={sending}
+                  answered={answered.get(idx)}
                 />
               </div>
             ))}
 
-            {isStreaming && (
-              <ChatBubble
-                message={{
-                  role: "ai",
-                  content: streamingMessage ?? "",
-                  createdAt: new Date().toISOString()
-                }}
-                isStreaming
-              />
+            {/* Lượt tri thức thắng: nó không có chữ để chạy, nên bong bóng streaming sẽ rỗng — hai khối
+                chờ cùng lúc chỉ làm người đọc tưởng có hai lượt đang chạy. */}
+            {knowledgePending ? (
+              <div className="flex items-center gap-2 text-body text-on-surface-muted px-1" role="status">
+                <span aria-hidden className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
+                {t("knowledgePending")}
+              </div>
+            ) : (
+              isStreaming && (
+                <ChatBubble
+                  message={{
+                    role: "ai",
+                    content: streamingMessage ?? "",
+                    createdAt: new Date().toISOString()
+                  }}
+                  isStreaming
+                />
+              )
             )}
 
             {isNonPipelineSession && (
               <div className="bg-primary-soft rounded-card p-3 text-body text-primary-hover flex flex-wrap items-center gap-2">
-                <span className="flex-1 min-w-0">
-                  Phiên hỏi đáp — hỏi AI về dự án, hoặc bật &quot;Sửa tài
-                  liệu&quot; để sửa. Quy trình soạn tài liệu chạy ở phiên chính.
-                </span>
+                <span className="flex-1 min-w-0">{t("sideSession")}</span>
                 {onGoToPipeline && (
                   <button
                     type="button"
                     onClick={onGoToPipeline}
                     className="px-2.5 py-1 rounded-full text-body font-bold bg-primary text-on-primary hover:bg-primary-hover transition-colors cursor-pointer">
-                    Về phiên chính
+                    {t("goToPipeline")}
                   </button>
                 )}
               </div>
@@ -324,23 +379,24 @@ export default function ChatPane({
                       onSubmit={(values) => {
                         // Chữ đang gõ ở ô chat đi cùng lượt gửi (trả lời câu mở trong tin nhắn AI)
                         const draft = inputMessage.trim();
-                        onSendMessage(
-                          [formatAnswers(values), draft]
-                            .filter(Boolean)
-                            .join("\n")
-                        );
+                        const answer = [formatAnswers(values), draft].filter(Boolean).join("\n");
+                        // FLF-311: trả lời câu hỏi làm rõ của lệnh sửa ⇒ đi tiếp lệnh sửa, không thành lượt chat thường
+                        if (answersChangeQuestion && onEditInstruction) onEditInstruction(answer);
+                        else onSendMessage(answer);
                         if (draft) setInputMessage("");
                       }}
                       onDismiss={() => setDismissedKey(questionKey)}
                       sending={sending}
                     />
                   ))}
+                {inputNotice}
                 {/* Ô chat luôn hiện — kể cả khi có thẻ câu hỏi, để trả lời thẳng bằng lời của mình */}
                 <ChatInput
                   inputMessage={inputMessage}
                   setInputMessage={setInputMessage}
                   onSendMessage={(text) => {
-                    if (sendAsEdit && onEditInstruction) {
+                    // Gõ trả lời câu hỏi làm rõ của lệnh sửa (kể cả khi chip sửa đang tắt) ⇒ đi tiếp lệnh sửa như chọn gợi ý
+                    if ((sendAsEdit || answersChangeQuestion) && onEditInstruction) {
                       onEditInstruction(text);
                       setInputMessage("");
                     } else {
@@ -348,21 +404,28 @@ export default function ChatPane({
                     }
                   }}
                   sending={sending}
+                  onStop={onStop}
                   pendingAttachments={pendingAttachments}
                   onSelectAttachment={onSelectAttachment}
                   onRemoveAttachment={onRemoveAttachment}
-                  compact={Boolean(questionCard) || showQuestions}
+                  compact={cardShown || showQuestions}
                   onToggleEditMode={onToggleEditMode}
                   editMode={sendAsEdit}
                   editDisabledReason={editDisabledReason}
+                  onToggleKnowledgeMode={onToggleKnowledgeMode}
+                  knowledgeMode={knowledgeMode}
+                  knowledgeHidden={knowledgeHidden}
                   toolbarExtra={inputTools}
                   placeholder={
-                    questionCard || showQuestions
-                      ? "Hoặc trả lời trực tiếp…"
-                      : sendAsEdit
-                        ? (editPlaceholder ??
-                          "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator")
-                        : inputPlaceholder
+                    // Chế độ tri thức xét trước cả thẻ hỏi: khi có thẻ hỏi, ô nhập thu gọn và chip chỉ
+                    // còn icon, nên placeholder là tín hiệu rõ nhất cho biết câu gõ ra sẽ đi đâu.
+                    knowledgeMode
+                      ? t("knowledgePlaceholder")
+                      : cardShown || showQuestions
+                        ? t("answerDirectly")
+                        : sendAsEdit
+                          ? (editPlaceholder ?? t("editPlaceholder"))
+                          : inputPlaceholder
                   }
                 />
               </>

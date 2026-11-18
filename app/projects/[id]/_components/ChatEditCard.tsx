@@ -1,9 +1,13 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { PreviewResult } from "@/types/pipeline";
+import type { AlreadyApplied, ChangeConflict } from "../hooks/useChanges";
+import ChangeConflictCard from "./ChangeConflictCard";
 import { describeChange } from "./describe-change";
-import { violationText } from "./mode1/spine-labels";
+import { useMode1Labels } from "./mode1/i18n";
+import type { Locale } from "@/lib/i18n";
 
 /** Kết quả lần sửa vừa áp — chỉ lần mới nhất mới được hoàn tác (BE undo lô gần nhất của cả dự án). */
 export interface AppliedEdit {
@@ -22,12 +26,20 @@ interface ChatEditCardProps {
   /** Bản xem trước của lệnh sửa (không phải của lượt cập nhật mục cũ). */
   preview: PreviewResult | null;
   applied: AppliedEdit | null;
+  /** P12: người khác vừa sửa đúng chữ — màn so sánh 3 cột thay cho bản xem trước. */
+  conflict?: ChangeConflict | null;
+  /** P12: lượt áp vừa rồi không ghi vì người khác đã sửa giống. */
+  alreadyApplied?: AlreadyApplied[] | null;
+  sectionName?: (sectionId: string) => string;
+  onRedraft?: () => void;
+  onDropRequest?: () => void;
   /** Mode 1: áp thẳng không được — nút chính là "Tạo change request". */
   requiresCr?: boolean;
   onShowDetail: () => void;
   onApply: () => void;
   onCancel: () => void;
-  onUndo: () => void;
+  /** Không có ⇒ không hiện nút Hoàn tác (sau baseline, BR-03). */
+  onUndo?: () => void;
   onDismiss: () => void;
 }
 
@@ -45,6 +57,11 @@ export default function ChatEditCard({
   error,
   preview,
   applied,
+  conflict = null,
+  alreadyApplied = null,
+  sectionName = (id) => id,
+  onRedraft,
+  onDropRequest,
   requiresCr = false,
   onShowDetail,
   onApply,
@@ -52,24 +69,27 @@ export default function ChatEditCard({
   onUndo,
   onDismiss,
 }: ChatEditCardProps) {
+  const t = useTranslations("workspace.chatEdit");
+  const locale = useLocale() as Locale;
+  const { violationText } = useMode1Labels();
   const blocked = preview ? !preview.ok || preview.violations.length > 0 : false;
   const empty = preview ? preview.changes.length === 0 : false;
 
   return (
-    <div role="status" aria-label="Sửa tài liệu" className="self-stretch rounded-card bg-surface-container-lowest p-3.5 flex flex-col gap-2.5">
+    <div role="status" aria-label={t("aria")} className="self-stretch rounded-card bg-surface-container-lowest p-3.5 flex flex-col gap-2.5">
       <div className="flex items-start gap-2.5">
         <span aria-hidden className="w-7 h-7 shrink-0 grid place-items-center rounded-inner bg-primary-soft text-primary">
           <Icon name="pencil" size={14} />
         </span>
         <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-          <span className="text-caption font-bold text-on-surface-muted">Sửa tài liệu</span>
+          <span className="text-caption font-bold text-on-surface-muted">{t("heading")}</span>
           <p className="text-body text-on-surface leading-relaxed break-words">{applied?.instruction ?? instruction}</p>
         </div>
         {!previewing && !applying && (
           <button
             type="button"
             onClick={applied ? onDismiss : onCancel}
-            aria-label="Đóng thẻ sửa"
+            aria-label={t("close")}
             className="w-6 h-6 shrink-0 grid place-items-center rounded-inner text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer transition-colors"
           >
             <Icon name="close" size={13} />
@@ -80,43 +100,46 @@ export default function ChatEditCard({
       {previewing && (
         <p className="flex items-center gap-2 text-body text-on-surface-muted">
           <span className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" aria-hidden />
-          Đang tìm những chỗ cần sửa…
+          {t("previewing")}
         </p>
       )}
 
       {clarification && (
         <div className="rounded-control bg-primary-soft px-3 py-2 text-body text-primary-hover leading-relaxed">
-          <span className="font-bold">Cần bạn nói rõ hơn: </span>
+          <span className="font-bold">{t("clarifyLead")}</span>
           {clarification}
-          <span className="block mt-1 text-caption opacity-80">Gõ lại lệnh sửa ở ô chat bên dưới.</span>
+          <span className="block mt-1 text-caption opacity-80">{t("clarifyHint")}</span>
         </div>
       )}
 
       {error && <p className="text-body text-error">{error}</p>}
 
+      {conflict && !previewing && (
+        <ChangeConflictCard conflict={conflict} sectionName={sectionName} busy={applying} onRedraft={() => onRedraft?.()} onDrop={() => onDropRequest?.()} />
+      )}
+
       {preview && !applied && (
         <>
           {blocked ? (
             <p className="text-body text-error leading-relaxed" title={preview.violations[0]?.message}>
-              Không áp được lệnh này: {preview.violations[0] ? violationText(preview.violations[0]) : "tài liệu sẽ mâu thuẫn sau khi sửa."}{" "}
-              Thử diễn đạt lại hoặc xem chi tiết.
+              {t("blocked", { reason: preview.violations[0] ? violationText(preview.violations[0]) : t("blockedFallback") })}
             </p>
           ) : empty ? (
-            <p className="text-body text-on-surface-muted">Không tìm thấy chỗ nào cần đổi theo lệnh này.</p>
+            <p className="text-body text-on-surface-muted">{t("empty")}</p>
           ) : (
             <div className="flex flex-col gap-1">
               <span className="text-body font-semibold text-on-surface">
-                Sẽ thay đổi {preview.changes.length} chỗ
-                {preview.impact && preview.impact.sections.length > 0 && ` · ảnh hưởng ${preview.impact.sections.length} mục`}
+                {t("willChange", { count: preview.changes.length })}
+                {preview.impact && preview.impact.sections.length > 0 && t("impact", { count: preview.impact.sections.length })}
               </span>
               <ul className="flex flex-col gap-0.5">
                 {preview.changes.slice(0, MAX_LINES).map((change, i) => (
                   <li key={i} className="text-body text-on-surface-variant leading-relaxed break-words">
-                    • {describeChange(change)}
+                    • {describeChange(change, locale)}
                   </li>
                 ))}
                 {preview.changes.length > MAX_LINES && (
-                  <li className="text-body text-on-surface-muted">và {preview.changes.length - MAX_LINES} chỗ khác</li>
+                  <li className="text-body text-on-surface-muted">{t("more", { count: preview.changes.length - MAX_LINES })}</li>
                 )}
               </ul>
             </div>
@@ -127,14 +150,14 @@ export default function ChatEditCard({
               onClick={onCancel}
               className="h-8 px-3 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer transition-colors"
             >
-              Huỷ
+              {t("cancel")}
             </button>
             <button
               type="button"
               onClick={onShowDetail}
               className="h-8 px-3 rounded-control text-body font-bold bg-surface-container text-on-surface hover:bg-surface-container-high cursor-pointer transition-colors"
             >
-              Xem chi tiết
+              {t("detail")}
             </button>
             {(requiresCr || (!blocked && !empty)) && (
               <button
@@ -143,7 +166,7 @@ export default function ChatEditCard({
                 disabled={applying}
                 className="h-8 px-3 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
-                {requiresCr ? "Tạo change request" : applying ? "Đang áp dụng…" : "Áp dụng"}
+                {requiresCr ? t("createCr") : applying ? t("applying") : t("apply")}
               </button>
             )}
           </div>
@@ -154,16 +177,20 @@ export default function ChatEditCard({
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <span className="flex items-center gap-1.5 text-body font-semibold text-success">
             <Icon name="check-circle" size={15} />
-            {applied.count > 0 ? `Đã áp dụng ${applied.count} thay đổi` : "Đã xác nhận, nội dung không đổi"}
+            {applied.count > 0
+              ? t("applied", { count: applied.count })
+              : alreadyApplied?.length
+                ? t("alreadyApplied", { who: [...new Set(alreadyApplied.map((a) => a.changed_by))].join(", ") })
+                : t("confirmedNoChange")}
           </span>
-          {applied.count > 0 && (
+          {applied.count > 0 && onUndo && (
             <button
               type="button"
               onClick={onUndo}
               disabled={applying}
               className="h-8 px-3 rounded-control text-body font-bold bg-surface-container text-on-surface hover:bg-surface-container-high disabled:opacity-60 cursor-pointer transition-colors"
             >
-              {applying ? "Đang hoàn tác…" : "Hoàn tác"}
+              {applying ? t("undoing") : t("undo")}
             </button>
           )}
         </div>

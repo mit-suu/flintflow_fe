@@ -1,14 +1,24 @@
-import { clearAuthToken } from "../auth";
+import { clearAuthToken, logoutAndRedirect } from "../auth";
+import { ACCOUNT_SUSPENDED, endSuspendedSession } from "../account-suspended";
+import { isLostOrgError, recoverFromLostOrgAccess } from "../org-access-lost";
 import { localizeApiError } from "./error-messages";
-import {
-  decodeJwt,
-  getAccessToken,
-  getStoredAuthToken,
-  saveAuthToken,
-  setAccessToken,
-} from "./token-store";
+import { MODE_SWITCH_ERROR_CODES, signalProjectModeMaybeChanged } from "../project-mode-signal";
+import { decodeJwt, getAccessToken, getActiveOrgId, saveAuthToken } from "./token-store";
 
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api/v1";
+
+const PUBLIC_AUTH_PATHS = [
+  "/login",
+  "/register",
+  "/verify-email",
+  "/forgot-password",
+  "/reset-password",
+];
+
+const isPublicAuthPath = (pathname: string): boolean =>
+  PUBLIC_AUTH_PATHS.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+
+let loggingOut = false;
 
 export interface ApiResponse<T = unknown> {
   data: T | null;
@@ -33,6 +43,8 @@ export class ApiClientError extends Error {
     this.code = code;
     this.rawMessage = message;
     this.meta = meta;
+    // FLF-318: lỗi chỉ dự án mode 1 có ⇒ dự án có thể vừa được chuyển sang mode 1, workspace đọc lại project
+    if (MODE_SWITCH_ERROR_CODES.has(code)) signalProjectModeMaybeChanged();
   }
 }
 
@@ -47,6 +59,7 @@ export type RefreshOutcome = "ok" | "rejected" | "failed";
 const REFRESH_LOCK_NAME = "flintflow-auth-refresh";
 
 let refreshPromise: Promise<RefreshOutcome> | null = null;
+let refreshForced = false;
 let lastRefreshTime = 0;
 
 const isTokenFresh = (token: string | null): token is string => {
@@ -56,16 +69,13 @@ const isTokenFresh = (token: string | null): token is string => {
 };
 
 /**
- * Tab khác đã refresh xong trong lúc tab này chờ/gọi BE ⇒ token trong localStorage (dùng chung giữa các tab)
- * đã khác token lúc bắt đầu và còn hạn. Dùng luôn token đó thay vì gọi BE bằng refresh token cũ đã bị xoay vòng.
+ * Tab khác đã refresh xong trong lúc tab này chờ/gọi BE ⇒ token trong bộ nhớ (tab kia gửi sang qua
+ * `BroadcastChannel`) đã khác token lúc bắt đầu và còn hạn. Dùng luôn token đó thay vì gọi BE bằng refresh
+ * token cũ đã bị xoay vòng.
  */
 const adoptTokenRefreshedElsewhere = (tokenAtStart: string | null): boolean => {
-  const current = getStoredAuthToken();
-  if (current && current !== tokenAtStart && isTokenFresh(current)) {
-    setAccessToken(current);
-    return true;
-  }
-  return false;
+  const current = getAccessToken();
+  return !!current && current !== tokenAtStart && isTokenFresh(current);
 };
 
 /** Gọi `fn` trong khoá dùng chung giữa các tab (Web Locks); trình duyệt không hỗ trợ thì chạy thẳng. */
@@ -76,8 +86,71 @@ const withCrossTabLock = <T>(fn: () => Promise<T>): Promise<T> => {
   return fn();
 };
 
-const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutcome> => {
-  if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+const readJsonClone = async (res: Response): Promise<ApiResponse | null> => {
+  try {
+    return (await res.clone().json()) as ApiResponse;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * 403 `ACCOUNT_SUSPENDED` (FLF-345): tài khoản bị khoá giữa phiên ⇒ đăng xuất, về /login kèm lý do khoá.
+ * Đọc trên bản clone để nơi gọi vẫn đọc được body của `res`.
+ */
+const isSuspendedResponse = async (res: Response): Promise<boolean> => {
+  if (res.status !== 403) return false;
+  const body = await readJsonClone(res);
+  if (body?.error?.code !== ACCOUNT_SUSPENDED) return false;
+  endSuspendedSession(body.meta);
+  return true;
+};
+
+/** Đọc số org còn lại bằng token vừa refresh (gọi `fetch` trực tiếp để tránh vòng import với `orgs.ts`). */
+const fetchOrgsCount = async (): Promise<number | null> => {
+  const token = getAccessToken();
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (token) headers["Authorization"] = `Bearer ${token}`;
+
+  const res = await fetch(`${API_BASE_URL}/orgs`, {
+    headers,
+    credentials: "include",
+  });
+
+  if (!res.ok) {
+    if (await isSuspendedResponse(res)) return null;
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  const json = (await res.json()) as ApiResponse<unknown[]>;
+  if (!Array.isArray(json.data)) {
+    throw new Error("INVALID_ORGS_RESPONSE");
+  }
+  return json.data.length;
+};
+
+/**
+ * 403 `ORG_FORBIDDEN`, 409 `NO_ACTIVE_ORG`, hoặc 404 `ORG_NOT_FOUND` trên `/orgs/<activeOrgId>`:
+ * phiên đang giữ `orgId` không còn quyền ⇒ thu hồi và đưa về chọn tổ chức / onboarding.
+ * Đọc trên bản clone để nơi gọi vẫn nhận nguyên `Response` và ném `ApiClientError` chuẩn.
+ */
+const isOrgAccessLostResponse = async (
+  res: Response,
+  endpoint: string,
+  activeOrgId: string | null
+): Promise<boolean> => {
+  if (res.status !== 403 && res.status !== 409 && res.status !== 404) return false;
+  const body = await readJsonClone(res);
+  if (!isLostOrgError(res.status, body?.error?.code, endpoint, activeOrgId)) return false;
+  void recoverFromLostOrgAccess({
+    refresh: () => refreshSession({ force: true }),
+    fetchOrgsCount,
+  });
+  return true;
+};
+
+const requestRefresh = async (tokenAtStart: string | null, force = false): Promise<RefreshOutcome> => {
+  if (!force && adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
 
   try {
     const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
@@ -93,6 +166,7 @@ const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutco
         // Tab khác (không có Web Locks) có thể đã xoay vòng refresh token ngay trước request này —
         // khi đó đăng xuất sẽ gọi /auth/logout với cookie MỚI và thu hồi luôn phiên vừa tạo.
         if (adoptTokenRefreshedElsewhere(tokenAtStart)) return "ok";
+        if (await isSuspendedResponse(res)) return "rejected";
         clearAuthToken();
         return "rejected";
       }
@@ -121,30 +195,40 @@ const requestRefresh = async (tokenAtStart: string | null): Promise<RefreshOutco
   }
 };
 
-export const refreshSession = async (): Promise<RefreshOutcome> => {
-  // If recently refreshed (within 2s) and stored token is still valid, reuse without re-calling BE
-  if (Date.now() - lastRefreshTime < 2000) {
-    const current = getStoredAuthToken();
-    if (isTokenFresh(current)) {
-      setAccessToken(current);
-      return "ok";
-    }
+/**
+ * `force` bỏ qua cache 2 giây và bước nhận token tab khác lúc bắt đầu: token còn hạn vẫn có thể đã bị thu hồi
+ * (`SESSION_REVOKED`, FLF-427) hoặc mang org đã mất quyền (FLF-422). Nhánh `/auth/refresh` trả 401/403 trong
+ * `requestRefresh` vẫn LUÔN nhận token tab khác vừa xoay vòng — bỏ bước đó thì sẽ gọi /auth/logout bằng cookie
+ * mới và đăng xuất mọi tab.
+ */
+export const refreshSession = async (options?: { force?: boolean }): Promise<RefreshOutcome> => {
+  const force = Boolean(options?.force);
+
+  // If recently refreshed (within 2s) and the in-memory token is still valid, reuse without re-calling BE
+  if (!force && Date.now() - lastRefreshTime < 2000 && isTokenFresh(getAccessToken())) {
+    return "ok";
   }
 
-  // If a refresh is already in progress, deduplicate by waiting on the same promise
-  if (refreshPromise) {
-    return refreshPromise;
+  // If a refresh is already in progress, share it when non-forced or already forced; otherwise wait for it
+  // to settle before issuing a forced refresh so we neither reuse a stale-org token nor race /auth/refresh.
+  while (refreshPromise) {
+    if (!force || refreshForced) return refreshPromise;
+    const outcome = await refreshPromise;
+    if (outcome === "rejected") return "rejected";
   }
 
-  const tokenAtStart = getStoredAuthToken();
-  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart)).finally(() => {
+  const tokenAtStart = getAccessToken();
+  refreshForced = force;
+  refreshPromise = withCrossTabLock(() => requestRefresh(tokenAtStart, force)).finally(() => {
     refreshPromise = null;
+    refreshForced = false;
   });
 
   return refreshPromise;
 };
 
-export const refreshAccessToken = async (): Promise<boolean> => (await refreshSession()) === "ok";
+export const refreshAccessToken = async (options?: { force?: boolean }): Promise<boolean> =>
+  (await refreshSession(options)) === "ok";
 
 /** Ngưỡng refresh chủ động mặc định cho một request ngắn. */
 export const DEFAULT_MIN_TOKEN_TTL_MS = 15_000;
@@ -159,12 +243,11 @@ export const STREAM_MIN_TOKEN_TTL_MS = 120_000;
 export const ensureFreshToken = async (minTtlMs: number = DEFAULT_MIN_TOKEN_TTL_MS): Promise<void> => {
   if (typeof window === "undefined") return;
   if (refreshPromise) await refreshPromise;
-  const stored = getStoredAuthToken();
-  if (!stored) return;
-  setAccessToken(stored);
-  const decoded = decodeJwt(stored);
+  const current = getAccessToken();
+  if (!current) return;
+  const decoded = decodeJwt(current);
   if (decoded?.exp && Date.now() >= decoded.exp * 1000 - minTtlMs) {
-    if (await refreshAccessToken()) setAccessToken(getStoredAuthToken());
+    await refreshAccessToken();
   }
 };
 
@@ -183,19 +266,11 @@ export const authFetch = async (
   }
 
   // 2. Proactively refresh token if expired or about to expire in <= 15s
-  if (typeof window !== "undefined") {
-    const stored = getStoredAuthToken();
-    if (stored) {
-      setAccessToken(stored);
-      if (retry) {
-        const decoded = decodeJwt(stored);
-        if (decoded?.exp && Date.now() >= (decoded.exp - 15) * 1000) {
-          const refreshed = await refreshAccessToken();
-          if (refreshed) {
-            setAccessToken(getStoredAuthToken());
-          }
-        }
-      }
+  if (typeof window !== "undefined" && retry) {
+    const current = getAccessToken();
+    const decoded = current ? decodeJwt(current) : null;
+    if (decoded?.exp && Date.now() >= (decoded.exp - 15) * 1000) {
+      await refreshAccessToken();
     }
   }
 
@@ -226,19 +301,31 @@ export const authFetch = async (
     throw new ApiClientError(0, "NETWORK_ERROR", err instanceof Error ? err.message : String(err));
   }
 
+  if (!(await isSuspendedResponse(res))) {
+    const activeOrgId = (tokenBeforeRequest ? decodeJwt(tokenBeforeRequest)?.orgId : null) ?? getActiveOrgId();
+    await isOrgAccessLostResponse(res, endpoint, activeOrgId);
+  }
+
   // 3. Handle 401 Unauthorized with concurrency awareness
   if (res.status === 401 && retry) {
     // If another concurrent request has already refreshed the token in the meantime,
     // retry immediately with the fresh token rather than initiating a redundant refresh
-    const latestToken = getStoredAuthToken();
+    const latestToken = getAccessToken();
     if (latestToken && latestToken !== tokenBeforeRequest) {
-      setAccessToken(latestToken);
       return authFetch(endpoint, options, false);
     }
 
-    const refreshed = await refreshAccessToken();
-    if (refreshed) {
+    const outcome = await refreshSession({ force: true });
+    if (outcome === "ok") {
       return authFetch(endpoint, options, false);
+    }
+
+    if (outcome === "rejected" && typeof window !== "undefined") {
+      const pathname = window.location.pathname;
+      if (!isPublicAuthPath(pathname) && !loggingOut) {
+        loggingOut = true;
+        void logoutAndRedirect("/login");
+      }
     }
   }
 

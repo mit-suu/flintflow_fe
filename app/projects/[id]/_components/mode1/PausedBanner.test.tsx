@@ -6,13 +6,13 @@ import PausedBanner from "./PausedBanner";
 
 const AT = "2026-09-19T03:15:00.000Z";
 
-describe("PausedBanner — bước AI tạm dừng (UC-61, UC-75)", () => {
+describe("PausedBanner - bước AI tạm dừng (UC-61, UC-75)", () => {
   it("hết credit ⇒ lý do credit, link nạp credit, bấm Tiếp tục gọi onResume", () => {
     const onResume = vi.fn();
     renderWithIntl(<PausedBanner paused={{ reason: "credits", at: AT }} what="Trích field" onResume={onResume} />);
 
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent("Trích field đang tạm dừng — hết credit");
+    expect(alert).toHaveTextContent("Trích field đang tạm dừng - hết credit");
     expect(alert).toHaveTextContent("Nạp thêm credit rồi bấm Tiếp tục");
     expect(screen.getByRole("link", { name: "Nạp credit" })).toHaveAttribute("href", "/home/billing");
     expect(alert.querySelector('[data-icon="savings"]')).toBeInTheDocument();
@@ -26,7 +26,7 @@ describe("PausedBanner — bước AI tạm dừng (UC-61, UC-75)", () => {
     renderWithIntl(<PausedBanner paused={{ reason: "resume_later", at: AT }} what="Đề xuất sửa" onResume={onResume} />);
 
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent("Đề xuất sửa đang tạm dừng — AI lỗi, đã thử lại 2 lần");
+    expect(alert).toHaveTextContent("Đề xuất sửa đang tạm dừng - AI lỗi, đã thử lại 2 lần");
     expect(alert).toHaveTextContent("Credit đã giữ được hoàn lại");
     expect(screen.queryByRole("link", { name: "Nạp credit" })).not.toBeInTheDocument();
     expect(alert.querySelector('[data-icon="cloud-off"]')).toBeInTheDocument();

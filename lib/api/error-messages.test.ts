@@ -17,6 +17,18 @@ describe("localizeApiError (T25 · P6)", () => {
     expect(localizeApiError("EMAIL_NOT_VERIFIED", "Email chưa được xác thực.")).toBe("Your email isn't verified yet. Please check your inbox.");
   });
 
+  it("FLF-398 DUPLICATE_DOCUMENT ⇒ câu nêu tài liệu đã có (tên có gạch dưới vẫn hiện); trùng bản cũ ⇒ nêu bản đang thay", () => {
+    setPage("vi");
+    const doc = { id: "d1", name: "SRS_KhachHang_v1.docx", doc_code: 1 };
+    expect(new ApiClientError(409, "DUPLICATE_DOCUMENT", "x", { document: doc }).message).toBe('Tài liệu này đã có trong dự án: "SRS_KhachHang_v1.docx" (D1).');
+    expect(
+      new ApiClientError(409, "DUPLICATE_DOCUMENT", "x", { document: doc, superseded_by: { id: "d2", name: "SRS_KhachHang_v2.docx", doc_code: 2 } }).message
+    ).toBe('"SRS_KhachHang_v1.docx" (D1) là bản cũ, đã được thay bởi "SRS_KhachHang_v2.docx" (D2).');
+    expect(localizeApiError("DUPLICATE_DOCUMENT", "x")).toBe("Tài liệu này đã có trong dự án.");
+    setPage("en");
+    expect(localizeApiError("DUPLICATE_DOCUMENT", "x", undefined, { document: doc })).toBe('This document is already in the project: "SRS_KhachHang_v1.docx" (D1).');
+  });
+
   it("FILE_TOO_LARGE có meta.max_mb (upload SRS) ⇒ câu nêu giới hạn MB + cách nén ảnh; không meta ⇒ câu chung", () => {
     setPage("vi");
     expect(new ApiClientError(413, "FILE_TOO_LARGE", "File vượt giới hạn 40 MB.", { max_mb: 40 }).message).toBe(
@@ -29,10 +41,23 @@ describe("localizeApiError (T25 · P6)", () => {
     );
   });
 
-  it("mã mơ hồ / mang chi tiết động hoặc không có mã ⇒ giữ nguyên message BE", () => {
-    setPage("en");
+  it("mã mang chi tiết động: giữ nguyên nếu hợp lệ theo ngôn ngữ; nếu rò tiếng Việt trên en ⇒ câu dịch chuẩn (FLF-427)", () => {
+    setPage("vi");
     expect(localizeApiError("FORBIDDEN", "Chỉ Admin mới có quyền thực hiện thao tác này")).toBe("Chỉ Admin mới có quyền thực hiện thao tác này");
     expect(localizeApiError("VALIDATION_ERROR", "from phải trước to")).toBe("from phải trước to");
+
+    setPage("en");
+    expect(localizeApiError("FORBIDDEN", "Only Admin can perform this action")).toBe("Only Admin can perform this action");
+    expect(localizeApiError("VALIDATION_ERROR", "from must be before to")).toBe("from must be before to");
+    expect(localizeApiError("FORBIDDEN", "Chỉ Admin mới có quyền thực hiện thao tác này")).toBe("You do not have permission to perform this action.");
+    expect(localizeApiError("VALIDATION_ERROR", "from phải trước to")).toBe("The submitted data is invalid. Please check your input and try again.");
+  });
+
+  it("SESSION_REVOKED: câu dịch theo ngôn ngữ (FLF-427)", () => {
+    setPage("vi");
+    expect(localizeApiError("SESSION_REVOKED", "x")).toBe("Phiên đăng nhập đã kết thúc. Vui lòng đăng nhập lại.");
+    setPage("en");
+    expect(localizeApiError("SESSION_REVOKED", "x")).toBe("Your session has ended. Please sign in again.");
   });
 
   it("câu BE là text kỹ thuật ⇒ câu chung theo ngôn ngữ (FLF-247)", () => {
@@ -70,9 +95,11 @@ describe("localizeApiError (T25 · P6)", () => {
     expect(userErrorMessage(new ApiClientError(500, "X_UNMAPPED", "HTTP 500"), "Không tải được danh sách cờ")).toBe("Không tải được danh sách cờ");
   });
 
-  it("trong /admin luôn tiếng Việt dù <html lang> là en (admin chỉ tiếng Việt)", () => {
+  it("trong /admin cũng theo <html lang> như mọi khu khác (admin song ngữ, FLF-328)", () => {
     setPage("en", "/admin/users");
-    expect(currentLocale()).toBe("vi");
+    expect(currentLocale()).toBe("en");
+    expect(localizeApiError("USER_NOT_FOUND", "Không tìm thấy")).toBe("User not found.");
+    setPage("vi", "/admin/users");
     expect(localizeApiError("USER_NOT_FOUND", "User not found")).toBe("Không tìm thấy người dùng.");
   });
 
@@ -96,5 +123,36 @@ describe("localizeApiError (T25 · P6)", () => {
     expect(err.message).toBe("The document just changed in another session. Please reload and try again.");
     expect(err.rawMessage).toBe("Tài liệu vừa được thay đổi ở phiên khác.");
     expect(err.code).toBe("SPINE_VERSION_CONFLICT");
+  });
+
+  it("FLF-395: IMPORT_FILE_REJECTED nêu lý do BE (tối đa 3); mã thư viện mẫu có câu riêng", () => {
+    const withIssues = localizeApiError("IMPORT_FILE_REJECTED", "x", "vi", { issues: [{ code: "A", message: "Tài liệu trống" }, { code: "B", message: "Sai định dạng" }] });
+    expect(withIssues).toContain("Không đọc được file này.");
+    expect(withIssues).toContain("Tài liệu trống; Sai định dạng");
+    expect(localizeApiError("IMPORT_FILE_REJECTED", "x", "vi")).toBe("Không đọc được file này.");
+    for (const code of ["ORG_TEMPLATE_VERSION_PUBLISHED", "ORG_TEMPLATE_VERSION_CONFLICT", "ORG_TEMPLATE_NOT_FOUND", "ORG_TEMPLATE_VERSION_NOT_FOUND", "SKELETON_CONFLICT", "SKELETON_NOT_FOUND", "SKELETON_SUGGEST_FAILED"]) {
+      expect(localizeApiError(code, "x", "en")).not.toBe("x");
+    }
+
+    setPage("en");
+    const withViIssues = localizeApiError("IMPORT_FILE_REJECTED", "x", "en", {
+      issues: [{ code: "A", message: "Tài liệu trống" }, { code: "B", message: "Sai định dạng" }],
+    });
+    expect(withViIssues).toBe("This file could not be read.");
+    expect(withViIssues).not.toContain("Tài liệu trống");
+
+    const withEnIssues = localizeApiError("IMPORT_FILE_REJECTED", "x", "en", {
+      issues: [{ code: "A", message: "Empty document" }],
+    });
+    expect(withEnIssues).toBe("This file could not be read. Empty document");
+  });
+
+  it("FLF-422: INVITE_EMAIL_MISMATCH dịch song ngữ vi/en", () => {
+    expect(localizeApiError("INVITE_EMAIL_MISMATCH", "x", "vi")).toBe(
+      "Mã mời này được cấp riêng cho một địa chỉ email khác."
+    );
+    expect(localizeApiError("INVITE_EMAIL_MISMATCH", "x", "en")).toBe(
+      "This invitation code was issued for a different email address."
+    );
   });
 });

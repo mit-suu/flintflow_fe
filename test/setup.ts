@@ -10,6 +10,26 @@ import { afterEach } from "vitest";
  */
 configure({ asyncUtilTimeout: 15_000 });
 
+/**
+ * jsdom không có `ResizeObserver`; cmdk (ô tìm trong bộ lọc của bảng admin) gọi nó ngay khi mở. Bản giả này
+ * không báo kích thước — test không cần kích thước thật, chỉ cần component không nổ.
+ */
+if (!("ResizeObserver" in globalThis)) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+/**
+ * Cũng thiếu ở jsdom: cmdk cuộn tới mục đang chọn. Không có bố cục thật nên không có gì để cuộn.
+ * File test chạy môi trường `node` không có `Element`, nên phải kiểm trước khi đụng vào.
+ */
+if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+
 afterEach(() => {
   cleanup();
 });

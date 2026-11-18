@@ -16,8 +16,9 @@ vi.mock("next/navigation", () => ({
 vi.mock("./GapReportView", () => ({ default: () => <p>nội dung gap report</p> }));
 vi.mock("./CrWorkspace", () => ({ default: ({ crId }: { crId: string }) => <p>chi tiết {crId}</p> }));
 vi.mock("./ChangeRequestList", () => ({
-  default: ({ prefill }: { prefill: { title?: string } | null }) => <p>danh sách CR{prefill ? ` · điền sẵn: ${prefill.title}` : ""}</p>,
+  default: (props: Record<string, unknown>) => <p>danh sách CR{"prefill" in props ? " · có prefill" : ""}</p>,
 }));
+vi.mock("./ReuploadDiffView", () => ({ default: ({ projectId }: { projectId: string }) => <p>re-upload · {projectId}</p> }));
 vi.mock("./VersionCompare", () => ({ default: ({ versions }: { versions: { version: string }[] }) => <p>so sánh · {versions.length} version</p> }));
 /** Lượt tải đầu xong hay chưa — popup phải chờ xong mới dựng `VersionCompare` (nó chốt mặc định lúc mount). */
 let docsLoading = false;
@@ -26,7 +27,7 @@ vi.mock("../../hooks/mode1/useDocVersions", () => ({
   useDocVersions: (_projectId: string, options: { redFlags?: boolean } = {}) => {
     docsOptions.push(options);
     return {
-      versions: docsLoading ? [] : [{ version: "1.0" }, { version: "0.0" }],
+      versions: docsLoading ? [] : [{ version: "1.0" }, { version: "0.1" }],
       redOpen: null,
       loading: docsLoading,
       error: null,
@@ -35,12 +36,12 @@ vi.mock("../../hooks/mode1/useDocVersions", () => ({
   },
 }));
 
-const open = (q: string) => {
+const open = (q: string, readOnly = false) => {
   query = q;
-  return renderWithIntl(<Mode1Popup projectId={P} />);
+  return renderWithIntl(<Mode1Popup projectId={P} readOnly={readOnly} />);
 };
 
-describe("Mode1Popup — gap report / change request dạng popup trên màn Tài liệu & version", () => {
+describe("Mode1Popup - gap report / change request dạng popup trên màn Tài liệu & version", () => {
   beforeEach(() => router.replace.mockClear());
 
   it("không có panel ⇒ không hiện gì", () => {
@@ -56,10 +57,10 @@ describe("Mode1Popup — gap report / change request dạng popup trên màn Tà
     expect(router.replace).toHaveBeenCalledWith(`/projects/${P}`, { scroll: false });
   });
 
-  it("panel=cr ⇒ danh sách CR; kèm new=1&… ⇒ form điền sẵn", () => {
+  it("panel=cr ⇒ danh sách CR; link cũ kèm new=1&… cũng chỉ hiện danh sách (FLF-375: không còn form tạo CR)", () => {
     open("panel=cr&new=1&title=B%E1%BB%95%20sung%20m%E1%BB%A5c&source=gap_report");
     expect(screen.getByRole("dialog", { name: "Change request" })).toBeInTheDocument();
-    expect(screen.getByText("danh sách CR · điền sẵn: Bổ sung mục")).toBeInTheDocument();
+    expect(screen.getByText("danh sách CR")).toBeInTheDocument();
   });
 
   it("panel=compare ⇒ popup So sánh version, nhận danh sách version đã tải, không đếm cờ đỏ", () => {
@@ -87,5 +88,17 @@ describe("Mode1Popup — gap report / change request dạng popup trên màn Tà
     expect(screen.getByRole("dialog", { name: "Change request CR-003" })).toBeInTheDocument();
     expect(screen.getByText("chi tiết CR-003")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "← Danh sách change request" })).toHaveAttribute("href", `/projects/${P}?panel=cr`);
+  });
+
+  it("panel=reupload ⇒ popup Re-upload với ReuploadDiffView của dự án (UC-25)", () => {
+    open("panel=reupload");
+    expect(screen.getByRole("dialog", { name: "Re-upload file đã sửa" })).toBeInTheDocument();
+    expect(screen.getByText(`re-upload · ${P}`)).toBeInTheDocument();
+  });
+
+  it("panel=reupload khi chỉ xem ⇒ không dựng popup", () => {
+    open("panel=reupload", true);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByText(/re-upload ·/)).not.toBeInTheDocument();
   });
 });

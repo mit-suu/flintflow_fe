@@ -54,6 +54,9 @@ export const streamSse = async <T>(
     }
 
     const reader = res.body.getReader();
+    // Huỷ giữa luồng (nút dừng): không trông vào fetch tự cắt body — có môi trường để `read()` treo mãi.
+    // Huỷ reader thì `read()` đang chờ trả `done` và vòng dưới thoát.
+    signal?.addEventListener("abort", () => void reader.cancel().catch(() => undefined), { once: true });
     const decoder = new TextDecoder("utf-8");
     let buffer = "";
 
@@ -91,10 +94,20 @@ export const streamSse = async <T>(
   }
 };
 
+/** Sự kiện `error` giữa luồng chat — `code` cùng bảng với pipeline (FLF-332): FE phân biệt "AI lỗi, credit đã hoàn" với lỗi khác. */
+export class ChatStreamError extends Error {
+  code: string | null;
+  constructor(message: string, code: string | null) {
+    super(message);
+    this.name = "ChatStreamError";
+    this.code = code;
+  }
+}
+
 type ChatStreamEvent =
   | { type: "text-delta"; delta: string }
   | { type: "finish"; session: ChatSession; data?: unknown; tokensUsed?: unknown; cost?: number }
-  | { type: "error"; error?: string };
+  | { type: "error"; error?: string; code?: string };
 
 export interface StreamChatParams {
   projectId: string;
@@ -102,6 +115,12 @@ export interface StreamChatParams {
   content: string;
   step: string;
   discoveryStep?: number;
+  /**
+   * `true` ⇒ lượt hỏi kiến thức (contract §1.2): trả lời từ Knowledge RAG, 2 credit. Route này **không
+   * stream chữ** — nó phát đúng một `finish` rồi đóng, nên `onTextDelta` không bao giờ được gọi và UI
+   * phải tự hiện trạng thái chờ. Server tắt tính năng ⇒ `409 KNOWLEDGE_DISABLED`.
+   */
+  knowledge?: boolean;
   onTextDelta?: (delta: string) => void;
   onFinish?: (payload: {
     session: ChatSession;
@@ -119,6 +138,7 @@ export const streamChatMessage = ({
   content,
   step,
   discoveryStep,
+  knowledge,
   onTextDelta,
   onFinish,
   onError,
@@ -126,7 +146,8 @@ export const streamChatMessage = ({
 }: StreamChatParams): Promise<void> =>
   streamSse<ChatStreamEvent>(
     `/projects/${projectId}/chats/${chatId}/messages/stream`,
-    { content, step, discoveryStep },
+    // `knowledge` chỉ gửi khi bật: lượt chat thường giữ body đúng như cũ, đọc log không phải đoán.
+    { content, step, discoveryStep, ...(knowledge ? { knowledge: true } : {}) },
     {
       signal,
       onError,
@@ -142,7 +163,7 @@ export const streamChatMessage = ({
           });
         } else if (event.type === "error") {
           // Lỗi trong luồng: báo cho UI nhưng không cắt stream (giữ hành vi cũ)
-          onError?.(new Error(event.error || "Streaming error occurred"));
+          onError?.(new ChatStreamError(event.error || "Streaming error occurred", event.code ?? null));
         }
       },
     }

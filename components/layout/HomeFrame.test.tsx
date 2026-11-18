@@ -15,14 +15,17 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 // Khung đầy đủ và guard được test riêng — ở đây chỉ cần biết HomeFrame chọn khung nào
-vi.mock("./AppShell", () => ({ default: ({ sidebar, children }: { sidebar: React.ReactNode; children: React.ReactNode }) => <div data-testid="app-shell">{sidebar}{children}</div> }));
-vi.mock("./AppSidebar", () => ({ default: ({ user }: { user: { name: string } }) => <nav data-testid="app-sidebar">{user.name}</nav> }));
+// `user` giờ đi vào AppShell (TopBar dựng menu tài khoản từ context), không còn truyền xuống AppSidebar
+vi.mock("./AppShell", () => ({ default: ({ sidebar, user, children }: { sidebar: React.ReactNode; user: { name: string }; children: React.ReactNode }) => <div data-testid="app-shell" data-user-name={user.name}>{sidebar}{children}</div> }));
+vi.mock("./AppSidebar", () => ({ default: () => <nav data-testid="app-sidebar" /> }));
 vi.mock("@/lib/api/users", () => ({ fetchMe: vi.fn() }));
 // Hook đồng bộ ngôn ngữ test riêng — ở đây chỉ cần biết HomeFrame đưa hồ sơ cho nó
 vi.mock("@/lib/hooks/use-account-locale", () => ({ useAccountLocaleSync: vi.fn() }));
 vi.mock("@/lib/hooks/use-projects", () => ({ ProjectsProvider: ({ children }: { children: React.ReactNode }) => <div data-testid="projects-provider">{children}</div> }));
 vi.mock("@/components/OrgGuard", () => ({
   ONBOARDING_PATH: "/home/onboarding",
+  ORGANIZATIONS_PATH: "/home/organizations",
+  PROFILE_PATH: "/home/profile",
   default: ({ children }: { children: React.ReactNode }) => <div data-testid="org-guard">{children}</div>,
 }));
 
@@ -35,7 +38,7 @@ beforeEach(() => {
 });
 
 describe("HomeFrame", () => {
-  it("chưa có tổ chức: khung tối giản — không thanh bên, không tải dự án, có Đăng xuất", () => {
+  it("chưa có tổ chức: khung tối giản - không thanh bên, không tải dự án, có Đăng xuất", () => {
     vi.mocked(getActiveOrgId).mockReturnValue(null);
     renderWithIntl(<HomeFrame user={user}><p>màn onboarding</p></HomeFrame>);
 
@@ -56,6 +59,43 @@ describe("HomeFrame", () => {
     expect(screen.queryByTestId("app-sidebar")).toBeNull();
   });
 
+  it("chưa có tổ chức ở /home/organizations hoặc /home/profile: miễn trừ OrgGuard, có lối vào hồ sơ hoặc quay lại", () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+
+    pathname = "/home/organizations";
+    const { rerender } = renderWithIntl(<HomeFrame user={user}><p>màn organizations</p></HomeFrame>);
+    expect(screen.getByText("màn organizations")).toBeInTheDocument();
+    expect(screen.queryByTestId("org-guard")).toBeNull();
+    const profileLink = screen.getByRole("link", { name: "Hồ sơ" });
+    expect(profileLink).toHaveAttribute("href", "/home/profile");
+
+    pathname = "/home/profile";
+    rerender(<HomeFrame user={user}><p>màn profile</p></HomeFrame>);
+    expect(screen.getByText("màn profile")).toBeInTheDocument();
+    expect(screen.queryByTestId("org-guard")).toBeNull();
+    const backLink = screen.getByRole("link", { name: /Quay lại|Về/ });
+    expect(backLink).toHaveAttribute("href", "/home");
+  });
+
+  it("chưa có tổ chức ở /home/profile nhưng là admin: link quay lại trỏ về /admin/metrics", () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    pathname = "/home/profile";
+    renderWithIntl(<HomeFrame user={{ ...user, isAdmin: true }}><p>màn profile admin</p></HomeFrame>);
+    const backLink = screen.getByRole("link", { name: /Quay lại|Về/ });
+    expect(backLink).toHaveAttribute("href", "/admin/metrics");
+  });
+
+  it("chưa có tổ chức mà mở /home/organizations: khung tối giản hiện thẳng nội dung, không bọc OrgGuard", () => {
+    pathname = "/home/organizations";
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    renderWithIntl(<HomeFrame user={user}><p>chọn tổ chức</p></HomeFrame>);
+
+    expect(screen.getByText("chọn tổ chức")).toBeInTheDocument();
+    expect(screen.queryByTestId("org-guard")).toBeNull();
+    expect(screen.queryByTestId("app-sidebar")).toBeNull();
+    expect(screen.queryByTestId("projects-provider")).toBeNull();
+  });
+
   it("có tổ chức: khung đầy đủ với thanh bên và ProjectsProvider", () => {
     pathname = "/home";
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");
@@ -67,14 +107,16 @@ describe("HomeFrame", () => {
   });
 });
 
-describe("HomeFrame — tên ở thanh bên", () => {
+describe("HomeFrame - tên người dùng đưa xuống khung", () => {
   it("hồ sơ có tên ⇒ thay tên đoán từ email bằng tên thật", async () => {
     pathname = "/home";
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");
     vi.mocked(fetchMe).mockResolvedValue({ email: "tien@flintflow.test", name: "Tiến Nguyễn" } as never);
     renderWithIntl(<HomeFrame user={user}><p>trang chủ</p></HomeFrame>);
 
-    expect(await screen.findByText("Tiến Nguyễn")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(screen.getByTestId("app-shell")).toHaveAttribute("data-user-name", "Tiến Nguyễn")
+    );
   });
 
   it("không lấy được hồ sơ ⇒ giữ tên đoán từ email", async () => {
@@ -84,11 +126,11 @@ describe("HomeFrame — tên ở thanh bên", () => {
     renderWithIntl(<HomeFrame user={user}><p>trang chủ</p></HomeFrame>);
 
     await waitFor(() => expect(fetchMe).toHaveBeenCalled());
-    expect(screen.getByTestId("app-sidebar")).toHaveTextContent("tien");
+    expect(screen.getByTestId("app-shell")).toHaveAttribute("data-user-name", "tien");
   });
 });
 
-describe("HomeFrame — ngôn ngữ tài khoản (FLF-259)", () => {
+describe("HomeFrame - ngôn ngữ tài khoản (FLF-259)", () => {
   it("có hồ sơ ⇒ đưa cho useAccountLocaleSync (trước đó là null)", async () => {
     pathname = "/home";
     vi.mocked(getActiveOrgId).mockReturnValue("org-1");

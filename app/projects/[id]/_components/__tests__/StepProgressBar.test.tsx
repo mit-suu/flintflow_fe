@@ -42,6 +42,16 @@ describe("StepProgressBar", () => {
     expect(screen.queryByTestId("step-percent")).not.toBeInTheDocument();
   });
 
+  it("FLF-278: dự án theo mẫu bắt buộc ⇒ dưới tên bước ghi mục của mẫu mà bước đó soạn; bước không soạn mục nào thì không", () => {
+    const tagged = [{ ...step("S-2.5", "accepted"), template_sections: ["1.1 Purpose", "1.2 Scope"] }, { ...step("S-3.1", "pending"), template_sections: [] }];
+    renderWithIntl(<StepProgressBar steps={tagged} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
+    const lines = screen.getAllByTestId("step-template-sections");
+    expect(lines.map((l) => l.textContent)).toEqual(["→ 1.1 Purpose · 1.2 Scope"]);
+    const withSections = screen.getByRole("button", { name: `${stepLabel("S-2.5")} - Soạn mục của mẫu: 1.1 Purpose · 1.2 Scope` });
+    expect(withSections).toHaveAttribute("title", expect.stringContaining("Soạn mục của mẫu: 1.1 Purpose · 1.2 Scope"));
+    expect(screen.getByRole("button", { name: stepLabel("S-3.1") })).not.toHaveTextContent("→");
+  });
+
   it("`phase` ⇒ chỉ hiện bước của phase đó", () => {
     renderWithIntl(<StepProgressBar phase="S-3" steps={steps} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
     expect(screen.queryByRole("button", { name: stepLabel("S-2.5") })).not.toBeInTheDocument();
@@ -68,21 +78,15 @@ describe("StepProgressBar", () => {
     expect(screen.getByRole("button", { name: stepLabel("S-3.2") })).toBeDisabled();
   });
 
-  it("mode 1 v2 (FLF-185): step của đầu mục FPT thiếu ⇒ chấm đỏ + nhãn Thiếu; hết khi step đã chốt", () => {
+  it("FLF-312: mẫu FPT không bắt buộc - bước không còn nhãn Thiếu", () => {
     const list = [step("S-2.5", "accepted"), step("S-3.1", "pending"), step("S-7.1", "pending")];
-    const { rerender } = renderWithIntl(
-      <StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} missingStepIds={new Set(["S-7.1", "S-2.5"])} />
-    );
-    expect(screen.getByTestId("step-missing")).toHaveTextContent("Thiếu 1");
-    expect(screen.getByRole("button", { name: `${stepLabel("S-7.1")} (Thiếu)` })).toHaveAttribute("data-missing", "true");
-    // S-2.5 thuộc kế hoạch "thiếu" nhưng đã accepted ⇒ không còn đỏ
-    expect(screen.getByRole("button", { name: stepLabel("S-2.5") })).not.toHaveAttribute("data-missing");
-    rerender(<StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
-    expect(screen.queryByTestId("step-missing")).not.toBeInTheDocument();
+    renderWithIntl(<StepProgressBar steps={list} progress={progress()} selectedStepId={null} onSelectStep={vi.fn()} />);
+    expect(screen.queryByText(/Thiếu/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: stepLabel("S-7.1") })).toBeInTheDocument();
   });
 });
 
-describe("StepProgressBar — vòng S-5 theo màn", () => {
+describe("StepProgressBar - vòng S-5 theo màn", () => {
   const loopStep = (id: string, status: StepSummary["status"] = "pending"): StepSummary => ({ ...step(id, status), phase: "S-5" });
 
   it("màn chưa động tới gom thành chip '+N màn để lại'; màn đã chạy/đang chạy vẫn hiện chấm", () => {

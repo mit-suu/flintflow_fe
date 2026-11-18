@@ -3,6 +3,7 @@
  * trả ngay `extracting`, tiến độ đọc bằng poll `getImport`.
  */
 import type {
+  ContinueFlow2Response,
   ExtractResponse,
   FieldsPatchRequest,
   FinalizeResponse,
@@ -26,9 +27,19 @@ const docxForm = (file: File) => {
   return form;
 };
 
-/** 422 `IMPORT_FILE_REJECTED` mang `meta.issues[]`; 422 `IMPORT_STAMP_FOREIGN_PROJECT` mang `meta.stamp`. */
+/**
+ * 422 `IMPORT_FILE_REJECTED` mang `meta.issues[]`; 422 `IMPORT_STAMP_FOREIGN_PROJECT` mang `meta.stamp`. Ý định với file (giữ
+ * khung / bổ sung theo mẫu chuẩn) BE lấy từ dự án — chốt ở hộp Tạo dự án.
+ */
 export const uploadImport = (projectId: string, file: File) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import`, { method: "POST", body: docxForm(file) });
+
+/**
+ * Như `uploadImport` nhưng file lấy từ Google Drive (contract #46): `fileId` là file user chọn trong Google Picker. Thêm lỗi
+ * Google (`GOOGLE_RECONNECT_REQUIRED`, `GOOGLE_FILE_UNSUPPORTED`, `GOOGLE_EXPORT_TOO_LARGE`…).
+ */
+export const importFromGoogleDocs = (projectId: string, fileId: string) =>
+  apiCall<ImportStateResponse>(`${base(projectId)}/import/google-docs`, { method: "POST", body: JSON.stringify({ fileId }) });
 
 export const confirmLatest = (projectId: string, importId: string) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/confirm-latest`, {
@@ -41,24 +52,47 @@ export const getImport = (projectId: string) => apiCall<GetImportResponse>(`${ba
 export const patchMapping = (projectId: string, body: MappingPatchRequest) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/mapping`, { method: "PATCH", body: JSON.stringify(body) });
 
-export const startExtraction = (projectId: string, importId: string) =>
+/** FLF-412: cả tập mục chọn Bỏ chữ ở màn đọc khung (trước Bắt đầu) — BE tính lại bản sơ bộ, đọc lại `GET /import`. */
+export const setDropText = (projectId: string, importId: string, keys: string[]) =>
+  apiCall<ImportStateResponse>(`${base(projectId)}/import/drop-text`, { method: "PATCH", body: JSON.stringify({ import_id: importId, keys }) });
+
+/**
+ * Nút "Bắt đầu" (FLF-343): BE chạy một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu "đây là bản mới nhất"
+ * (bắt buộc khi file chưa xác nhận — thiếu ⇒ 409 `IMPORT_NEEDS_LATEST_CONFIRM`).
+ */
+export const startExtraction = (projectId: string, importId: string, confirmLatest?: boolean) =>
   apiCall<ExtractResponse>(`${base(projectId)}/import/extract`, {
     method: "POST",
-    body: JSON.stringify({ import_id: importId }),
+    body: JSON.stringify({ import_id: importId, ...(confirmLatest ? { confirm_latest: true } : {}) }),
   });
 
 export const patchFields = (projectId: string, body: FieldsPatchRequest) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/fields`, { method: "PATCH", body: JSON.stringify(body) });
 
 /** `recordOfChanges` (FLF-252): dòng Record of Changes đã xem/sửa ở wizard; bỏ trống ⇒ BE đọc lại từ file. */
-export const finalizeImport = (projectId: string, importId: string, baseVersion: number, recordOfChanges?: RocRow[]) =>
+export const finalizeImport = (projectId: string, importId: string, baseVersion: number, recordOfChanges?: RocRow[], opts: { complete?: boolean } = {}) =>
   apiCall<FinalizeResponse>(`${base(projectId)}/import/finalize`, {
     method: "POST",
-    body: JSON.stringify({ import_id: importId, base_version: baseVersion, ...(recordOfChanges ? { record_of_changes: recordOfChanges } : {}) }),
+    // FLF-336: `complete: true` từ màn "Kết quả đọc file" (import `incomplete`)
+    body: JSON.stringify({ import_id: importId, base_version: baseVersion, ...(recordOfChanges ? { record_of_changes: recordOfChanges } : {}), ...(opts.complete ? { complete: true } : {}) }),
+  });
+
+/** FLF-278 trên FLF-336: chế độ 3 ở `incomplete` ⇒ viết phần còn thiếu với FlintFlow (Luồng 2) thay vì Hoàn thiện. */
+export const continueImportFlow2 = (projectId: string, importId: string, baseVersion: number) =>
+  apiCall<ContinueFlow2Response>(`${base(projectId)}/import/continue`, {
+    method: "POST",
+    body: JSON.stringify({ import_id: importId, base_version: baseVersion }),
   });
 
 export const resumeImport = (projectId: string, importId: string) =>
   apiCall<ExtractResponse>(`${base(projectId)}/import/resume`, {
+    method: "POST",
+    body: JSON.stringify({ import_id: importId }),
+  });
+
+/** Dừng lượt đọc nội dung đang chạy (#10b): BE dừng trước lượt AI kế tiếp, không trừ thêm credit. Tiếp tục bằng `resumeImport`. */
+export const pauseImport = (projectId: string, importId: string) =>
+  apiCall<ExtractResponse>(`${base(projectId)}/import/pause`, {
     method: "POST",
     body: JSON.stringify({ import_id: importId }),
   });
@@ -75,6 +109,6 @@ export const reuploadDocument = (projectId: string, file: File) =>
 /** #32 (FLF-182): step nào chạy / ẩn / thiếu theo template của file upload. */
 export const getStepPlan = (projectId: string) => apiCall<StepPlanResponse>(`${base(projectId)}/step-plan`);
 
-/** #33: bật step ẩn / tắt step đã bật. 409 `CORE_STEP_REQUIRED` khi tắt step của đầu mục FPT; 404 `STEP_NOT_IN_PLAN`. */
+/** #33: bật step ẩn / tắt step đã bật. 409 `CORE_STEP_REQUIRED` khi tắt bước luôn chạy / step đã có dữ liệu; 404 `STEP_NOT_IN_PLAN`. */
 export const patchStepPlan = (projectId: string, body: StepPlanPatchRequest) =>
   apiCall<StepPlanResponse>(`${base(projectId)}/step-plan`, { method: "PATCH", body: JSON.stringify(body) });

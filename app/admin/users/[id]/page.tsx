@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import BackLink from "@/components/ui/BackLink";
 import { useParams } from "next/navigation";
 import {
@@ -11,36 +12,40 @@ import {
   type AdminUserDetail,
   type AdminUserStatus,
 } from "@/lib/api/admin";
-import type { CreditTransaction } from "@/lib/api/billing";
+import { Badge } from "@/components/shadcn/badge";
+import { Button } from "@/components/shadcn/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/shadcn/card";
+import { Label } from "@/components/shadcn/label";
 import {
-  AdminTopBar,
-  ErrorBanner,
-  LoadingBlock,
-  StatCard,
-  tableCellClass,
-  tableHeadClass,
-} from "../../_components/AdminPage";
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/shadcn/table";
+import { Textarea } from "@/components/shadcn/textarea";
+import AdminHeader from "../../_components/AdminHeader";
+import { AdminMain, AdminScroll, ErrorBanner, LoadingBlock, StatCard } from "../../_components/AdminPage";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
-const TX_LABELS: Record<CreditTransaction["type"], string> = {
-  reserve: "Giữ credit",
-  deduct: "Trừ credit",
-  release: "Hoàn credit",
-  purchase: "Nạp credit",
-  monthly_reset: "Reset hằng tháng",
-  refund: "Hoàn credit",
-  admin_adjust: "Điều chỉnh credit",
-};
-
-/** Nhãn thay cho enum thô (FLF-247) — admin chỉ tiếng Việt. */
-const USER_ROLE_LABELS: Record<string, string> = { admin: "Quản trị viên", user: "Người dùng" };
-const ORG_ROLE_LABELS: Record<string, string> = { lead: "Lead", analyst: "Analyst", viewer: "Viewer" };
-const TX_STATE_LABELS: Record<string, string> = { reserved: "đang giữ", deducted: "đã trừ", refunded: "đã hoàn", expired: "hết hạn" };
+/**
+ * Nhãn thay cho enum thô (FLF-247), dịch qua `admin.userDetail.*`. Giá trị lạ (BE thêm loại mới): loại giao dịch
+ * hiện câu chung, còn lại hiện nguyên văn.
+ */
+const TX_TYPES = ["reserve", "deduct", "release", "purchase", "monthly_reset", "refund", "admin_adjust"] as const;
+const TX_STATES = ["reserved", "deducted", "refunded", "expired"] as const;
+const ORG_ROLES = ["lead", "analyst", "viewer"] as const;
+const USER_ROLES = ["admin", "user"] as const;
+const isOneOf = <T extends string>(list: readonly T[], value: string | null | undefined): value is T =>
+  (list as readonly string[]).includes(value ?? "");
 
 const REASON_MIN_LENGTH = 3;
 
 /** UC-60 khoá / UC-61 mở khoá tài khoản — cả hai bắt buộc lý do. */
 function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChanged: (status: AdminUserStatus) => void }) {
+  const t = useTranslations("admin");
+  const locale = useLocale();
   const [confirming, setConfirming] = useState(false);
   const [reason, setReason] = useState("");
   const [saving, setSaving] = useState(false);
@@ -57,7 +62,7 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
       setConfirming(false);
       setReason("");
     } catch (err) {
-      setError(userErrorMessage(err, "Không thể cập nhật trạng thái tài khoản"));
+      setError(userErrorMessage(err, t("userDetail.status.failed")));
     } finally {
       setSaving(false);
     }
@@ -70,80 +75,77 @@ function AccountStatusCard({ user, onChanged }: { user: AdminUserDetail; onChang
   };
 
   return (
-    <div className="bg-white border border-[#ECEAE5] rounded-[16px] px-6 py-5 flex flex-col gap-3">
-      <div>
-        <h2 className="text-[14px] font-bold text-[#191817]">Trạng thái tài khoản</h2>
-        {user.isActive ? (
-          <p className="text-[12.5px] text-[#8A867E] mt-1">
-            Khoá tài khoản sẽ đăng xuất người này khỏi mọi thiết bị và chặn đăng nhập cho tới khi được mở khoá.
-          </p>
+    <Card className="gap-3">
+      <CardHeader>
+        <CardTitle className="text-heading">{t("userDetail.status.title")}</CardTitle>
+        <CardDescription className={user.isActive ? undefined : "text-on-error-container"}>
+          {user.isActive ? (
+            t("userDetail.status.activeHint")
+          ) : (
+            <>
+              {t("userDetail.status.suspendedAt", { time: formatDateTime(user.suspendedAt, locale) })}
+              {user.suspendReason && <> · {t("userDetail.status.reason", { reason: user.suspendReason })}</>}
+            </>
+          )}
+        </CardDescription>
+      </CardHeader>
+
+      <CardContent className="flex flex-col gap-3">
+        {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
+
+        {!confirming ? (
+          <Button
+            variant="outline"
+            onClick={() => setConfirming(true)}
+            className={user.isActive ? "text-destructive hover:bg-error-container" : "text-success hover:bg-success-soft"}
+          >
+            {user.isActive ? t("userDetail.status.suspend") : t("userDetail.status.unsuspend")}
+          </Button>
         ) : (
-          <p className="text-[12.5px] text-[#8A4141] mt-1">
-            Đã khoá lúc {formatDateTime(user.suspendedAt)}
-            {user.suspendReason && <> · Lý do: {user.suspendReason}</>}
-          </p>
-        )}
-      </div>
-
-      {error && <ErrorBanner message={error} onClose={() => setError(null)} />}
-
-      {!confirming ? (
-        <button
-          type="button"
-          onClick={() => setConfirming(true)}
-          className={`self-start h-9 px-4 rounded-[10px] text-[12.5px] font-bold transition-colors ${
-            user.isActive
-              ? "border border-[#F2CACA] text-[#B03030] bg-white hover:bg-[#FDEDED]"
-              : "border border-[#C2E5CF] text-[#1F7A45] bg-white hover:bg-[#EAF6EE]"
-          }`}
-        >
-          {user.isActive ? "Khoá tài khoản" : "Mở khoá tài khoản"}
-        </button>
-      ) : (
-        <div className="flex flex-col gap-3 max-w-[520px]">
-          {!user.isActive && <p className="text-[12.5px] text-[#33312D]">Mở khoá để người này đăng nhập lại được?</p>}
-          <label className="flex flex-col gap-1.5">
-            <span className="text-[12px] font-bold text-[#6B6862]">{user.isActive ? "Lý do khoá (bắt buộc)" : "Lý do mở khoá (bắt buộc)"}</span>
-            <textarea
-              value={reason}
-              onChange={(e) => setReason(e.target.value)}
-              maxLength={500}
-              rows={3}
-              autoFocus
-              className="px-3 py-2 rounded-[10px] border border-[#E4E1DC] bg-white text-[12.5px] text-[#191817] focus:outline-none focus:border-[#6A62C4]"
-            />
-          </label>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              onClick={() => void submit()}
-              disabled={saving || reasonTooShort}
-              className={`h-9 px-4 rounded-[10px] text-white text-[12.5px] font-bold disabled:opacity-60 ${
-                user.isActive ? "bg-[#B03030] hover:bg-[#962828]" : "bg-[#2F7A4F] hover:bg-[#276742]"
-              }`}
-            >
-              {saving ? "Đang lưu…" : user.isActive ? "Xác nhận khoá" : "Xác nhận mở khoá"}
-            </button>
-            <button
-              type="button"
-              onClick={cancel}
-              disabled={saving}
-              className="h-9 px-4 rounded-[10px] border border-[#E4E1DC] text-[12.5px] font-bold text-[#6B6862] bg-[#FAF9F7] hover:bg-[#F0EEEA] disabled:opacity-60"
-            >
-              Huỷ
-            </button>
+          <div className="flex max-w-[520px] flex-col gap-3">
+            {!user.isActive && <p className="text-body">{t("userDetail.status.unsuspendPrompt")}</p>}
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="status-reason">
+                {user.isActive ? t("userDetail.status.suspendReason") : t("userDetail.status.unsuspendReason")}
+              </Label>
+              <Textarea
+                id="status-reason"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                maxLength={500}
+                rows={3}
+                autoFocus
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={user.isActive ? "destructive" : "default"}
+                onClick={() => void submit()}
+                disabled={saving || reasonTooShort}
+              >
+                {saving ? t("common.saving") : user.isActive ? t("userDetail.status.confirmSuspend") : t("userDetail.status.confirmUnsuspend")}
+              </Button>
+              <Button variant="outline" onClick={cancel} disabled={saving}>
+                {t("common.cancel")}
+              </Button>
+            </div>
           </div>
-        </div>
-      )}
-    </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
 export default function AdminUserDetailPage() {
+  const t = useTranslations("admin");
+  const locale = useLocale();
+  const num = (value: number) => formatNumber(value, locale);
+  const dateTime = (value: string | null) => formatDateTime(value, locale);
   const { id } = useParams<{ id: string }>();
   const [user, setUser] = useState<AdminUserDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  /** Lỗi tải gần nhất: giữ nguyên lỗi, dịch lúc render — đổi ngôn ngữ không phải tải lại. */
+  const [error, setError] = useState<{ cause: unknown } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,7 +154,7 @@ export default function AdminUserDetailPage() {
         const next = await fetchAdminUser(id);
         if (!cancelled) setUser(next);
       } catch (err) {
-        if (!cancelled) setError(userErrorMessage(err, "Không thể tải người dùng"));
+        if (!cancelled) setError({ cause: err });
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -165,138 +167,149 @@ export default function AdminUserDetailPage() {
 
   return (
     <>
-      <AdminTopBar trail={["Người dùng", user?.email ?? "Chi tiết"]} />
-      <div className="flex-1 overflow-y-auto flex flex-col gap-5 p-6 sm:p-8">
-        <BackLink href="/admin/users">Danh sách người dùng</BackLink>
+      <AdminHeader />
+      <AdminMain>
+        <BackLink href="/admin/users">{t("userDetail.back")}</BackLink>
 
-        {error && <ErrorBanner message={error} />}
+        {error && <ErrorBanner message={userErrorMessage(error.cause, t("userDetail.loadFailed"))} />}
 
+        <AdminScroll>
         {loading ? (
-          <LoadingBlock label="Đang tải người dùng…" variant="page" />
+          <LoadingBlock label={t("userDetail.loading")} variant="page" />
         ) : (
           user && (
             <>
-              <div className="bg-white border border-[#ECEAE5] rounded-[16px] px-6 py-5 flex flex-col sm:flex-row sm:items-center gap-4">
-                <div className="min-w-0 flex-1">
-                  <h1 className="text-[20px] font-extrabold text-[#191817] truncate">{user.email}</h1>
-                  <div className="text-[12.5px] text-[#8A867E] mt-0.5">
-                    {user.name || "Chưa đặt tên"} · {user.authProvider} ·{" "}
-                    {user.emailVerified ? "đã xác minh email" : "chưa xác minh email"}
+              <Card>
+                <CardContent className="flex flex-col gap-4 sm:flex-row sm:items-center">
+                  <div className="min-w-0 flex-1">
+                    <h1 className="truncate text-subtitle font-extrabold">{user.email}</h1>
+                    <div className="text-muted-foreground mt-0.5 text-body">
+                      {user.name || t("userDetail.unnamed")} · {user.authProvider} ·{" "}
+                      {user.emailVerified ? t("userDetail.emailVerified") : t("userDetail.emailUnverified")}
+                    </div>
                   </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold ${
-                      user.role === "admin" ? "bg-[#EFEEF9] text-[#554DB0]" : "bg-[#F0EEEA] text-[#6B6862]"
-                    }`}
-                  >
-                    {USER_ROLE_LABELS[user.role] ?? user.role}
-                  </span>
-                  <span
-                    className={`px-2.5 py-1 rounded-full text-[11.5px] font-bold ${
-                      user.isActive ? "bg-[#E6F4EC] text-[#2F7A4F]" : "bg-[#FDEDED] text-[#B03030]"
-                    }`}
-                  >
-                    {user.isActive ? "Hoạt động" : "Đã khoá"}
-                  </span>
-                </div>
-              </div>
+                  <div className="flex items-center gap-2">
+                    <Badge
+                      variant="outline"
+                      className={user.role === "admin" ? "border-primary/40 text-primary" : "text-muted-foreground"}
+                    >
+                      {isOneOf(USER_ROLES, user.role) ? t(`common.userRoles.${user.role}`) : user.role}
+                    </Badge>
+                    <Badge
+                      variant="outline"
+                      className={
+                        user.isActive ? "border-success-border text-success" : "border-error-border text-destructive"
+                      }
+                    >
+                      {user.isActive ? t("common.active") : t("common.suspended")}
+                    </Badge>
+                  </div>
+                </CardContent>
+              </Card>
 
               <AccountStatusCard user={user} onChanged={(status) => setUser({ ...user, ...status })} />
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                <StatCard label="Tổ chức" value={formatNumber(user.organizations.length)} />
-                <StatCard label="Dự án" value={formatNumber(user.projectsCount)} />
-                <StatCard label="Đăng nhập gần nhất" value={<span className="text-[15px]">{formatDateTime(user.lastLoginAt)}</span>} />
-                <StatCard label="Ngày tạo" value={<span className="text-[15px]">{formatDateTime(user.createdAt)}</span>} />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                <StatCard label={t("userDetail.organizations")} value={num(user.organizations.length)} />
+                <StatCard label={t("common.projects")} value={num(user.projectsCount)} />
+                <StatCard
+                  label={t("common.lastLogin")}
+                  value={<span className="text-heading">{dateTime(user.lastLoginAt)}</span>}
+                />
+                <StatCard
+                  label={t("common.createdAt")}
+                  value={<span className="text-heading">{dateTime(user.createdAt)}</span>}
+                />
               </div>
 
-              <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
-                <h2 className="px-5 py-3.5 border-b border-[#F3F1EE] text-[14px] font-bold text-[#191817]">
-                  Tổ chức tham gia
-                </h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-[#FAF9F7]">
-                      <tr>
-                        <th className={tableHeadClass}>Tổ chức</th>
-                        <th className={tableHeadClass}>Vai trò</th>
-                        <th className={tableHeadClass}>Tham gia</th>
-                        <th className={`${tableHeadClass} text-right`}>Số dư ví</th>
-                        <th className={`${tableHeadClass} text-right`}>Đang giữ</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#F3F1EE]">
-                      {user.organizations.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="py-10 text-center text-[13px] text-[#A8A49C]">
-                            Chưa tham gia tổ chức nào
-                          </td>
-                        </tr>
-                      ) : (
-                        user.organizations.map((org) => (
-                          <tr key={org.id}>
-                            <td className={`${tableCellClass} font-semibold`}>{org.name}</td>
-                            <td className={tableCellClass}>{ORG_ROLE_LABELS[org.role] ?? org.role}</td>
-                            <td className={tableCellClass}>{formatDateTime(org.joinedAt)}</td>
-                            <td className={`${tableCellClass} text-right`}>
-                              {org.wallet ? formatNumber(org.wallet.balance) : "Chưa có ví"}
-                            </td>
-                            <td className={`${tableCellClass} text-right`}>
-                              {org.wallet ? formatNumber(org.wallet.reserved) : "—"}
-                            </td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <Card className="gap-0 overflow-hidden pb-0">
+                <CardHeader>
+                  <CardTitle className="text-heading">{t("userDetail.orgsTitle")}</CardTitle>
+                </CardHeader>
+                <Table className="mt-4">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("common.organization")}</TableHead>
+                      <TableHead>{t("common.role")}</TableHead>
+                      <TableHead>{t("userDetail.joined")}</TableHead>
+                      <TableHead className="text-end">{t("common.walletBalance")}</TableHead>
+                      <TableHead className="text-end">{t("userDetail.reserved")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {user.organizations.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-muted-foreground h-24 text-center">
+                          {t("userDetail.noOrgs")}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      user.organizations.map((org) => (
+                        <TableRow key={org.id}>
+                          <TableCell className="font-semibold">{org.name}</TableCell>
+                          <TableCell>{isOneOf(ORG_ROLES, org.role) ? t(`userDetail.orgRoles.${org.role}`) : org.role}</TableCell>
+                          <TableCell>{dateTime(org.joinedAt)}</TableCell>
+                          <TableCell className="text-end">
+                            {org.wallet ? num(org.wallet.balance) : t("common.noWallet")}
+                          </TableCell>
+                          <TableCell className="text-end">
+                            {org.wallet ? num(org.wallet.reserved) : "-"}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Card>
 
-              <div className="bg-white border border-[#ECEAE5] rounded-[16px] overflow-hidden">
-                <h2 className="px-5 py-3.5 border-b border-[#F3F1EE] text-[14px] font-bold text-[#191817]">
-                  20 giao dịch credit gần nhất
-                </h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead className="bg-[#FAF9F7]">
-                      <tr>
-                        <th className={tableHeadClass}>Thời gian</th>
-                        <th className={tableHeadClass}>Loại</th>
-                        <th className={tableHeadClass}>Action</th>
-                        <th className={`${tableHeadClass} text-right`}>Số credit</th>
-                        <th className={`${tableHeadClass} text-right`}>Số dư sau</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-[#F3F1EE]">
-                      {user.recentTransactions.length === 0 ? (
-                        <tr>
-                          <td colSpan={5} className="py-10 text-center text-[13px] text-[#A8A49C]">
-                            Chưa có giao dịch
-                          </td>
-                        </tr>
-                      ) : (
-                        user.recentTransactions.map((tx) => (
-                          <tr key={tx._id}>
-                            <td className={tableCellClass}>{formatDateTime(tx.createdAt)}</td>
-                            <td className={tableCellClass}>
-                              {TX_LABELS[tx.type] ?? "Giao dịch credit"}
-                              {tx.state && <span className="text-[11px] text-[#8A867E]"> · {TX_STATE_LABELS[tx.state] ?? tx.state}</span>}
-                            </td>
-                            <td className={`${tableCellClass} font-mono text-[11.5px]`}>{tx.actionType}</td>
-                            <td className={`${tableCellClass} text-right`}>{formatNumber(tx.amount)}</td>
-                            <td className={`${tableCellClass} text-right`}>{formatNumber(tx.balanceAfter)}</td>
-                          </tr>
-                        ))
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
+              <Card className="gap-0 overflow-hidden pb-0">
+                <CardHeader>
+                  <CardTitle className="text-heading">{t("userDetail.txTitle")}</CardTitle>
+                </CardHeader>
+                <Table className="mt-4">
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>{t("userDetail.time")}</TableHead>
+                      <TableHead>{t("userDetail.type")}</TableHead>
+                      <TableHead>{t("userDetail.action")}</TableHead>
+                      <TableHead className="text-end">{t("userDetail.amount")}</TableHead>
+                      <TableHead className="text-end">{t("userDetail.balanceAfter")}</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {user.recentTransactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={5} className="text-muted-foreground h-24 text-center">
+                          {t("userDetail.noTx")}
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      user.recentTransactions.map((tx) => (
+                        <TableRow key={tx._id}>
+                          <TableCell>{dateTime(tx.createdAt)}</TableCell>
+                          <TableCell>
+                            {isOneOf(TX_TYPES, tx.type) ? t(`userDetail.txTypes.${tx.type}`) : t("userDetail.txFallback")}
+                            {tx.state && (
+                              <span className="text-muted-foreground text-caption">
+                                {" "}
+                                · {isOneOf(TX_STATES, tx.state) ? t(`userDetail.txStates.${tx.state}`) : tx.state}
+                              </span>
+                            )}
+                          </TableCell>
+                          <TableCell className="font-mono text-caption">{tx.actionType}</TableCell>
+                          <TableCell className="text-end">{num(tx.amount)}</TableCell>
+                          <TableCell className="text-end">{tx.balanceAfter == null ? "-" : num(tx.balanceAfter)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </Card>
             </>
           )
         )}
-      </div>
+        </AdminScroll>
+      </AdminMain>
     </>
   );
 }

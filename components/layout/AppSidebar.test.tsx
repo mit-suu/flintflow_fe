@@ -3,8 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { usePathname } from "next/navigation";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fetchBalance } from "@/lib/api/billing";
-import { listProjects } from "@/lib/api/projects";
-import { logoutAndRedirect } from "@/lib/auth";
+import { listProjectsPage } from "@/lib/api/projects";
 import { ProjectsProvider } from "@/lib/hooks/use-projects";
 import type { Project } from "@/types/project";
 import AppShell from "./AppShell";
@@ -12,12 +11,19 @@ import AppSidebar from "./AppSidebar";
 
 const push = vi.fn();
 vi.mock("next/navigation", () => ({ usePathname: vi.fn(), useRouter: () => ({ push }) }));
-vi.mock("@/lib/api/projects", () => ({ listProjects: vi.fn() }));
+vi.mock("@/lib/api/projects", () => ({ listProjectsPage: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn(async () => undefined) }));
 vi.mock("@/lib/api/folders", () => ({ listFolders: vi.fn(async () => ({ data: [], error: null })) }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn(async () => ({ balance: 120, planLabel: "Pro" })) }));
-const activeOrg = vi.hoisted(() => ({ value: null as null | { id: string; name: string; role: "lead" } }));
-vi.mock("@/lib/hooks/use-active-org", () => ({ useActiveOrganization: () => activeOrg.value }));
+const activeOrg = vi.hoisted(() => ({
+  value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" },
+  loading: false,
+  error: false,
+}));
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganization: () => activeOrg.value,
+  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading, error: activeOrg.error }),
+}));
 vi.mock("@/lib/api/notifications", () => ({
   fetchUnreadCount: vi.fn(async () => 3),
   onNotificationsChanged: () => () => {},
@@ -36,10 +42,11 @@ const project = (id: string, updatedAt: string, over: Partial<Project> = {}): Pr
 
 const renderSidebar = (projects: Project[], pathname = "/home") => {
   vi.mocked(usePathname).mockReturnValue(pathname);
-  vi.mocked(listProjects).mockResolvedValue({ data: projects, error: null } as never);
+  // BE đã lọc + sắp sẵn (FLF-404) ⇒ mock trả đúng các dự án truyền vào
+  vi.mocked(listProjectsPage).mockResolvedValue({ items: projects, meta: { page: 1, limit: 3, total: projects.length, totalPages: 1 } });
   return renderWithIntl(
     <ProjectsProvider>
-      <AppShell sidebar={<AppSidebar user={{ name: "hiep", email: "hiep@x.vn", isAdmin: false }} />}>
+      <AppShell user={{ name: "Test", email: "test@flintflow.test", isAdmin: false }} sidebar={<AppSidebar />}>
         <p>nội dung</p>
       </AppShell>
     </ProjectsProvider>
@@ -63,34 +70,33 @@ describe("AppSidebar", () => {
     await waitFor(() => expect(within(screen.getByRole("link", { name: /Thông báo/ })).getByText("3")).toBeInTheDocument());
   });
 
-  // task-26: BE đã có module tổ chức ⇒ hai mục này thôi là "Sắp có", thành link thật.
-  it("Thành viên và đổi tổ chức: là link tới trang của nó, không còn badge \"Sắp có\"", () => {
+  // task-26: BE đã có module tổ chức ⇒ mục này thôi là "Sắp có", thành link thật.
+  it("Thành viên: là link tới trang của nó, không còn badge \"Sắp có\"", () => {
     renderSidebar([], "/home/members");
     const members = screen.getByRole("link", { name: /Thành viên/ });
-    const switcher = screen.getByRole("link", { name: /Đổi tổ chức/ });
 
     expect(members).toHaveAttribute("href", "/home/members");
-    expect(switcher).toHaveAttribute("href", "/home/organizations");
     expect(members).toHaveAttribute("aria-current", "page");
-    expect(switcher).not.toHaveAttribute("aria-current");
     expect(screen.queryByText("Sắp có")).toBeNull();
   });
 
-  it('"Gần đây": 3 dự án đang làm mới sửa nhất; ẩn khi chưa có dự án', async () => {
+  // Đổi tổ chức là đổi ngữ cảnh, không phải điều hướng ⇒ không còn là mục nav, mà là bộ chọn tại chỗ.
+  it("không còn mục nav \"Đổi tổ chức\" trỏ sang /home/organizations", () => {
+    renderSidebar([], "/home/members");
+    expect(screen.queryByRole("link", { name: /Đổi tổ chức/ })).toBeNull();
+    expect(screen.queryAllByRole("link").map((a) => a.getAttribute("href"))).not.toContain("/home/organizations");
+  });
+
+  it('"Gần đây": xin BE 3 dự án đang làm sửa gần nhất, hiện đúng thứ tự BE trả; ẩn khi chưa có dự án', async () => {
     const { unmount } = renderSidebar([]);
-    await waitFor(() => expect(listProjects).toHaveBeenCalled());
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
     expect(screen.queryByText("Gần đây")).toBeNull();
     unmount();
 
-    renderSidebar([
-      project("a", "2026-09-01T00:00:00Z"),
-      project("b", "2026-09-05T00:00:00Z"),
-      project("c", "2026-09-03T00:00:00Z"),
-      project("d", "2026-09-04T00:00:00Z"),
-      project("e", "2026-09-09T00:00:00Z", { status: "archived" }),
-    ]);
+    renderSidebar([project("b", "2026-09-05T00:00:00Z"), project("d", "2026-09-04T00:00:00Z"), project("c", "2026-09-03T00:00:00Z")]);
     const recent = await screen.findByRole("navigation", { name: "Dự án gần đây" });
     expect(within(recent).getAllByRole("link").map((a) => a.textContent)).toEqual(["Dự án b", "Dự án d", "Dự án c"]);
+    expect(listProjectsPage).toHaveBeenCalledWith({ page: 1, limit: 3, status: "active", sort: "updated" });
   });
 
   it("thu gọn: chỉ còn icon, nhớ qua localStorage", () => {
@@ -110,27 +116,13 @@ describe("AppSidebar", () => {
     const initial = toggleLabel();
 
     // Bấm vào một mục (link) thì không thu gọn — mục cũ "Sắp có" nay đã là link thật
-    fireEvent.click(screen.getByRole("link", { name: /Đổi tổ chức/ }));
+    fireEvent.click(screen.getByRole("link", { name: /Thành viên/ }));
     expect(toggleLabel()).toBe(initial);
 
     fireEvent.click(card);
     expect(toggleLabel()).not.toBe(initial);
     fireEvent.click(card);
     expect(toggleLabel()).toBe(initial);
-  });
-
-  it("menu user: Đăng xuất gọi logoutAndRedirect (thu hồi phiên rồi về /login)", () => {
-    renderSidebar([]);
-    fireEvent.click(screen.getByRole("button", { name: "Tài khoản hiep" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /Đăng xuất/ }));
-    expect(logoutAndRedirect).toHaveBeenCalledOnce();
-  });
-
-  it("menu user: Hồ sơ cá nhân mở /home/profile", () => {
-    renderSidebar([]);
-    fireEvent.click(screen.getByRole("button", { name: "Tài khoản hiep" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: /Hồ sơ cá nhân/ }));
-    expect(push).toHaveBeenCalledWith("/home/profile");
   });
 
   it("Gửi góp ý mở dialog", () => {
@@ -158,24 +150,61 @@ describe("tổ chức đang mở", () => {
   });
 });
 
-describe("AppShell — số dư theo vai trò", () => {
+describe("AppShell - số dư theo vai trò", () => {
   beforeEach(() => {
+    activeOrg.value = null;
+    activeOrg.loading = false;
+    activeOrg.error = false;
     vi.mocked(fetchBalance).mockClear();
   });
 
   it("Lead/Analyst ⇒ tải số dư, nhãn gói lấy từ BE", async () => {
     activeOrg.value = { id: "o1", name: "Org", role: "lead" };
     renderSidebar([]);
+    // Nhãn gói hiển thị ở TopBar (xem TopBar.test) — ở đây chỉ kiểm thanh bên có kích hoạt tải số dư
     await waitFor(() => expect(fetchBalance).toHaveBeenCalled());
-    expect(await screen.findByText(/Pro/)).toBeInTheDocument();
     activeOrg.value = null;
   });
 
   it("Viewer ⇒ không gọi /billing/balance (BE chỉ cho Lead/Analyst, gọi là 403)", async () => {
-    activeOrg.value = { id: "o1", name: "Org", role: "viewer" as never };
+    activeOrg.value = { id: "o1", name: "Org", role: "viewer" };
     renderSidebar([]);
-    await waitFor(() => expect(listProjects).toHaveBeenCalled());
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
     expect(fetchBalance).not.toHaveBeenCalled();
     activeOrg.value = null;
+  });
+
+  it("Viewer ⇒ ẩn mục Credits & Thanh toán (/home/billing); Lead và Analyst vẫn thấy", async () => {
+    activeOrg.value = { id: "o1", name: "Org", role: "viewer" };
+    const { unmount } = renderSidebar([]);
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /Credits & Thanh toán/ })).toBeNull();
+    expect(screen.getAllByRole("link").map((a) => a.getAttribute("href"))).not.toContain("/home/billing");
+    unmount();
+
+    activeOrg.value = { id: "o1", name: "Org", role: "analyst" };
+    const { unmount: unmountAnalyst } = renderSidebar([]);
+    expect(screen.getByRole("link", { name: /Credits & Thanh toán/ })).toHaveAttribute("href", "/home/billing");
+    unmountAnalyst();
+
+    activeOrg.value = { id: "o1", name: "Org", role: "lead" };
+    renderSidebar([]);
+    expect(screen.getByRole("link", { name: /Credits & Thanh toán/ })).toHaveAttribute("href", "/home/billing");
+  });
+
+  it("đang tải tổ chức (cold load) ⇒ ẩn mục Credits & Thanh toán và không gọi /billing/balance", async () => {
+    activeOrg.loading = true;
+    renderSidebar([]);
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /Credits & Thanh toán/ })).toBeNull();
+    expect(fetchBalance).not.toHaveBeenCalled();
+  });
+
+  it("tải tổ chức lỗi ⇒ ẩn mục Credits & Thanh toán (fail closed) và không gọi /billing/balance", async () => {
+    activeOrg.error = true;
+    renderSidebar([]);
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalled());
+    expect(screen.queryByRole("link", { name: /Credits & Thanh toán/ })).toBeNull();
+    expect(fetchBalance).not.toHaveBeenCalled();
   });
 });

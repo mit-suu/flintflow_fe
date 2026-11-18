@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { MAX_CLARIFY_ROUNDS, type Cr } from "@/types/change-request";
 import QuestionStepperInput, { answerLabel } from "../QuestionStepperInput";
 
@@ -17,10 +18,11 @@ interface ClarifyPanelProps {
 
 /**
  * 3.2–3.3 Làm rõ (C-2, UC-49): AI hỏi khi CR mơ hồ **hoặc thiếu dữ kiện để viết nội dung** (phase 7), tối đa 3 vòng rồi
- * bắt buộc đi tiếp. Câu hỏi hiện **như mode tạo SRS** (`QuestionStepperInput`): từng câu một, đáp án AI gợi ý đánh số để
+ * bắt buộc đi tiếp (FLF-367: riêng câu hỏi CR mâu thuẫn với tài liệu thì hỏi cả sau vòng 3). Câu hỏi hiện **như mode tạo SRS** (`QuestionStepperInput`): từng câu một, đáp án AI gợi ý đánh số để
  * chọn, dòng cuối tự gõ; câu chưa biết thì "Bỏ qua" ⇒ AI giả định. Đính kèm tài liệu có câu trả lời được ở ngay dưới.
  */
 export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = false, materials }: ClarifyPanelProps) {
+  const t = useTranslations("mode1.clarify");
   const answered = cr.clarifications.filter((c) => c.answers.length > 0);
   const suggestions = cr.clarifications.at(-1)?.suggestions ?? [];
 
@@ -28,24 +30,25 @@ export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = fa
     <div className="flex flex-col gap-3">
       {answered.map((round) => (
         <div key={round.round} className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3 text-body flex flex-col gap-1.5">
-          <p className="text-caption font-bold text-[#8A867E]">Vòng {round.round}</p>
+          <p className="text-caption font-bold text-[#8A867E]">{t("round", { round: round.round })}</p>
           {round.questions.map((q, i) => (
             <div key={i}>
               <p className="font-semibold text-[#191817]">❓ {q}</p>
-              <p className={`pl-5 ${round.answers[i]?.trim() ? "text-[#4B4842]" : "text-[#8A867E] italic"}`}>↳ {round.answers[i]?.trim() || "Chưa biết — AI sẽ giả định"}</p>
+              <p className={`pl-5 ${round.answers[i]?.trim() ? "text-[#4B4842]" : "text-[#8A867E] italic"}`}>↳ {round.answers[i]?.trim() || t("unknown")}</p>
             </div>
           ))}
         </div>
       ))}
 
       {pendingQuestions.length > 0 && (
-        <section className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] pt-3 pb-2 flex flex-col gap-1" aria-label="Trả lời câu hỏi làm rõ">
+        <section className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] pt-3 pb-2 flex flex-col gap-1" aria-label={t("aria")}>
+          {/* FLF-367: câu hỏi mâu thuẫn với tài liệu hỏi cả khi đã hết số vòng làm rõ ⇒ không in "vòng 4/3" */}
           <p className="px-3 text-body font-bold text-[#8A6D1F]">
-            AI cần thêm thông tin trước khi tìm vị trí và viết nội dung (vòng {cr.clarifications.length}/{MAX_CLARIFY_ROUNDS}):
+            {cr.clarifications.length > MAX_CLARIFY_ROUNDS
+              ? t("needConfirm", { round: cr.clarifications.length })
+              : t("need", { round: cr.clarifications.length, max: MAX_CLARIFY_ROUNDS })}
           </p>
-          <p className="px-3 text-body text-[#8A6D1F]">
-            Chọn một gợi ý hoặc tự nhập câu trả lời. Câu chưa biết thì “Bỏ qua” — AI sẽ tự giả định và đánh dấu để người duyệt xác nhận.
-          </p>
+          <p className="px-3 text-body text-[#8A6D1F]">{t("hint")}</p>
           <QuestionStepperInput
             key={`${cr.cr_id}:${cr.clarifications.length}`}
             questions={pendingQuestions.map((question, i) => ({ question, options: (suggestions[i] ?? []).map((label) => ({ label })), multiple: false }))}

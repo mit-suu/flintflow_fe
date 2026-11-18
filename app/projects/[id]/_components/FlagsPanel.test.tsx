@@ -1,6 +1,6 @@
 "use client";
 
-import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import FlagsPanel, { sortFlags } from "./FlagsPanel";
@@ -59,30 +59,58 @@ describe("FlagsPanel", () => {
     expect(screen.queryByRole("button", { name: "Bỏ qua" })).toBeNull();
   });
 
-  it("bỏ qua hợp lệ (>= 20 ký tự) gọi onWaive rồi đóng modal", async () => {
-    const onWaive = vi.fn().mockResolvedValue(undefined);
-    renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={onWaive} onRecompute={vi.fn()} />);
+  it("FLF-329: cờ đỏ ⇒ 'Giữ nguyên kèm lý do…' gọi onKeep (không phải onWaive), modal nói rõ vẫn chặn, rồi đóng", async () => {
+    const onKeep = vi.fn().mockResolvedValue(undefined);
+    const onWaive = vi.fn();
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={onWaive} onKeep={onKeep} onRecompute={vi.fn()} />);
 
-    fireEvent.click(screen.getByRole("button", { name: "Bỏ qua" }));
-    const textarea = await screen.findByLabelText(/Lý do/);
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên kèm lý do…" }));
+    expect(await screen.findByText("Giữ nguyên vấn đề này?")).toBeInTheDocument();
+    expect(screen.getByText(/vẫn chặn gửi duyệt và chốt bản/)).toBeInTheDocument();
+    const textarea = screen.getByLabelText(/Lý do/);
     fireEvent.change(textarea, { target: { value: "Chấp nhận rủi ro vì phạm vi MVP hiện tại" } });
 
-    const confirm = screen.getByRole("button", { name: "Bỏ qua vấn đề" });
+    const confirm = screen.getByRole("button", { name: "Xác nhận giữ nguyên" });
     expect(confirm).not.toBeDisabled();
     fireEvent.click(confirm);
 
-    await waitFor(() => expect(onWaive).toHaveBeenCalledWith("FL01", "Chấp nhận rủi ro vì phạm vi MVP hiện tại"));
+    await waitFor(() => expect(onKeep).toHaveBeenCalledWith("FL01", "Chấp nhận rủi ro vì phạm vi MVP hiện tại"));
+    expect(onWaive).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.queryByLabelText(/Lý do/)).not.toBeInTheDocument());
   });
 
-  it("lý do dưới 20 ký tự thì nút xác nhận bị khoá", async () => {
+  it("FLF-329: cờ đỏ không có onKeep ⇒ không có nút giữ nguyên", () => {
     renderWithIntl(<FlagsPanel flags={[baseFlag]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Giữ nguyên kèm lý do…" })).toBeNull();
+  });
+
+  it("FLF-329: cờ đỏ đã giữ nguyên vẫn nằm ở tab Cần xử lý kèm lý do, nút đổi thành sửa lý do", () => {
+    const kept: Flag = { ...baseFlag, id: "FLK", rule_id: "nfr_missing_number", message: "Chưa có NFR nào", kept_reason: "Khách chốt số đo ở bản sau", kept_by: "u1", kept_at: "2026-10-26T00:00:00.000Z" };
+    renderWithIntl(<FlagsPanel flags={[kept]} onKeep={vi.fn()} onRecompute={vi.fn()} />);
+    expect(screen.getByRole("tab", { name: /Cần xử lý/ })).toHaveTextContent("1");
+    expect(screen.getByText(/Đã giữ nguyên: Khách chốt số đo ở bản sau/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Sửa lý do giữ nguyên" })).toBeInTheDocument();
+  });
+
+  it("cờ vàng: 'Bỏ qua' gọi onWaive như cũ", async () => {
+    const onWaive = vi.fn().mockResolvedValue(undefined);
+    const yellow: Flag = { ...baseFlag, id: "FLY", level: "yellow", rule_id: "orphan_actor", message: "Actor Guest chưa gắn use case nào" };
+    renderWithIntl(<FlagsPanel flags={[yellow]} onWaive={onWaive} onKeep={vi.fn()} onRecompute={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Bỏ qua" }));
+    fireEvent.change(await screen.findByLabelText(/Lý do/), { target: { value: "Chấp nhận rủi ro vì phạm vi MVP hiện tại" } });
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ qua vấn đề" }));
+    await waitFor(() => expect(onWaive).toHaveBeenCalledWith("FLY", "Chấp nhận rủi ro vì phạm vi MVP hiện tại"));
+  });
+
+  it("lý do dưới 20 ký tự thì nút xác nhận bị khoá", async () => {
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onKeep={vi.fn()} onRecompute={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên kèm lý do…" }));
     const textarea = await screen.findByLabelText(/Lý do/);
     fireEvent.change(textarea, { target: { value: "Quá ngắn" } });
 
-    expect(screen.getByRole("button", { name: "Bỏ qua vấn đề" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Xác nhận giữ nguyên" })).toBeDisabled();
   });
 
   it("bấm Kiểm tra lại gọi onRecompute", () => {
@@ -159,7 +187,8 @@ describe("FlagsPanel", () => {
 
   it("tab Nên xem hiện cờ vàng, tab Đã bỏ qua hiện lý do", () => {
     const yellow: Flag = { ...baseFlag, id: "Y1", level: "yellow", rule_id: "non_english_content", message: "Có câu tiếng Việt trong §2" };
-    const waived: Flag = { ...baseFlag, id: "W1", waived_by_user: true, waive_reason: "MVP chấp nhận để sau" };
+    // FLF-329: chỉ cờ vàng mới waive được ⇒ tab Đã bỏ qua chỉ còn cờ vàng
+    const waived: Flag = { ...baseFlag, id: "W1", level: "yellow", rule_id: "screen_no_function", waived_by_user: true, waive_reason: "MVP chấp nhận để sau" };
     renderWithIntl(<FlagsPanel flags={[yellow, waived]} onWaive={vi.fn()} onRecompute={vi.fn()} />);
 
     // Không còn cờ đỏ mở ⇒ mở sẵn tab Nên xem
@@ -169,7 +198,7 @@ describe("FlagsPanel", () => {
   });
 });
 
-describe("FlagsPanel — FLF-198", () => {
+describe("FlagsPanel - FLF-198", () => {
   it("nhiều giả định chưa xác nhận ⇒ có nút Đúng hết gửi đủ id trong một lượt", () => {
     const assumption = (id: string): Flag => ({
       ...baseFlag,
@@ -206,7 +235,7 @@ describe("FlagsPanel — FLF-198", () => {
   });
 });
 
-describe("FlagsPanel — FLF-177", () => {
+describe("FlagsPanel - FLF-177", () => {
   const yellow: Flag = { ...baseFlag, id: "FL10", level: "yellow", rule_id: "orphan_actor", message: "Actor lẻ", remediation_step: "S-3.2" };
   const stale: Flag = { ...baseFlag, id: "FL11", rule_id: "diagram_stale", target_id: "D05", message: "Hình D05 không còn khớp dữ liệu", remediation_step: "S-5.3@S03" };
 
@@ -221,6 +250,143 @@ describe("FlagsPanel — FLF-177", () => {
     const redraw = screen.getAllByRole("button", { name: "Vẽ lại" });
     expect(redraw).toHaveLength(1);
     fireEvent.click(redraw[0]);
-    await waitFor(() => expect(onRedraw).toHaveBeenCalledWith(stale));
+    await waitFor(() => expect(onRedraw).toHaveBeenCalledWith([stale]));
+  });
+});
+
+describe("FlagsPanel - bấm chấm đỏ trên tài liệu", () => {
+  const reaccept: Flag = { ...baseFlag, id: "FL20", rule_id: "section_awaiting_reaccept", section_id: "fixed:1", remediation_step: "S-1.1" };
+  const other: Flag = { ...baseFlag, id: "FL21", rule_id: "section_awaiting_reaccept", section_id: "fixed:2.1", remediation_step: "S-2.1" };
+
+  it("làm nổi bật đúng dòng của mục, KHÔNG lọc mất các vấn đề khác", () => {
+    const { container } = renderWithIntl(
+      <FlagsPanel flags={[reaccept, other]} onRecompute={vi.fn()} sectionLabelOf={(id) => (id === "fixed:1" ? "§1 Product Overview" : "§2.1 Actors")} focusSectionId="fixed:1" />
+    );
+
+    // Vấn đề của mục khác vẫn còn — trước đây bị lọc mất nên người dùng tưởng panel trống
+    expect(screen.getByText("§2.1 Actors")).toBeInTheDocument();
+
+    const focused = container.querySelectorAll("[data-focus-row]");
+    expect(focused).toHaveLength(1);
+    expect(focused[0]).toHaveTextContent("§1 Product Overview");
+  });
+
+  it("không bấm mục nào ⇒ không dòng nào nổi bật", () => {
+    const { container } = renderWithIntl(<FlagsPanel flags={[reaccept, other]} onRecompute={vi.fn()} />);
+    expect(container.querySelectorAll("[data-focus-row]")).toHaveLength(0);
+  });
+});
+
+describe("FlagsPanel - mục của mẫu còn trống (FLF-278)", () => {
+  it("cờ template_section_empty có nút Nhờ AI soạn kèm nhãn mục; cờ khác không có", () => {
+    const empty: Flag = { ...baseFlag, id: "FL30", level: "yellow", rule_id: "template_section_empty", section_id: "custom:CS07", message: "Mục \"Document Conventions\" của mẫu chưa có nội dung" };
+    const onDraftSection = vi.fn();
+    renderWithIntl(
+      <FlagsPanel
+        flags={[empty, { ...baseFlag, id: "FL31", level: "yellow", rule_id: "orphan_actor", section_id: "fixed:2.1" }]}
+        onRecompute={vi.fn()}
+        onDraftSection={onDraftSection}
+        sectionLabelOf={(id) => (id === empty.section_id ? "§1.2 Document Conventions" : undefined)}
+      />
+    );
+    const buttons = screen.getAllByRole("button", { name: "Nhờ AI soạn" });
+    expect(buttons).toHaveLength(1);
+    fireEvent.click(buttons[0]);
+    expect(onDraftSection).toHaveBeenCalledWith("§1.2 Document Conventions");
+  });
+});
+
+describe("FlagsPanel - Vẽ lại tất cả một lượt", () => {
+  const stale = (id: string, target: string, section: string): Flag => ({
+    ...baseFlag,
+    id,
+    rule_id: "diagram_stale",
+    target_id: target,
+    section_id: section,
+    message: `Hình ${target} không còn khớp dữ liệu`,
+    remediation_step: "S-5.3@S03",
+  });
+  const flags = [stale("F1", "D1", "fixed:2.2.1"), stale("F2", "D2", "fixed:3.1.1"), stale("F3", "D3", "fixed:3.1.5")];
+  const labels = (id: string) => ({ "fixed:2.2.1": "§2.2.1 Use Case Diagram", "fixed:3.1.1": "§3.1.1 Screens Flow", "fixed:3.1.5": "§3.1.5 ERD" })[id];
+  const renderPanel = (onRedraw: (f: Flag[]) => Promise<never>) =>
+    renderWithIntl(<FlagsPanel flags={flags} onRecompute={vi.fn()} onRedraw={onRedraw} sectionLabelOf={labels} />);
+
+  it("nút nhóm gọi onRedraw MỘT lần với đủ cờ; mọi dòng hiện Đang vẽ… và mọi nút khoá cho tới khi xong", async () => {
+    let finish: (report: undefined) => void = () => {};
+    const onRedraw = vi.fn(() => new Promise<never>((resolve) => (finish = resolve as never)));
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Đang vẽ…" })).toHaveLength(4)); // 3 dòng + nút nhóm
+    expect(onRedraw).toHaveBeenCalledTimes(1);
+    expect(onRedraw).toHaveBeenCalledWith(flags);
+    for (const button of screen.getAllByRole("button", { name: "Đang vẽ…" })) expect(button).toBeDisabled();
+    // Bấm thêm trong lúc đang vẽ không bắt đầu lượt thứ hai
+    fireEvent.click(screen.getAllByRole("button", { name: "Đang vẽ…" })[0]);
+    expect(onRedraw).toHaveBeenCalledTimes(1);
+
+    await act(async () => finish(undefined));
+    expect(screen.getAllByRole("button", { name: "Vẽ lại" })).toHaveLength(3);
+    expect(screen.getByRole("button", { name: "Vẽ lại tất cả" })).toBeEnabled();
+  });
+
+  it("cờ còn sau khi vẽ ⇒ báo 'vẫn lỗi' bằng tên mục, không lộ mã sơ đồ", async () => {
+    const onRedraw = vi.fn().mockResolvedValue({ failed: [], stillBroken: [flags[0], flags[1]], flagsCheckFailed: false });
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent("Vẽ lại xong nhưng sơ đồ §2.2.1 Use Case Diagram, §3.1.1 Screens Flow vẫn lỗi bố cục.");
+    expect(notice).not.toHaveTextContent("D1");
+  });
+
+  it("tính lại cờ lỗi ⇒ 'Không kiểm lại được cờ', KHÔNG báo nhầm là vẫn lỗi", async () => {
+    const onRedraw = vi.fn().mockResolvedValue({ failed: [], stillBroken: [], flagsCheckFailed: true });
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    const notice = await screen.findByRole("status");
+    expect(notice).toHaveTextContent("không kiểm lại được cờ");
+    expect(notice).not.toHaveTextContent("vẫn lỗi");
+  });
+
+  it("một sơ đồ không vẽ được ⇒ báo đúng sơ đồ đó kèm lý do", async () => {
+    const onRedraw = vi.fn().mockResolvedValue({ failed: [flags[2]], stillBroken: [], flagsCheckFailed: false, error: "Mất kết nối." });
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Chưa vẽ lại được sơ đồ §3.1.5 ERD. Mất kết nối.");
+  });
+
+  it("onRedraw ném lỗi ⇒ panel báo lỗi thay vì rơi vào unhandled rejection, nút mở khoá lại", async () => {
+    const onRedraw = vi.fn().mockRejectedValue(new Error("boom"));
+    renderPanel(onRedraw);
+
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+
+    expect(await screen.findByRole("status")).toHaveTextContent("Chưa vẽ lại được sơ đồ");
+    expect(screen.getByRole("button", { name: "Vẽ lại tất cả" })).toBeEnabled();
+  });
+});
+
+describe("FLF-428 - Sửa trong chat điền sẵn câu của cờ", () => {
+  it("bấm 'Sửa trong chat' ⇒ onEditSection nhận tên mục và nguyên văn câu cờ", () => {
+    const onEditSection = vi.fn();
+    const nfrFlag: Flag = {
+      ...baseFlag,
+      id: "FL09",
+      rule_id: "nfr_missing_number",
+      section_id: "fixed:4.2.2",
+      target_id: "NFR-12",
+      message: "Yêu cầu độ tin cậy NFR-12 thiếu chỉ số đo / ngưỡng",
+      remediation_step: "S-6.3",
+    };
+    renderWithIntl(<FlagsPanel flags={[nfrFlag]} onRecompute={vi.fn()} onEditSection={onEditSection} sectionLabelOf={() => "4.2.2 Reliability"} />);
+    fireEvent.click(screen.getAllByRole("button", { name: /Sửa trong chat/ })[0]);
+    expect(onEditSection).toHaveBeenCalledWith(expect.stringContaining("4.2.2"), "Yêu cầu độ tin cậy NFR-12 thiếu chỉ số đo / ngưỡng");
   });
 });

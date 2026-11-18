@@ -3,7 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it } from "vitest";
 import { Revisions } from "./Revisions";
 
-describe("Revisions — Track Changes do CR ghi", () => {
+describe("Revisions - Track Changes do CR ghi", () => {
   it("đoạn xoá là <del>, đoạn chèn là <ins>, kèm tác giả CR", () => {
     renderWithIntl(
       <Revisions

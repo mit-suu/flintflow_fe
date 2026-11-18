@@ -86,7 +86,7 @@ const type = async (text: string) => {
 /** Lượt gửi tới AI: chạy bước, trả lời, cổng, chat hỏi đáp, lệnh sửa. */
 const aiWrites = () => writes.filter((w) => /\/steps\/|\/phases\/|\/messages\/stream|\/changes|\/change-requests/.test(w.path));
 
-describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FLF-265 §3.7)", () => {
+describe("WorkspacePage - lệnh đổi ngôn ngữ tài liệu trong chat (FLF-265 §3.7)", () => {
   it("dự án en: lệnh dịch sang tiếng Việt ⇒ thẻ xác nhận, không gửi cho AI; Đồng ý ⇒ PATCH ngôn ngữ, chip đổi, mở hộp dịch", async () => {
     renderWithIntl(<WorkspacePage />);
     expect(await screen.findByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("EN");
@@ -181,20 +181,21 @@ describe("WorkspacePage — lệnh đổi ngôn ngữ tài liệu trong chat (FL
     expect(screen.queryByRole("status", { name: "Ngôn ngữ tài liệu" })).toBeNull();
   }, 30_000);
 
-  it("Viewer: không có ô chat ⇒ không có thẻ, không đổi được gì", async () => {
+  it("Viewer: không vào workspace (chuyển sang trang đọc) ⇒ không có ô chat, không đổi được gì", async () => {
     activeOrg.id = "org-a";
     mockServer.use(
       http.get("*/orgs/:orgId", ({ params }) => HttpResponse.json({ data: { id: params.orgId, name: "Nhóm A", role: "viewer", memberCount: 2 }, error: null }))
     );
+    router.replace.mockClear();
     renderWithIntl(<WorkspacePage />);
 
-    expect(await screen.findByText(/vai trò Viewer/)).toBeInTheDocument();
+    await waitFor(() => expect(router.replace).toHaveBeenCalledWith(`/projects/${nav.id}/view`));
     expect(document.getElementById("flintflow-chat-input")).toBeNull();
     expect(screen.queryByRole("status", { name: "Ngôn ngữ tài liệu" })).toBeNull();
   }, 30_000);
 });
 
-describe("WorkspacePage mode 1 — lệnh đổi ngôn ngữ (D3)", () => {
+describe("WorkspacePage mode 1 - lệnh đổi ngôn ngữ (D3)", () => {
   it("dự án upload: thẻ báo giữ ngôn ngữ file, không đổi; Gửi như tin nhắn ⇒ câu đi vào luồng CR như cũ", async () => {
     nav.id = MODE1_PROJECT_ID;
     await importToGapReview();

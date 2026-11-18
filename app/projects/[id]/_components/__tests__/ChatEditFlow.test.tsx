@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { renderWithIntl } from "@/test/intl";
+import { fireEvent, screen } from "@testing-library/react";
 import ChatEditCard from "../ChatEditCard";
 import EditHistory from "../EditHistory";
 import ChatInput from "../ChatInput";
@@ -40,17 +41,28 @@ const cardProps = {
 
 describe("describe-change", () => {
   it("đổi path thô thành câu đọc được", () => {
-    expect(describeTarget({ op: "set", path: "actors[id=A03].name", before: null, value: null })).toBe("Sửa Actor A03 · Tên");
-    expect(describeChange({ op: "set", path: "actors[id=A03].name", before: "Admin", value: "Administrator" })).toBe(
-      "Sửa Actor A03 · Tên: Admin → Administrator"
+    // FLF-411 #23: không in mã nội bộ (A03); có tên thì gọi bằng tên
+    expect(describeTarget({ op: "set", path: "actors[id=A03].name", before: null, value: null })).toBe("Sửa tên của một tác nhân");
+    expect(describeTarget({ op: "set", path: "actors[id=A03].name", before: null, value: null }, "vi", { actors: { A03: "Admin" } })).toBe(
+      "Sửa tên của tác nhân “Admin”"
     );
-    expect(describeChange({ op: "remove", path: "use_cases[id=UC04]", before: {}, value: null })).toBe("Xoá Use case UC04");
+    expect(describeChange({ op: "set", path: "actors[id=A03].name", before: "Admin", value: "Administrator" })).toBe(
+      "Sửa tên của một tác nhân: Admin → Administrator"
+    );
+    expect(describeChange({ op: "remove", path: "use_cases[id=UC04]", before: {}, value: null })).toBe("Xoá use case “UC04”");
+    expect(describeChange({ op: "remove", path: "actors[id=A04]", before: { id: "A04", name: "Patron", kind: "human" }, value: { _absent: true } })).toBe(
+      "Xoá tác nhân “Patron”"
+    );
+    expect(describeChange({ op: "set", path: "project.system_name", before: "Cafeteria", value: "ShuttleBook" })).toBe("Đổi tên hệ thống: Cafeteria → ShuttleBook");
+    expect(describeChange({ op: "set", path: "actors[id=A04].kind", before: "human", value: "system" }, "en")).toBe(
+      "Edit the kind of one actor: Human user → External system"
+    );
   });
 });
 
 describe("ChatEditCard", () => {
   it("đang xem trước ⇒ báo đang tìm, không có nút áp dụng", () => {
-    render(<ChatEditCard {...cardProps} previewing />);
+    renderWithIntl(<ChatEditCard {...cardProps} previewing />);
     expect(screen.getByText("Đang tìm những chỗ cần sửa…")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Áp dụng" })).toBeNull();
   });
@@ -58,10 +70,10 @@ describe("ChatEditCard", () => {
   it("có bản xem trước ⇒ tóm tắt số chỗ đổi + câu dễ đọc; Áp dụng / Xem chi tiết / Huỷ", () => {
     const onApply = vi.fn();
     const onShowDetail = vi.fn();
-    render(<ChatEditCard {...cardProps} preview={preview()} onApply={onApply} onShowDetail={onShowDetail} />);
+    renderWithIntl(<ChatEditCard {...cardProps} preview={preview()} onApply={onApply} onShowDetail={onShowDetail} />);
 
     expect(screen.getByText(/Sẽ thay đổi 2 chỗ · ảnh hưởng 1 mục/)).toBeInTheDocument();
-    expect(screen.getByText(/Sửa Actor A03 · Tên: Admin → Administrator/)).toBeInTheDocument();
+    expect(screen.getByText(/Sửa tên của một tác nhân: Admin → Administrator/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Áp dụng" }));
     fireEvent.click(screen.getByRole("button", { name: "Xem chi tiết" }));
     expect(onApply).toHaveBeenCalledTimes(1);
@@ -69,14 +81,14 @@ describe("ChatEditCard", () => {
   });
 
   it("bản xem trước vi phạm ⇒ nói lý do, không cho áp dụng", () => {
-    render(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "dead_reference", message: "UC01 còn trỏ tới A03" }] })} />);
+    renderWithIntl(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "dead_reference", message: "UC01 còn trỏ tới A03" }] })} />);
     expect(screen.getByText(/UC01 còn trỏ tới A03/)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Áp dụng" })).toBeNull();
   });
 
   it("lỗi sai schema ⇒ nói bằng lời, không lộ tên field / thông báo Zod (câu gốc chỉ nằm ở title)", () => {
     const raw = 'Sai schema tại "screens.0": Unrecognized key: "authorized_role_ids"';
-    render(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "schema_invalid", message: raw }] })} />);
+    renderWithIntl(<ChatEditCard {...cardProps} preview={preview({ ok: false, violations: [{ rule: "schema_invalid", message: raw }] })} />);
     const line = screen.getByText(/Không áp được lệnh này/);
     expect(line).toHaveTextContent("AI đề xuất sửa vào một chỗ không có trong tài liệu.");
     expect(line).not.toHaveTextContent("authorized_role_ids");
@@ -84,20 +96,26 @@ describe("ChatEditCard", () => {
   });
 
   it("mode 1 ⇒ nút chính là Tạo change request", () => {
-    render(<ChatEditCard {...cardProps} preview={preview()} requiresCr />);
+    renderWithIntl(<ChatEditCard {...cardProps} preview={preview()} requiresCr />);
     expect(screen.getByRole("button", { name: "Tạo change request" })).toBeInTheDocument();
   });
 
   it("đã áp dụng ⇒ báo số thay đổi + Hoàn tác", () => {
     const onUndo = vi.fn();
-    render(<ChatEditCard {...cardProps} applied={{ instruction: "x", count: 3, version: 12 }} onUndo={onUndo} />);
+    renderWithIntl(<ChatEditCard {...cardProps} applied={{ instruction: "x", count: 3, version: 12 }} onUndo={onUndo} />);
     expect(screen.getByText("Đã áp dụng 3 thay đổi")).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Hoàn tác" }));
     expect(onUndo).toHaveBeenCalledTimes(1);
   });
 
+  it("FLF-294: không truyền onUndo (sau baseline) ⇒ không có nút Hoàn tác", () => {
+    renderWithIntl(<ChatEditCard {...cardProps} applied={{ instruction: "x", count: 3, version: 12 }} onUndo={undefined} />);
+    expect(screen.getByText("Đã áp dụng 3 thay đổi")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Hoàn tác" })).not.toBeInTheDocument();
+  });
+
   it("lệnh mơ hồ ⇒ hiện câu hỏi làm rõ", () => {
-    render(<ChatEditCard {...cardProps} clarification="Bạn muốn đổi actor nào?" />);
+    renderWithIntl(<ChatEditCard {...cardProps} clarification="Bạn muốn đổi actor nào?" />);
     expect(screen.getByText("Bạn muốn đổi actor nào?")).toBeInTheDocument();
   });
 });
@@ -118,18 +136,19 @@ describe("EditHistory", () => {
       by: "u1",
       step_id: step,
     });
-    render(<EditHistory history={[change(1, "actors[id=A01].name", "S-3.1"), change(2, "actors[id=A02].name", null)]} loading={false} onLoad={onLoad} />);
+    renderWithIntl(<EditHistory history={[change(1, "actors[id=A01].name", "S-3.1"), change(2, "actors[id=A02].name", null)]} loading={false} onLoad={onLoad} />);
 
     expect(onLoad).toHaveBeenCalledTimes(1);
     const items = screen.getAllByRole("listitem");
-    expect(items[0]).toHaveTextContent("Sửa Actor A02");
+    expect(items[0]).toHaveTextContent("Sửa tên của một tác nhân: a → b");
+    expect(items[0]).not.toHaveTextContent("A02");
     expect(items[0]).toHaveTextContent("lệnh sửa");
     expect(items[1]).toHaveTextContent(/bước “[^”]+”/);
     expect(items[1]).not.toHaveTextContent("S-3.1");
   });
 });
 
-describe("ChatInput — chip Sửa tài liệu & thu gọn", () => {
+describe("ChatInput - chip Sửa tài liệu & thu gọn", () => {
   const inputProps = {
     inputMessage: "",
     setInputMessage: vi.fn(),
@@ -142,18 +161,19 @@ describe("ChatInput — chip Sửa tài liệu & thu gọn", () => {
 
   it("chip bật/tắt chế độ sửa; bị khoá kèm lý do khi step đang chạy", () => {
     const onToggle = vi.fn();
-    const { rerender } = render(<ChatInput {...inputProps} onToggleEditMode={onToggle} />);
+    const { rerender } = renderWithIntl(<ChatInput {...inputProps} onToggleEditMode={onToggle} />);
     fireEvent.click(screen.getByRole("button", { name: "Sửa tài liệu" }));
     expect(onToggle).toHaveBeenCalledTimes(1);
 
     rerender(<ChatInput {...inputProps} onToggleEditMode={onToggle} editDisabledReason="Bước đang chạy" />);
     const chip = screen.getByRole("button", { name: "Sửa tài liệu" });
     expect(chip).toBeDisabled();
-    expect(chip).toHaveAttribute("title", "Bước đang chạy");
+    // Lý do khoá hiện trong tooltip của chip (thay cho title của trình duyệt)
+    expect(chip).toHaveAccessibleDescription(/Bước đang chạy/);
   });
 
   it("thu gọn (có thẻ câu hỏi) ⇒ một dòng, không chip sửa, không hiện credit", () => {
-    const { container } = render(<ChatInput {...inputProps} compact onToggleEditMode={vi.fn()} />);
+    const { container } = renderWithIntl(<ChatInput {...inputProps} compact onToggleEditMode={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Sửa tài liệu" })).toBeNull();
     expect(container).not.toHaveTextContent(/credit/);
   });

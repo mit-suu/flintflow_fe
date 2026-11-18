@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
 import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "@/lib/api/users";
 import { logoutAndRedirect } from "@/lib/auth";
+import { getActiveOrgId } from "@/lib/api/token-store";
 import type { User } from "@/types/user";
 import ProfilePage from "./page";
 
@@ -14,14 +15,25 @@ vi.mock("@/lib/api/users", () => ({
   logoutAllDevices: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn() }));
+vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
 // TopBar cần context của AppShell (số dư, drawer) — không thuộc phạm vi test trang hồ sơ
-vi.mock("@/components/layout/TopBar", () => ({ default: () => null }));
+vi.mock("@/components/layout/TopBar", () => ({ default: () => <div data-testid="top-bar" /> }));
+const activeOrg = vi.hoisted(() => ({
+  value: null as null | { id: string; name: string; role: "lead" | "analyst" | "viewer" },
+  loading: false,
+  error: false,
+}));
+vi.mock("@/lib/hooks/use-active-org", () => ({
+  useActiveOrganization: () => activeOrg.value,
+  useActiveOrganizationState: () => ({ org: activeOrg.value, loading: activeOrg.loading, error: activeOrg.error }),
+}));
 
 const LOCAL_USER: User = {
   id: "u1",
   email: "hiep@flintflow.vn",
   name: "Hiệp",
   balance: 1200,
+  creditOrganization: { id: "o1", name: "Nhóm 1" },
   createdAt: "2026-09-01T00:00:00.000Z",
   authProvider: "local",
   emailVerified: true,
@@ -42,6 +54,10 @@ const fillPasswordForm = (current: string, next: string, confirm: string) => {
 
 describe("ProfilePage", () => {
   beforeEach(() => {
+    vi.mocked(getActiveOrgId).mockReturnValue("o1");
+    activeOrg.value = null;
+    activeOrg.loading = false;
+    activeOrg.error = false;
     vi.mocked(fetchMe).mockReset();
     vi.mocked(updateMyName).mockReset();
     vi.mocked(changeMyPassword).mockReset();
@@ -56,6 +72,49 @@ describe("ProfilePage", () => {
     expect(screen.getByText("✓ Đã xác thực")).toBeInTheDocument();
     expect(screen.getByText("Email/mật khẩu")).toBeInTheDocument();
     expect(screen.getByText("1.200 credit")).toBeInTheDocument();
+    // FLF-310: credit là của tổ chức đang chọn, ghi rõ tên
+    expect(screen.getByTestId("credit-org")).toHaveTextContent("của tổ chức Nhóm 1");
+    expect(screen.getByRole("link", { name: /Thanh toán/ })).toHaveAttribute("href", "/home/billing");
+    expect(screen.getByTestId("top-bar")).toBeInTheDocument();
+  });
+
+  it("chưa có tổ chức (getActiveOrgId null) ⇒ không render TopBar và ẩn link tới /home/billing", async () => {
+    vi.mocked(getActiveOrgId).mockReturnValue(null);
+    await renderLoaded({ ...LOCAL_USER, balance: 0, creditOrganization: null });
+
+    expect(screen.queryByTestId("top-bar")).toBeNull();
+    expect(screen.queryByRole("link", { name: /Thanh toán/ })).toBeNull();
+  });
+
+  it("FLF-310: chưa chọn tổ chức ⇒ không hiện số credit, báo credit nằm ở ví tổ chức", async () => {
+    await renderLoaded({ ...LOCAL_USER, balance: 0, creditOrganization: null });
+    expect(screen.queryByText("0 credit")).not.toBeInTheDocument();
+    expect(screen.getByText("Chưa chọn tổ chức - credit nằm ở ví của tổ chức")).toBeInTheDocument();
+  });
+
+  it("Viewer ⇒ ẩn hoàn toàn dòng thông tin credit và liên kết tới trang thanh toán", async () => {
+    activeOrg.value = { id: "o1", name: "Nhóm 1", role: "viewer" };
+    await renderLoaded({ ...LOCAL_USER, balance: 0, creditOrganization: null });
+    expect(screen.queryByText("Credit hiện có")).not.toBeInTheDocument();
+    expect(screen.queryByText("0 credit")).not.toBeInTheDocument();
+    expect(screen.queryByText("Chưa chọn tổ chức - credit nằm ở ví của tổ chức")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Thanh toán & credit/ })).not.toBeInTheDocument();
+  });
+
+  it("đang tải tổ chức (cold load) ⇒ ẩn dòng credit và liên kết tới trang thanh toán dù user có số dư", async () => {
+    activeOrg.loading = true;
+    await renderLoaded(LOCAL_USER);
+    expect(screen.queryByText("Credit hiện có")).not.toBeInTheDocument();
+    expect(screen.queryByText("1.200 credit")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Thanh toán & credit/ })).not.toBeInTheDocument();
+  });
+
+  it("tải tổ chức lỗi ⇒ ẩn dòng credit và liên kết tới trang thanh toán (fail closed)", async () => {
+    activeOrg.error = true;
+    await renderLoaded(LOCAL_USER);
+    expect(screen.queryByText("Credit hiện có")).not.toBeInTheDocument();
+    expect(screen.queryByText("1.200 credit")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: /Thanh toán & credit/ })).not.toBeInTheDocument();
   });
 
   it("sửa tên hiển thị ⇒ gọi updateMyName và hiện tên mới", async () => {

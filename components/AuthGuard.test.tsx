@@ -59,7 +59,7 @@ describe("AuthGuard", () => {
     expect(mockRefreshSession).toHaveBeenCalledTimes(1);
   });
 
-  it("refresh lỗi mạng ⇒ thử lại, rồi báo lỗi kết nối — KHÔNG về /login", async () => {
+  it("refresh lỗi mạng ⇒ thử lại, rồi báo lỗi kết nối - KHÔNG về /login", async () => {
     mockRefreshSession.mockResolvedValue("failed");
 
     renderWithIntl(<AuthGuard>nội dung</AuthGuard>);

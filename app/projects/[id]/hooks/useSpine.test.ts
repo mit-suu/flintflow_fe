@@ -38,7 +38,7 @@ describe("useSpine.reload", () => {
   });
 });
 
-describe("useSpine — Viewer", () => {
+describe("useSpine - Viewer", () => {
   it("canEdit = false ⇒ chỉ đọc Spine, không gọi POST /resume (thao tác ghi, Viewer luôn nhận 403)", async () => {
     resumeProject.mockClear();
     getSpine.mockResolvedValueOnce(spineAt(5));

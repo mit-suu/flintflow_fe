@@ -19,7 +19,7 @@ const tra = (id: string) => {
   fireEvent.click(screen.getByRole("button", { name: "Tra" }));
 };
 
-describe("TraceabilityMap — bản đồ truy vết có chiều", () => {
+describe("TraceabilityMap - bản đồ truy vết có chiều", () => {
   const getTraceability = vi.mocked(spineApi.getTraceability);
 
   beforeEach(() => {
@@ -49,6 +49,35 @@ describe("TraceabilityMap — bản đồ truy vết có chiều", () => {
     expect(within(group("Liên quan ngang")).getByText(/Không có quan hệ ngang/)).toBeInTheDocument();
     // Tên trường đời thường, không hiện mã `actor_ids` (FLF-247)
     expect(screen.queryByText(/actor_ids/)).not.toBeInTheDocument();
+  });
+
+  it("nhóm dài chỉ hiện 5 mục đầu, còn lại nằm sau nút Xem thêm", async () => {
+    // Một actor gốc kéo theo vài chục use case — đổ hết ra thì nhóm bên dưới không ai cuộn tới
+    const many = Array.from({ length: 8 }, (_, i) => ({
+      kind: "use_case" as const,
+      id: `UC${String(i + 1).padStart(2, "0")}`,
+      label: `Use case ${i + 1}`,
+    }));
+    getTraceability.mockResolvedValueOnce({
+      data: {
+        nodes: [{ kind: "actor", id: "A01", label: "Founder" }, ...many],
+        edges: many.map((n) => ({ from: n.id, to: "A01", field: "actor_ids" })),
+      },
+      error: null,
+    });
+
+    renderWithIntl(<TraceabilityMap projectId="p1" />);
+    tra("A01");
+    await screen.findByText("Founder");
+
+    expect(within(group("Dẫn tới")).getByText("Use case 5")).toBeInTheDocument();
+    expect(within(group("Dẫn tới")).queryByText("Use case 6")).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Xem thêm 3 mục" }));
+    expect(within(group("Dẫn tới")).getByText("Use case 8")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Thu gọn" }));
+    expect(within(group("Dẫn tới")).queryByText("Use case 6")).not.toBeInTheDocument();
   });
 
   it("tra use case: nguồn, dẫn tới và quan hệ ngang nằm đúng ba khối; include không bị gọi là dẫn tới", async () => {
@@ -143,7 +172,7 @@ const SPINE = {
   business_rules: [],
 } as never;
 
-describe("TraceabilityMap — chọn thực thể từ Spine đang mở", () => {
+describe("TraceabilityMap - chọn thực thể từ Spine đang mở", () => {
   const getTraceability = vi.mocked(spineApi.getTraceability);
 
   beforeEach(() => {
@@ -154,13 +183,13 @@ describe("TraceabilityMap — chọn thực thể từ Spine đang mở", () => 
   it("có spine ⇒ chọn bằng danh sách tên, không còn ô gõ mã", () => {
     renderWithIntl(<TraceabilityMap projectId="p1" spine={SPINE} />);
     expect(screen.queryByLabelText("Mã thực thể")).not.toBeInTheDocument();
-    expect(screen.getByRole("combobox", { name: "Mục" })).toHaveTextContent("A01 — Receptionist");
+    expect(screen.getByRole("combobox", { name: "Mục" })).toHaveTextContent("A01 - Receptionist");
   });
 
   it("chọn phần tử khác ⇒ tra đúng mã đó", async () => {
     renderWithIntl(<TraceabilityMap projectId="p1" spine={SPINE} />);
     fireEvent.click(screen.getByRole("combobox", { name: "Mục" }));
-    fireEvent.mouseDown(screen.getByRole("option", { name: "A02 — Doctor" }));
+    fireEvent.mouseDown(screen.getByRole("option", { name: "A02 - Doctor" }));
     fireEvent.click(screen.getByRole("button", { name: "Tra" }));
 
     await screen.findByText("Không tìm thấy thực thể này trong tài liệu.");
@@ -171,7 +200,7 @@ describe("TraceabilityMap — chọn thực thể từ Spine đang mở", () => 
     renderWithIntl(<TraceabilityMap projectId="p1" spine={SPINE} />);
     fireEvent.click(screen.getByRole("combobox", { name: "Loại" }));
     fireEvent.mouseDown(screen.getByRole("option", { name: "Use case" }));
-    expect(screen.getByRole("combobox", { name: "Mục" })).toHaveTextContent("UC-03 — Book appointment");
+    expect(screen.getByRole("combobox", { name: "Mục" })).toHaveTextContent("UC-03 - Book appointment");
 
     fireEvent.click(screen.getByRole("button", { name: "Tra" }));
     await screen.findByText("Không tìm thấy thực thể này trong tài liệu.");

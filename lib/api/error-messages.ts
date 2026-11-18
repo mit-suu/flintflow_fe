@@ -10,16 +10,18 @@ import vi from "@/messages/vi.json";
  *
  * Gọi ở `ApiClientError` nên mọi chỗ hiện `err.message` (component, hook, runner) tự đúng ngôn ngữ.
  */
-const ERRORS: Record<Locale, Record<string, string>> = { vi: vi.errors, en: en.errors };
+/** `errors.page` là chuỗi của trang lỗi (`app/error.tsx`), không phải mã lỗi BE — chỉ giữ các mục là câu. */
+const codeMessages = (messages: Record<string, unknown>): Record<string, string> =>
+  Object.fromEntries(Object.entries(messages).filter((entry): entry is [string, string] => typeof entry[1] === "string"));
+
+const ERRORS: Record<Locale, Record<string, string>> = { vi: codeMessages(vi.errors), en: codeMessages(en.errors) };
 
 /**
  * Ngôn ngữ đang hiển thị: `<html lang>` do root layout gắn theo locale của request (đổi theo `router.refresh()`).
- * Admin chỉ tiếng Việt dù cookie là `en` (`app/admin/layout.tsx`) ⇒ trong `/admin` luôn `vi`.
- * Ngoài trình duyệt (SSR, test node) ⇒ `vi`.
+ * Áp dụng cả trong `/admin` (song ngữ từ FLF-328). Ngoài trình duyệt (SSR, test node) ⇒ `vi`.
  */
 export const currentLocale = (): Locale => {
   if (typeof document === "undefined") return DEFAULT_LOCALE;
-  if (window.location.pathname.startsWith("/admin")) return "vi";
   const lang = document.documentElement.lang;
   return isLocale(lang) ? lang : DEFAULT_LOCALE;
 };
@@ -48,6 +50,7 @@ export const looksTechnical = (message: string | null | undefined, locale: Local
   const text = (message ?? "").trim();
   if (!text) return true;
   if (TECHNICAL_PATTERNS.some((pattern) => pattern.test(text))) return true;
+  if (locale === "en" && VIETNAMESE_LETTER.test(text)) return true;
   return locale === "vi" && /[a-z]{3,}\s+[a-z]{3,}/i.test(text) && !VIETNAMESE_LETTER.test(text);
 };
 
@@ -58,7 +61,21 @@ export const genericErrorMessage = (locale: Locale = currentLocale()): string =>
  * Mã FE tự gán khi envelope của BE không có mã (`apiCall`, SSE, tải file…). Câu BE kèm theo (nếu là câu cho người)
  * cụ thể hơn câu dịch của mã ⇒ ưu tiên câu BE; câu dịch của mã chỉ thay cho text kỹ thuật như `HTTP 502`.
  */
-const FALLBACK_CODES: ReadonlySet<string> = new Set(["UNKNOWN_ERROR", "PARSE_ERROR", "STREAM_FAILED", "EXPORT_FAILED", "DOWNLOAD_FAILED", "DIAGRAM_FETCH_FAILED"]);
+const FALLBACK_CODES: ReadonlySet<string> = new Set([
+  "UNKNOWN_ERROR",
+  "PARSE_ERROR",
+  "STREAM_FAILED",
+  "EXPORT_FAILED",
+  "DOWNLOAD_FAILED",
+  "DIAGRAM_FETCH_FAILED",
+  "VALIDATION_ERROR",
+  "FORBIDDEN",
+]);
+
+type DocumentRefMeta = { name: string; doc_code?: number | null };
+const isDocumentRef = (value: unknown): value is DocumentRefMeta => typeof value === "object" && value !== null && typeof (value as DocumentRefMeta).name === "string";
+/** `"SRS_v1.docx" (D1)` — tên trong ngoặc kép, kèm mã tài liệu nếu có. */
+const documentLabel = (doc: DocumentRefMeta): string => `"${doc.name}"${typeof doc.doc_code === "number" ? ` (D${doc.doc_code})` : ""}`;
 
 /**
  * Câu dịch kèm số liệu từ `meta` của BE. Hiện chỉ `FILE_TOO_LARGE` có `meta.max_mb` (upload SRS mode 1, 413) ⇒ câu nêu giới
@@ -66,6 +83,28 @@ const FALLBACK_CODES: ReadonlySet<string> = new Set(["UNKNOWN_ERROR", "PARSE_ERR
  */
 const withMeta = (code: string | null | undefined, locale: Locale, meta?: Record<string, unknown>): string | undefined => {
   if (code === "FILE_TOO_LARGE" && typeof meta?.max_mb === "number") return ERRORS[locale].FILE_TOO_LARGE_LIMIT.replace("{max_mb}", String(meta.max_mb));
+  // FLF-398: tài liệu tham khảo trùng hệt — nêu tên (+ mã D<n>) tài liệu đã có; trùng bản cũ đã bị thay ⇒ nêu bản đang thay nó.
+  // Câu dựng ở FE: tên file như `SRS_KhachHang_v1.docx` làm câu BE trông như text kỹ thuật (`looksTechnical`).
+  if (code === "DUPLICATE_DOCUMENT" && isDocumentRef(meta?.document)) {
+    const name = documentLabel(meta.document);
+    if (isDocumentRef(meta.superseded_by)) {
+      return ERRORS[locale].DUPLICATE_DOCUMENT_SUPERSEDED.replace("{name}", name).replace("{newer}", documentLabel(meta.superseded_by));
+    }
+    return ERRORS[locale].DUPLICATE_DOCUMENT_NAMED.replace("{name}", name);
+  }
+  // FLF-334 B: tải theo ngôn ngữ khác còn mục chưa dịch — nói rõ bao nhiêu
+  if (code === "TRANSLATION_INCOMPLETE" && typeof meta?.missing === "number") {
+    const one = new Intl.PluralRules(locale).select(meta.missing) === "one";
+    return ERRORS[locale][one ? "TRANSLATION_INCOMPLETE_COUNT_ONE" : "TRANSLATION_INCOMPLETE_COUNT"].replace("{missing}", String(meta.missing));
+  }
+  // File bị từ chối: nêu luôn lý do BE đã phát hiện (tối đa 3) để người dùng biết sửa gì
+  if (code === "IMPORT_FILE_REJECTED" && Array.isArray(meta?.issues)) {
+    const reasons = meta.issues
+      .map((issue) => (issue as { message?: unknown } | null)?.message)
+      .filter((m): m is string => typeof m === "string" && m.trim() !== "" && !looksTechnical(m, locale))
+      .slice(0, 3);
+    if (reasons.length > 0) return `${ERRORS[locale].IMPORT_FILE_REJECTED} ${reasons.join("; ")}`;
+  }
   return undefined;
 };
 

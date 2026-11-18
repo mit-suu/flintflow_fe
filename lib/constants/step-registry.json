@@ -964,7 +964,7 @@
       "5.1"
     ],
     "deterministic": false,
-    "description": "Availability, MTBF, MTTR — phải có số."
+    "description": "Availability, MTBF, MTTR - phải có số."
   },
   {
     "id": "S-6.4",
@@ -988,7 +988,7 @@
       "5.1"
     ],
     "deterministic": false,
-    "description": "Response time, throughput, capacity — phải có số."
+    "description": "Response time, throughput, capacity - phải có số."
   },
   {
     "id": "S-6.5",

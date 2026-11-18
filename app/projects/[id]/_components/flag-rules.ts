@@ -1,44 +1,62 @@
 import type { Flag, FlagRuleId } from "@/types/flags";
 
 /**
- * Tên nhóm dễ hiểu cho từng luật cờ — thay mã luật (`unconfirmed_assumption`) trên giao diện.
+ * Luật cờ có tên nhóm dễ hiểu (`messages → workspace.flagRules`) — thay mã luật (`unconfirmed_assumption`) trên giao diện.
  * Khoá theo `FlagRuleId` (TS báo thiếu khi type thêm luật) cộng các luật BE đang phát mà type chưa liệt kê.
  * Luật lạ (BE thêm sau) ⇒ `flagGroupTitle` trả null, panel rơi về câu `message` của chính cờ.
  */
-const RULE_TITLE: Record<FlagRuleId, string> & Record<string, string> = {
-  section_empty: "Mục còn trống",
-  array_empty: "Danh sách bắt buộc còn trống",
-  dead_reference: "Tham chiếu tới phần đã xoá",
-  render_error: "Sơ đồ vẽ bị lỗi",
-  diagram_stale: "Sơ đồ đã cũ",
-  nfr_missing_number: "Yêu cầu phi chức năng thiếu con số đo được",
-  unconfirmed_assumption: "Giả định chưa xác nhận",
-  section_stale_at_baseline: "Mục cần viết lại",
-  section_awaiting_reaccept: "Mục chờ duyệt lại",
-  screen_pending_at_baseline: "Màn hình chưa đặc tả xong",
-  orphan_actor: "Actor không tham gia use case nào",
-  usecase_no_function: "Use case chưa có chức năng",
-  screen_no_function: "Màn hình chưa có chức năng",
-  empty_feature: "Feature chưa có chức năng",
-  role_no_actor: "Vai trò không gắn actor",
-  non_english_content: "Nội dung chưa viết bằng tiếng Anh",
+const EXTRA_RULES = [
   // BE phát nhưng type FE chưa liệt kê
-  derived_from_changed_assumption: "Dựa trên giả định đã bị đổi",
-  screen_placeholder: "Màn hình để trống có chủ đích",
-  orphan_screen_at_baseline: "Màn hình không gắn chức năng",
-  system_name_missing: "Thiếu tên hệ thống",
-  actor_name_shape: "Tên actor chưa đúng dạng",
+  "derived_from_changed_assumption",
+  "screen_placeholder",
+  "orphan_screen_at_baseline",
+  // FLF-428: màn có trong luồng mà chưa tác nhân nào dùng (tách khỏi orphan_screen)
+  "screen_no_actor",
+  "system_name_missing",
+  "actor_name_shape",
   // Mode 1 §4.13: hình người dùng vẽ sẵn không còn khớp dữ liệu — mở CR để thay bằng sơ đồ vẽ lại
-  original_diagram_stale: "Hình gốc lệch dữ liệu",
-  function_without_uc: "Chức năng không thuộc use case nào",
-  usecase_floating: "Use case không gắn actor",
-  usecase_relation_invalid: "Quan hệ giữa use case không hợp lệ",
-  usecase_auth_relation: "Quan hệ đăng nhập của use case",
-  goal_not_covered: "Mục tiêu chưa được đáp ứng",
-  accepted_as_is: "Đã chấp nhận nguyên trạng",
+  "original_diagram_stale",
+  "function_without_uc",
+  "usecase_floating",
+  "usecase_relation_invalid",
+  "usecase_auth_relation",
+  "goal_not_covered",
+  "accepted_as_is",
+  // FLF-278 trên FLF-335/336 — chế độ 3 (mẫu bắt buộc): mục FlintFlow mẫu không có / mục của mẫu còn trống
+  "template_section_absent",
+  "template_section_empty",
+  // FLF-395: sau khi đổi mẫu — mục của mẫu mới chưa viết (đỏ) / tham chiếu số mục theo đánh số cũ (vàng)
+  "template_section_migration_missing",
+  "section_reference_after_migration",
+] as const;
+
+export type FlagRuleTitleKey = FlagRuleId | (typeof EXTRA_RULES)[number];
+
+const HAS_TITLE: Record<FlagRuleId, true> = {
+  section_empty: true,
+  array_empty: true,
+  dead_reference: true,
+  render_error: true,
+  diagram_stale: true,
+  nfr_missing_number: true,
+  unconfirmed_assumption: true,
+  section_stale_at_baseline: true,
+  section_awaiting_reaccept: true,
+  screen_pending_at_baseline: true,
+  orphan_actor: true,
+  usecase_no_function: true,
+  screen_no_function: true,
+  empty_feature: true,
+  role_no_actor: true,
+  non_english_content: true,
 };
 
-export const flagGroupTitle = (ruleId: string): string | null => RULE_TITLE[ruleId] ?? null;
+const isTitledRule = (ruleId: string): ruleId is FlagRuleTitleKey =>
+  ruleId in HAS_TITLE || (EXTRA_RULES as readonly string[]).includes(ruleId);
+
+/** `t` = `useTranslations("workspace.flagRules")`. */
+export const flagGroupTitle = (ruleId: string, t: (key: FlagRuleTitleKey) => string): string | null =>
+  isTitledRule(ruleId) ? t(ruleId) : null;
 
 /**
  * Luật mà câu của BE chỉ nhắc lại "mục X có vấn đề" (`Section bắt buộc fixed:3.1.2 chưa có dữ liệu`) — tên nhóm đã
@@ -53,7 +71,7 @@ export const readableMessage = (message: string, sectionId: string, sectionLabel
 
 // ─── gom theo việc người dùng phải làm (không theo luật) ─────────────
 
-export type IssueAction = "confirm" | "run_step" | "fill" | "reaccept" | "redraw" | "fix";
+export type IssueAction = "confirm" | "run_step" | "fill" | "link" | "actor" | "reaccept" | "redraw" | "fix";
 
 const ACTION_OF_RULE: Record<string, IssueAction> = {
   unconfirmed_assumption: "confirm",
@@ -64,6 +82,8 @@ const ACTION_OF_RULE: Record<string, IssueAction> = {
   screen_no_function: "run_step",
   empty_feature: "run_step",
   orphan_screen_at_baseline: "run_step",
+  // FLF-428: màn chưa có tác nhân — việc phải làm là thêm phân quyền (sửa qua chat), không chờ bước nào
+  screen_no_actor: "actor",
   section_awaiting_reaccept: "reaccept",
   section_stale_at_baseline: "reaccept",
   diagram_stale: "redraw",
@@ -73,28 +93,25 @@ const ACTION_OF_RULE: Record<string, IssueAction> = {
 /** Luật chưa xếp ⇒ "fix" (nội dung có chỗ chưa đúng, sửa ở bước gốc hoặc bằng lệnh sửa trong chat). */
 export const actionOf = (ruleId: string): IssueAction => ACTION_OF_RULE[ruleId] ?? "fix";
 
+/** Luật "phần tử chưa gắn chức năng" (màn, use case, tính năng) — việc phải làm là gắn / thêm chức năng, không phải điền mục. */
+const LINK_RULES: ReadonlySet<string> = new Set(["screen_no_function", "usecase_no_function", "empty_feature", "orphan_screen_at_baseline"]);
+
 /**
  * FLF-248: "sẽ điền ở bước sau" chỉ đúng khi bước sở hữu CHƯA chốt. Bước đã chốt mà mục vẫn rỗng thì không
  * còn bước nào điền nữa — BE vẫn coi cờ đỏ đó chặn ký baseline, nên panel phải đếm và cho đường xử lý.
  */
-export const actionOfFlag = (flag: Pick<Flag, "rule_id" | "remediation_step">, acceptedSteps?: ReadonlySet<string>): IssueAction => {
+export const actionOfFlag = (flag: Pick<Flag, "rule_id" | "remediation_step"> & Partial<Pick<Flag, "section_id">>, acceptedSteps?: ReadonlySet<string>): IssueAction => {
   const action = actionOf(flag.rule_id);
-  return action === "run_step" && acceptedSteps?.has(flag.remediation_step) ? "fill" : action;
+  if (action !== "run_step" || !acceptedSteps?.has(flag.remediation_step)) return action;
+  // FLF-428: màn mồ côi vì chưa có tác nhân (BE đặt mục §3.1.3 Screen Authorization) ⇒ nhóm "Chưa gắn tác nhân"
+  if (flag.rule_id === "orphan_screen_at_baseline" && flag.section_id === "fixed:3.1.3") return "actor";
+  // FLF-411 U2-3: màn / use case / tính năng chưa gắn chức năng không phải "mục bắt buộc còn trống" — nhóm riêng
+  return LINK_RULES.has(flag.rule_id) ? "link" : "fill";
 };
 
-/** Thứ tự hiện + tiêu đề + một câu nói rõ vì sao và phải làm gì. */
-export const ACTION_INFO: Record<IssueAction, { title: string; hint: string }> = {
-  confirm: { title: "Cần bạn xác nhận", hint: "AI tự giả định — cho biết đúng hay sai." },
-  fix: { title: "Cần bạn sửa nội dung", hint: "Nội dung còn thiếu hoặc chưa đúng." },
-  fill: {
-    title: "Mục bắt buộc còn trống",
-    hint: "Bước viết mục này đã chốt mà chưa điền gì — mở lại bước để AI điền, hoặc gõ lệnh sửa trong chat.",
-  },
-  reaccept: { title: "Cần bạn duyệt lại", hint: "Nội dung đã đổi sau khi bạn chốt." },
-  redraw: { title: "Vẽ lại sơ đồ", hint: "Sơ đồ chưa khớp nội dung mới." },
-  run_step: { title: "Sẽ điền ở bước sau", hint: "Chưa phải lỗi — AI điền khi chạy tới các bước này." },
-};
-export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "fill", "reaccept", "redraw", "run_step"];
+
+/** Thứ tự hiện các nhóm. Tiêu đề + câu giải thích của mỗi nhóm: `workspace.flags.action.<action>`. */
+export const ACTION_ORDER: readonly IssueAction[] = ["confirm", "fix", "fill", "link", "actor", "reaccept", "redraw", "run_step"];
 
 export interface ActionGroup {
   action: IssueAction;
@@ -116,7 +133,8 @@ export interface IssueCounts {
   later: number;
 }
 
-const isOpenFlag = (f: Flag) => !f.resolved_at && !f.waived_by_user;
+// FLF-329 (BR-04): cờ đỏ đã waive / giữ nguyên vẫn mở, vẫn chặn
+const isOpenFlag = (f: Flag) => !f.resolved_at && (f.level === "red" || !f.waived_by_user);
 
 /**
  * Đếm cho chip trạng thái, câu tóm tắt và số trên tab — cùng một định nghĩa ở mọi chỗ. `acceptedSteps`: các bước
@@ -135,3 +153,19 @@ export const issueCounts = (flags: readonly Flag[], outdated = 0, acceptedSteps?
 
 /** Lý do bỏ qua một cờ phải dài ít nhất chừng này ký tự (in kèm trong tài liệu). */
 export const WAIVE_REASON_MIN_LENGTH = 20;
+
+/** Cờ mà việc cần làm là vẽ lại sơ đồ, không phải sửa nội dung. */
+export const isRedrawable = (flag: Flag): boolean => flag.rule_id === "diagram_stale" || flag.rule_id === "render_error";
+
+/**
+ * Kết quả của một lượt "Vẽ lại" (một hay nhiều cờ): panel dựng thông báo từ đây, không tự đoán.
+ * `failed`: cờ có sơ đồ không vẽ lại được (hoặc không tìm thấy sơ đồ); `stillBroken`: cờ vẫn mở sau khi vẽ xong,
+ * lấy từ lượt tính lại cờ; `flagsCheckFailed`: vẽ xong nhưng tính lại cờ lỗi ⇒ không biết còn lỗi hay không.
+ */
+export interface RedrawReport {
+  failed: Flag[];
+  stillBroken: Flag[];
+  flagsCheckFailed: boolean;
+  /** Câu lỗi đầu tiên của lượt vẽ (nếu có), đã chuyển sang tiếng người. */
+  error?: string;
+}

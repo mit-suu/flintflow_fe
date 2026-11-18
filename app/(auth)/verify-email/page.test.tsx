@@ -78,4 +78,26 @@ describe("VerifyEmailPage (OTP)", () => {
     await waitFor(() => expect(screen.getByText(/Bạn còn 4 lần thử/)).toBeInTheDocument());
     digitInputs().forEach((input) => expect(input.value).toBe(""));
   });
+
+  it("xác thực thành công: điều hướng theo resolvePostAuthDestination khi bấm nút Vào ứng dụng", async () => {
+    vi.stubGlobal("location", { href: "" });
+    fetchMock.mockResolvedValue(
+      jsonResponse(200, {
+        data: {
+          accessToken: "at-otp",
+          user: { role: "user", locale: "en" },
+          needsOnboarding: true,
+          organizations: [],
+        },
+      })
+    );
+    renderWith({ email: "new@flintflow.vn", exp: String(Date.now() + 120_000) });
+
+    fireEvent.paste(digitInputs()[0], { clipboardData: { getData: () => "654321" } });
+
+    await waitFor(() => expect(screen.getByText("Xác thực thành công!")).toBeInTheDocument());
+    fireEvent.click(screen.getByRole("button", { name: /Vào ứng dụng/ }));
+
+    expect(window.location.href).toBe("/home/onboarding");
+  });
 });

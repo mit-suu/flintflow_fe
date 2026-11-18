@@ -64,7 +64,7 @@ describe("ChatSessionHistory", () => {
   });
 });
 
-describe("ChatSessionHistory — Viewer (FLF-244)", () => {
+describe("ChatSessionHistory - Viewer (FLF-244)", () => {
   it("readOnly ⇒ không có Phiên mới, không có nút xoá; vẫn chọn xem phiên được", () => {
     const { onSelectSession } = setup({ readOnly: true });
     fireEvent.click(screen.getByRole("button", { name: "Lịch sử phiên chat" }));

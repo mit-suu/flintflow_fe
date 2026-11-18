@@ -34,7 +34,7 @@ const fill = (amount: string, reason: string) => {
   fireEvent.change(screen.getByLabelText("Lý do (bắt buộc)"), { target: { value: reason } });
 };
 
-describe("AdjustCreditsDialog — UC-68", () => {
+describe("AdjustCreditsDialog - UC-68", () => {
   beforeEach(() => {
     vi.mocked(adjustAdminOrgCredits).mockReset();
   });

@@ -1,18 +1,64 @@
+import { createTranslator } from "next-intl";
+import en from "@/messages/en.json";
+import vi from "@/messages/vi.json";
+import type { Locale } from "@/lib/i18n";
 import { apiCall } from "./client";
+import { currentLocale } from "./error-messages";
 
 export type PlanId = "free" | "pro";
-export type CreditTransactionType = "reserve" | "deduct" | "release" | "refund" | "monthly_reset" | "purchase" | "admin_adjust";
+/** `payment`: thanh toán đang chờ / lỗi (UC-59) — chỉ Lead nhận, không phải dòng sổ ví. */
+export type CreditTransactionType = "reserve" | "deduct" | "release" | "refund" | "monthly_reset" | "purchase" | "admin_adjust" | "payment";
 export type PaymentIntentStatus = "pending" | "succeeded" | "failed";
+
+/** Thành viên / dự án của một dòng lịch sử — `name` rỗng khi đã bị xoá. */
+export interface NamedRef {
+  id: string;
+  name: string;
+}
 
 export interface CreditTransaction {
   _id: string;
   actionType: string;
   amount: number;
+  /** Chiều cộng/trừ tường minh cho `admin_adjust` (`amount` là trị tuyệt đối). */
+  direction?: "credit" | "debit" | null;
   type: CreditTransactionType;
-  balanceAfter: number;
+  /** Lý do điều chỉnh (UC-68). Chỉ dòng `admin_adjust` mới có. */
+  reason?: string | null;
+  /** `null` ở dòng thanh toán chưa thành công (chưa đụng ví). */
+  balanceAfter: number | null;
   state?: "reserved" | "deducted" | "refunded" | "expired";
   expires_at?: string;
   createdAt: string;
+  /** UC-60: step pipeline của lượt gọi AI; `null` khi gọi ngoài pipeline hoặc dòng cũ. */
+  stepId?: string | null;
+  tokensIn?: number | null;
+  tokensOut?: number | null;
+  member?: NamedRef | null;
+  project?: NamedRef | null;
+  /** UC-59: dòng `purchase` (= succeeded) và dòng `payment` (pending / failed). */
+  paymentStatus?: PaymentIntentStatus;
+  intentId?: string | null;
+  packageId?: string | null;
+  /** Số tiền (VND) của dòng `purchase` / `payment`. */
+  price?: number | null;
+  currency?: string | null;
+  referenceCode?: string | null;
+}
+
+export type TransactionKind = "usage" | "payment";
+
+export interface TransactionFilters {
+  kind?: TransactionKind;
+  projectId?: string;
+  memberId?: string;
+}
+
+export interface PlanLimits {
+  maxMembers: number;
+  maxProjects: number;
+  maxReferenceTokens?: number;
+  monthlyCredits: number;
 }
 
 export interface BalanceResponse {
@@ -21,6 +67,7 @@ export interface BalanceResponse {
   available: number;
   plan: PlanId;
   planLabel: string;
+  planLimits?: PlanLimits;
   lowCreditThreshold: number;
   subscription: {
     plan: PlanId;
@@ -46,6 +93,9 @@ export interface PlanDefinition {
   initialCredits: number;
   monthlyCredits: number;
   priceVnd: number;
+  maxMembers?: number;
+  maxProjects?: number;
+  maxReferenceTokens?: number;
 }
 
 export interface PaymentIntentDTO {
@@ -72,19 +122,26 @@ export interface TransactionsMeta {
   totalPages: number;
 }
 
-const unwrap = <T>(data: T | null, what: string): T => {
-  if (data === null) throw new Error(`Không nhận được dữ liệu ${what}`);
+type BillingData = "balance" | "packages" | "checkout" | "transaction" | "plan";
+
+/** BE trả `data: null` ⇒ câu lỗi theo ngôn ngữ UI (`common.billingData`). */
+const unwrap = <T>(data: T | null, what: BillingData): T => {
+  if (data === null) {
+    const locale = currentLocale();
+    const t = createTranslator({ locale, messages: { vi, en }[locale], namespace: "common.billingData" });
+    throw new Error(t("missing", { what: t(`what.${what}`) }));
+  }
   return data;
 };
 
 export async function fetchBalance(): Promise<BalanceResponse> {
   const res = await apiCall<BalanceResponse>("/billing/balance");
-  return unwrap(res.data, "số dư");
+  return unwrap(res.data, "balance");
 }
 
 export async function fetchPackages(): Promise<{ packages: CreditPackage[]; plans: PlanDefinition[] }> {
   const res = await apiCall<{ packages: CreditPackage[]; plans: PlanDefinition[] }>("/billing/packages");
-  return unwrap(res.data, "gói credit");
+  return unwrap(res.data, "packages");
 }
 
 /** Tạo order thanh toán (BE gọi payment_service; API key không bao giờ ra trình duyệt). */
@@ -93,13 +150,13 @@ export async function createCheckout(packageId: string): Promise<PaymentIntentDT
     method: "POST",
     body: JSON.stringify({ packageId }),
   });
-  return unwrap(res.data, "thanh toán");
+  return unwrap(res.data, "checkout");
 }
 
 /** Trạng thái giao dịch — dùng để polling trên trang QR. */
 export async function fetchCheckout(intentId: string): Promise<PaymentIntentDTO> {
   const res = await apiCall<PaymentIntentDTO>(`/billing/checkout/${intentId}`);
-  return unwrap(res.data, "giao dịch");
+  return unwrap(res.data, "transaction");
 }
 
 export async function upgradePlan(plan: PlanId) {
@@ -107,15 +164,40 @@ export async function upgradePlan(plan: PlanId) {
     method: "POST",
     body: JSON.stringify({ plan }),
   });
-  return unwrap(res.data, "gói");
+  return unwrap(res.data, "plan");
 }
 
-export async function fetchTransactions(page = 1, limit = 20) {
-  const res = await apiCall<CreditTransaction[]>(`/billing/transactions?page=${page}&limit=${limit}`);
+export async function fetchTransactions(page = 1, limit = 20, filters: TransactionFilters = {}) {
+  const query = new URLSearchParams({ page: String(page), limit: String(limit) });
+  for (const [key, value] of Object.entries(filters)) if (value) query.set(key, value);
+  const res = await apiCall<CreditTransaction[]>(`/billing/transactions?${query}`);
   return {
     items: res.data ?? [],
     meta: res.meta as unknown as TransactionsMeta,
   };
 }
 
-export const formatVnd = (amount: number) => `${amount.toLocaleString("vi-VN")} ₫`;
+/** Giá VND theo ngôn ngữ giao diện: `40.000 ₫` (vi) / `40,000 ₫` (en). */
+export const formatVnd = (amount: number, locale: Locale = "vi") =>
+  `${amount.toLocaleString(locale === "en" ? "en-US" : "vi-VN")} ₫`;
+
+// ─── FLF-332 (BR-08): Analyst báo Lead nạp credit ───
+
+export interface TopupRequest {
+  id: string;
+  organization_id: string;
+  user_id: string;
+  project_id: string | null;
+  step: string | null;
+  needed: number | null;
+  status: "open" | "fulfilled";
+  /** Số Lead vừa được báo (0 khi yêu cầu đã mở từ trước — chỉ cập nhật). */
+  notified_leads: number;
+  available: number;
+  created_at: string;
+  fulfilled_at: string | null;
+}
+
+/** Tạo / cập nhật yêu cầu nạp credit của người gọi trong org đang chọn; BE báo in-app mọi Lead. */
+export const requestCreditTopup = (body: { projectId?: string; step?: string; needed?: number } = {}) =>
+  apiCall<TopupRequest>("/billing/topup-request", { method: "POST", body: JSON.stringify(body) });

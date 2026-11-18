@@ -1,0 +1,37 @@
+import { describe, expect, it } from "vitest";
+import { blockHasRealText, isGuidanceOnly, isInstructionText, isRealText } from "./instruction-text";
+
+const p = (text: string) => ({ type: "paragraph" as const, runs: [{ text }] });
+
+describe("chữ hướng dẫn của mẫu (FLF-278, đồng bộ BE instruction-text)", () => {
+  it("FLF-364: chỉ chữ trọn trong [ ] / { } là hướng dẫn; < >, ngoặc tròn, câu mô tả mục là nội dung", () => {
+    expect(isInstructionText("[Describe any standards or typographical conventions]")).toBe(true);
+    expect(isInstructionText(" {Ghi chú cho người soạn} ")).toBe(true);
+    expect(isInstructionText("  <<Tên hệ thống>> ")).toBe(false);
+    expect(isInstructionText("<= 24 h (<= 6 h during exam week)")).toBe(false);
+    expect(isInstructionText("This section describes the context of the product.")).toBe(false);
+    expect(isInstructionText("Mục này mô tả phạm vi phát hành.")).toBe(false);
+    expect(isInstructionText("Lumen Pay follows the internal IT security policy.")).toBe(false);
+    expect(isRealText("   ")).toBe(false);
+    expect(isRealText("[dd/mm/yyyy]")).toBe(false);
+  });
+
+  it("block chỉ có chữ hướng dẫn / ô chỗ trống không phải nội dung; ảnh luôn là nội dung", () => {
+    expect(blockHasRealText(p("[List any other documents]"))).toBe(false);
+    expect(blockHasRealText(p("Data is kept for 10 years."))).toBe(true);
+    expect(blockHasRealText({ type: "bullet_list", items: [[{ text: "[Item]" }], [{ text: "QR payment" }]] })).toBe(true);
+    expect(blockHasRealText({ type: "table", header: [[{ text: "[Name]" }]], rows: [[[{ text: "[Role]" }]]] })).toBe(false);
+    expect(blockHasRealText({ type: "image", png: "x" })).toBe(true);
+    expect(blockHasRealText({ type: "page_break" })).toBe(false);
+  });
+});
+
+describe("isGuidanceOnly (P07, câu 3)", () => {
+  it("mục chỉ có hướng dẫn / dấu chấm lửng ⇒ chưa soạn; có chữ thật, bảng, ảnh hoặc rỗng ⇒ không", () => {
+    expect(isGuidanceOnly([p("[A function can be …]"), p("…")])).toBe(true);
+    expect(isGuidanceOnly([{ type: "bullet_list", items: [[{ text: "[Item]" }], [{ text: "..." }]] }])).toBe(true);
+    expect(isGuidanceOnly([])).toBe(false);
+    expect(isGuidanceOnly([p("[Guide]"), p("The driver confirms the pickup.")])).toBe(false);
+    expect(isGuidanceOnly([{ type: "table", header: [[{ text: "[Name]" }]], rows: [] }])).toBe(false);
+  });
+});

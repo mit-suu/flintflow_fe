@@ -13,7 +13,9 @@
  */
 import { http, HttpResponse, type DefaultBodyType, type PathParams, type StrictRequest } from "msw";
 import { API_BASE_URL } from "@/lib/api/client";
-import type { DocumentLanguage, Project, ProjectMode } from "@/types/project";
+import type { ProjectDocument } from "@/types/document";
+import type { Extraction } from "@/types/extraction";
+import type { DocumentLanguage, Project, ProjectMode, TemplateIntent } from "@/types/project";
 import type { Baseline, Flag } from "@/types/spine";
 import type { CreditEstimate, DocBlock, ExtractionSection, ImportedDocument, ImportStatus, ReviewField } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
@@ -29,6 +31,29 @@ const api = (path: string) => `${API_BASE_URL}${path}`;
 const now = () => new Date().toISOString();
 /** Đọc biến live của module — `resetMode1MockState()` thay cả object. */
 const S = () => stateModule.mode1State;
+
+/** FLF-338: tài liệu tham khảo mock + danh sách rút theo tài liệu (reset ở `resetMode1Extraction`). */
+export const MODE1_DOC_ID = "6700000000000000000000d1";
+const docMinutes = (): ProjectDocument => ({
+  _id: MODE1_DOC_ID,
+  projectId: MODE1_PROJECT_ID,
+  uploadedBy: "u1",
+  fileName: "minutes",
+  originalName: "minutes.txt",
+  mimeType: "text/plain",
+  size: 240,
+  url: "https://example.test/minutes.txt",
+  parseStatus: "success",
+  summaryStatus: "success",
+  createdAt: "2026-10-27T01:00:00.000Z",
+  updatedAt: "2026-10-27T01:00:00.000Z",
+});
+let mode1Docs: ProjectDocument[] = [docMinutes()];
+let mode1Extractions: Record<string, Extraction> = {};
+export const resetMode1Extraction = (): void => {
+  mode1Docs = [docMinutes()];
+  mode1Extractions = {};
+};
 
 const ok = <T>(data: T, status = 200) => HttpResponse.json({ data, error: null }, { status });
 const fail = (status: number, code: string, message: string, meta?: Record<string, unknown>) =>
@@ -70,6 +95,40 @@ const nextMinor = (v: string) => {
 };
 const nextMajor = (v: string) => `${Number(v.split(".")[0]) + 1}.0`;
 const latestVersion = (): string | null => S().versions.map((v) => v.version).sort(compareDocVersions).at(-1) ?? null;
+
+/** FLF-330: CR đã ghi kể từ lần phát hành trước (thứ tự ghi). */
+const pendingCrIds = (): string[] => {
+  const lastRelease = S().versions.filter((v) => v.kind === "release").map((v) => v.version).sort(compareDocVersions).at(-1);
+  return [...S().crs.values()]
+    .map((d) => d.change_request)
+    .filter((c) => c.status === "written" && c.result_doc_version && (!lastRelease || compareDocVersions(c.result_doc_version, lastRelease) > 0))
+    .sort((a, b) => compareDocVersions(a.result_doc_version!, b.result_doc_version!))
+    .map((c) => c.cr_id);
+};
+
+/** FLF-330: gói duyệt (`reviewPackageSchema`). */
+const reviewPackage = () => {
+  const lastRelease = S().versions.filter((v) => v.kind === "release").map((v) => v.version).sort(compareDocVersions).at(-1) ?? null;
+  const base = lastRelease ?? (S().versions.length ? "v0" : null);
+  const ids = pendingCrIds();
+  const latest = latestVersion();
+  const sub = S().submission;
+  return {
+    status: sub?.status === "pending" ? "pending" : sub?.status === "rejected" ? "changes_requested" : "drafting",
+    base_version: base,
+    latest_version: latest,
+    next_version: latest ? nextMajor(latest) : null,
+    // Như BE: chưa phát hành bản nào ⇒ nhãn cho người đọc là "Bản gốc 0.1" (`base_version` vẫn mã v0)
+    draft_label: ids.length ? `${base && base !== "v0" ? base : "Bản gốc 0.1"} · ${ids.length} thay đổi chưa duyệt` : base && base !== "v0" ? base : "Bản gốc 0.1",
+    change_requests: ids.map((id) => {
+      const c = S().crs.get(id)!.change_request;
+      return { cr_id: c.cr_id, title: c.title, requester: c.requester, source: { kind: c.source.kind, ref: c.source.ref ?? null }, result_doc_version: c.result_doc_version, written_at: now() };
+    }),
+    red_open: S().redFlags,
+    submission: sub,
+    spine_version: S().spineVersion,
+  };
+};
 const latestBlocks = (): DocBlock[] => S().blocks.get(latestVersion() ?? "") ?? [];
 
 // ─── import ──────────────────────────────────────────────────────
@@ -88,13 +147,12 @@ const invalidImportState = (to: string) =>
 
 const parseDocument = () => {
   const blocks = initialBlocks();
-  S().blocks.set("0.0", blocks);
+  S().blocks.set("0.1", blocks);
   S().profile = {
-    doc_version: "0.0",
+    doc_version: "0.1",
     language: "en",
-    required_sections: ["fixed:5.3"],
     layout: [],
-    record_of_changes: [{ date: "01/05/2026", version: "0.1", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu" }],
+    record_of_changes: [{ date: "01/05/2026", version: "0.2", change_type: "A", in_charge: "Nhóm 1", description: "Tạo tài liệu" }],
     heading_map: blocks
       .filter((b) => b.kind === "heading")
       .map((b) => ({
@@ -107,6 +165,13 @@ const parseDocument = () => {
       })),
     table_map: [{ block_id: "B0005", column_index: 0, header: "Actor", field_path: "actors[].name", confidence: 0.88, confirmed: false }],
   };
+};
+
+/** FLF-343: mục độ tin < 0.8 tự nhận lúc tách file (giữ độ tin) — không còn dừng ở mapping_review. */
+const autoConfirmMapping = () => {
+  for (const e of S().profile?.heading_map ?? []) {
+    if (!e.confirmed && e.confidence < 0.8) Object.assign(e, { confirmed: true, auto_confirmed: true });
+  }
 };
 
 const sectionIds = () => [...new Set((S().profile?.heading_map ?? []).map((h) => h.section_id).filter((id) => id !== "unmapped"))];
@@ -131,12 +196,14 @@ const creditEstimate = (): CreditEstimate | null => {
   const status = S().importDoc?.status;
   if (status !== "mapping_review" && (status !== "extracting" || S().extractRunning)) return null;
   const calls = status === "mapping_review" ? sectionIds().length : S().sections.filter((s) => s.status !== "done").length;
-  return { text_batches: calls, diagram_images: 0, ai_calls: calls, credits: calls * COST.extract, available_credits: S().credits };
+  // FLF-343: báo một lần cho cả lượt một mạch — I-4 + một lượt kiểm tra AI (1.11)
+  const checks = 1;
+  return { text_batches: calls, diagram_images: 0, check_calls: checks, ai_calls: calls + checks, credits: calls * COST.extract + checks * COST.semantic, available_credits: S().credits };
 };
 
 /**
  * Finalize chạy nền như BE (§4.16): #8 bật job rồi trả ngay `baselining`; mỗi lần poll #4 chạy **một** chặng — tạo
- * baseline + version 0.0 (sang `checking`), rồi 1.11 (tốn credit; hết ⇒ `paused: credits`) ⇒ `gap_review`.
+ * baseline + version 0.1 (sang `checking`), rồi 1.11 (tốn credit; hết ⇒ `paused: credits`) ⇒ `gap_review`.
  */
 const runFinalizeStep = () => {
   const doc = S().importDoc!;
@@ -149,9 +216,9 @@ const runFinalizeStep = () => {
       return;
     }
     S().spineVersion += 1;
-    const baseline = newBaseline("imported", "0.0");
+    const baseline = newBaseline("imported", "0.1");
     S().baselines.push(baseline);
-    addVersion({ version: "0.0", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true });
+    addVersion({ version: "0.1", kind: "imported", based_on: null, cr_ids: [], baseline_id: baseline.id, has_clean_file: false, has_tracked_file: false, has_original_file: true, other_language_available: false });
     setImportStatus("checking");
     S().finalizeJob = "check";
     return;
@@ -197,16 +264,18 @@ const extractNextSection = () => {
   }
   doc.extract_cursor = null;
   S().extractRunning = false;
-  setImportStatus(S().reviewFields.some((f) => !f.confirmed) ? "fields_review" : "baselining");
+  // FLF-343: không dừng ở fields_review — job finalize nối tiếp (base_version do server tính)
+  setImportStatus("baselining");
+  S().finalizeJob = "finalize";
 };
 
 const redFlag = (): Flag => ({
   id: "FL001",
   level: "red",
-  rule_id: "section_empty",
-  section_id: "fixed:5.3",
-  message: "Mục 5.3 Application Messages List bắt buộc nhưng tài liệu không có",
-  remediation_step: "S-7.2",
+  rule_id: "dead_reference",
+  section_id: "fixed:4.2.3",
+  message: "NFR-02 trỏ tới UC-99 không tồn tại",
+  remediation_step: "S-6.4",
   opened_at_version: S().spineVersion,
   resolved_at: null,
   waived_by_user: false,
@@ -216,8 +285,20 @@ const redFlag = (): Flag => ({
 
 const yellowFlag = (): Flag => ({ ...redFlag(), id: "FL002", level: "yellow", rule_id: "ambiguity", section_id: "fixed:4.2.3", message: "\"quickly\" không đo được — cần ngưỡng (vd ≤ 2 giây)" });
 
-/** Cờ mở sau import: đỏ theo `redFlags` (0 ⇒ release được) + một cờ vàng. Chưa có baseline ⇒ chưa check. */
-const openFlags = (): Flag[] => (hasBaseline() ? [...(S().redFlags > 0 ? [redFlag()] : []), yellowFlag()] : []);
+/** FLF-343: field độ tin thấp tự nhận vào baseline ⇒ cờ vàng "Cần xem" mang đường dẫn field. */
+const needsReviewFlags = (): Flag[] =>
+  S().reviewFields.map((f, i) => ({
+    ...redFlag(),
+    id: `FL${String(100 + i)}`,
+    level: "yellow",
+    rule_id: "import_needs_review",
+    section_id: f.section_id,
+    target_id: f.path,
+    message: `Cần xem: ${f.path} — độ tin ${Math.round(f.confidence * 100)}%; đã đưa vào bản 0.1, sai thì sửa bằng change request`,
+  }));
+
+/** Cờ mở sau import: đỏ theo `redFlags` (0 ⇒ release được) + một cờ vàng (+ cờ Cần xem). Chưa có baseline ⇒ chưa check. */
+const openFlags = (): Flag[] => (hasBaseline() ? [...(S().redFlags > 0 ? [redFlag()] : []), yellowFlag(), ...needsReviewFlags()] : []);
 
 const newBaseline =(type: Baseline["type"], version: string): Baseline => ({
   id: `BL${String(S().baselines.length + 1).padStart(3, "0")}`,
@@ -427,7 +508,7 @@ const writeCr = (detail: CrDetail) => {
   const render = (text: string) => replacements.reduce((t, [a, b]) => t.split(a).join(b), text);
   S().blocks.set(to, latestBlocks().map((b): DocBlock => ({ ...b, text: render(b.text), doc_version: to, locked_by_cr: null, revisions: undefined })));
   unlock(cr.cr_id);
-  addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false, has_tracked_file: true, has_original_file: false });
+  addVersion({ version: to, kind: "cr_revision", based_on: from, cr_ids: [cr.cr_id], baseline_id: null, has_clean_file: false, has_tracked_file: true, has_original_file: false, other_language_available: false });
   S().spineVersion += 1;
   cr.result_doc_version = to;
   cr.decided_by = MODE1_USER_ID;
@@ -493,13 +574,74 @@ const requiresCr = (instruction: string, ref: string | null = null) =>
 // ─── handlers ────────────────────────────────────────────────────
 
 export const mode1Handlers = [
+  // FLF-338 §3.6.1: tài liệu tham khảo + rút yêu cầu (trạng thái trong module, reset qua `resetMode1Extraction`)
+  http.get(api("/projects/:projectId/documents"), mode1(() => ok(mode1Docs))),
+  http.delete(api("/projects/:projectId/documents/:documentId"), mode1(({ params }) => {
+    mode1Docs = mode1Docs.filter((d) => d._id !== params.documentId);
+    delete mode1Extractions[String(params.documentId)];
+    return ok({ deleted: true });
+  })),
+  http.get(api("/projects/:projectId/documents/:documentId/extract"), mode1(({ params }) => ok(mode1Extractions[String(params.documentId)] ?? null))),
+  http.post(api("/projects/:projectId/documents/:documentId/extract"), mode1(({ params }) => {
+    const doc = mode1Docs.find((d) => d._id === params.documentId);
+    if (!doc) return fail(404, "DOCUMENT_NOT_FOUND", "Không tìm thấy tài liệu tham khảo.");
+    if (doc.parseStatus !== "success") return fail(422, "EXTRACTION_DOCUMENT_UNREADABLE", "Tài liệu chưa đọc được chữ.");
+    if (mode1Extractions[doc._id]?.status === "approved") return fail(409, "EXTRACTION_ALREADY_APPROVED", "Danh sách đã được duyệt.");
+    const extraction: Extraction = {
+      document_id: doc._id,
+      document_name: doc.originalName,
+      doc_code: 1,
+      status: "extracted",
+      credits: 3,
+      approved_at: null,
+      created_at: now(),
+      updated_at: now(),
+      items: [
+        { id: "R1", text: "Every report must be exportable to CSV.", label: "new", para_id: "D1-P02", quote: "every report can be exported to CSV", group: "G1", entity_paths: [], question: null, suggested_answers: [], include: null, drop_reason: null, answer: null, cr_id: null },
+        { id: "R2", text: "Login keeps email and password.", label: "duplicate", para_id: "D1-P03", quote: "Login stays with email and password", group: "G2", entity_paths: ["use_cases[id=UC-01]"], question: null, suggested_answers: [], include: null, drop_reason: null, answer: null, cr_id: null },
+        { id: "R3", text: "The dashboard should feel fast.", label: "ambiguous", para_id: "D1-P04", quote: "The dashboard should feel fast.", group: "G3", entity_paths: [], question: "Fast means what?", suggested_answers: ["Under 2 seconds", "Under 5 seconds"], include: null, drop_reason: null, answer: null, cr_id: null },
+      ],
+    };
+    mode1Extractions[doc._id] = extraction;
+    return ok(extraction, 201);
+  })),
+  http.post(api("/projects/:projectId/documents/:documentId/extract/approve"), mode1(async ({ params, request }) => {
+    const extraction = mode1Extractions[String(params.documentId)];
+    if (!extraction) return fail(404, "EXTRACTION_NOT_FOUND", "Chưa rút yêu cầu từ tài liệu này.");
+    if (extraction.status === "approved") return fail(409, "EXTRACTION_ALREADY_APPROVED", "Danh sách đã được duyệt.");
+    const body = (await request.json()) as { requester?: string; decisions?: { id: string; include: boolean; drop_reason?: string | null; answer?: string | null; group?: string | null }[] };
+    const decisions = body.decisions ?? [];
+    const unanswered = decisions.filter((d) => d.include && ["contradiction", "ambiguous"].includes(extraction.items.find((i) => i.id === d.id)?.label ?? "") && !(d.answer ?? "").trim()).map((d) => d.id);
+    if (unanswered.length) return fail(400, "EXTRACTION_DECISION_INVALID", "Mục mâu thuẫn / mơ hồ cần câu trả lời.", { item_ids: unanswered });
+    const noReason = decisions.filter((d) => !d.include && !(d.drop_reason ?? "").trim()).map((d) => d.id);
+    if (noReason.length) return fail(400, "EXTRACTION_DECISION_INVALID", "Bỏ mục nào phải ghi lý do.", { item_ids: noReason });
+    const groups = new Map<string, string>();
+    let n = S().crs.size;
+    for (const item of extraction.items) {
+      const d = decisions.find((x) => x.id === item.id);
+      item.include = d?.include ?? false;
+      item.drop_reason = d && !d.include ? (d.drop_reason ?? "") : null;
+      item.answer = (d?.answer ?? "").trim() || null;
+      if (!item.include || item.label === "duplicate") continue;
+      const g = (d?.group ?? "").trim() || item.group;
+      if (!groups.has(g)) groups.set(g, `CR-${String(++n).padStart(3, "0")}`);
+      item.cr_id = groups.get(g)!;
+    }
+    extraction.status = "approved";
+    extraction.approved_at = now();
+    return ok(extraction);
+  })),
+
   // #1 Project theo mode
   http.post(api("/projects"), async ({ request }) => {
     const body = await readJson(request);
-    const mode = (body.mode ?? "fpt") as ProjectMode;
-    if (!["import", "fpt", "customer_template"].includes(mode)) return fail(400, "VALIDATION_ERROR", "mode phải là import, fpt hoặc customer_template");
+    const source = body.source as "new" | "existing" | undefined;
+    if (source !== undefined && !["new", "existing"].includes(source)) return fail(400, "VALIDATION_ERROR", "source phải là new hoặc existing");
+    // FLF-335: có `source` ⇒ BE suy ra mode (mới không mẫu ⇒ fpt; mới có mẫu bắt buộc / có sẵn ⇒ import); client cũ gửi mode
+    const legacy = (body.mode ?? "fpt") as ProjectMode;
+    if (!source && !["import", "fpt", "customer_template"].includes(legacy)) return fail(400, "VALIDATION_ERROR", "mode phải là import, fpt hoặc customer_template");
+    const mode: ProjectMode = source ? (source === "new" && !body.has_required_template ? "fpt" : "import") : legacy === "customer_template" ? "import" : legacy;
     if (!body.name) return fail(400, "NAME_REQUIRED", "Project name is required");
-    if (mode === "customer_template") return fail(501, "NOT_IMPLEMENTED", "Mode template khách hàng chưa hỗ trợ");
     if (body.documentLanguage !== undefined && !isDocumentLanguage(body.documentLanguage)) {
       return fail(400, "VALIDATION_ERROR", 'documentLanguage: Invalid option: expected one of "vi"|"en"');
     }
@@ -510,6 +652,9 @@ export const mode1Handlers = [
       status: "active",
       mode,
       import_state: null,
+      start_kind: source ?? null,
+      has_required_template: source === "new" ? Boolean(body.has_required_template) : null,
+      template_intent: (source === "new" && body.has_required_template) || legacy === "customer_template" ? "fixed" : null,
       // FLF-265: mode import theo file ⇒ không có field; còn lại trả field đã gửi, thiếu ⇒ `en`
       ...(mode === "import" ? {} : { documentLanguage: isDocumentLanguage(body.documentLanguage) ? body.documentLanguage : "en" }),
       createdAt: now(),
@@ -547,9 +692,16 @@ export const mode1Handlers = [
       const form = await request.formData();
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
+      // FLF-335: ý định lúc upload (fixed / free); thiếu ⇒ free; chỉ dự án mới có mẫu bắt buộc luôn fixed (như BE
+      // `import.service#uploadImport`) — dự án có sẵn lấy đúng ý định của lần upload
+      const intentRaw = form.get("intent");
+      if (intentRaw !== null && intentRaw !== "fixed" && intentRaw !== "free") return fail(400, "VALIDATION_ERROR", "intent phải là fixed hoặc free");
+      const locked = S().project.template_intent === "fixed" && S().project.start_kind === "new";
+      const intent: TemplateIntent = locked || intentRaw === "fixed" ? "fixed" : "free";
+      S().project.template_intent = intent;
       const name = file.name;
       if (/other-project/i.test(name)) {
-        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.3", source: "cr_revision" } });
+        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision", base_version: "0", latest_cr: "CR-004", kind: "draft" } });
       }
       const issues =
         /\.doc$/i.test(name)
@@ -565,18 +717,23 @@ export const mode1Handlers = [
         original_name: name,
         size: file.size,
         sha256: "a".repeat(64),
-        status: issues.length ? "preflight_rejected" : "awaiting_latest_confirm",
+        // FLF-343: tách file + khớp mẫu ngay ⇒ `extracting` chưa chạy (màn báo credit + câu hỏi "bản mới nhất")
+        status: issues.length ? "preflight_rejected" : "extracting",
         preflight: { status: issues.length ? "rejected" : "accepted", issues },
         stamp: null,
         confirmed_latest_at: null,
         paused: null,
         extract_cursor: null,
+        intent,
         created_at: now(),
         updated_at: now(),
       };
       S().importDoc = doc;
       S().project.import_state = doc.status;
       if (issues.length) return fail(422, "IMPORT_FILE_REJECTED", "File chưa nhập được", { import_id: doc.id, issues });
+      parseDocument();
+      autoConfirmMapping();
+      S().sections = sectionIds().map((section_id): ExtractionSection => ({ section_id, status: "pending", fields_total: 0, fields_needing_review: 0, error: null }));
       return ok({ import: doc }, 201);
     }),
   ),
@@ -605,7 +762,7 @@ export const mode1Handlers = [
         import: S().importDoc,
         profile: S().profile,
         extraction: { sections: S().sections, review_fields: S().reviewFields.filter((f) => !f.confirmed) },
-        blocks_count: S().blocks.get("0.0")?.length ?? 0,
+        blocks_count: S().blocks.get("0.1")?.length ?? 0,
         credit_estimate: creditEstimate(),
       });
     }),
@@ -637,13 +794,25 @@ export const mode1Handlers = [
     }),
   ),
 
-  // #6 Trích field (I-4) — trả ngay, job chạy nền; FE poll #4
+  // #6 Nút Bắt đầu (FLF-343) — trả ngay, job chạy nền một mạch I-4 ⇒ baseline ⇒ kiểm tra; FE poll #4
   http.post(
     api("/projects/:projectId/import/extract"),
-    mode1(() => {
+    mode1(async ({ request }) => {
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
-      if (doc.status !== "extracting") return invalidImportState("extracting");
+      // Bản ghi cũ (trước FLF-343) ở awaiting_latest_confirm / mapping_review cũng bắt đầu được
+      if (!["awaiting_latest_confirm", "mapping_review", "extracting"].includes(doc.status)) return invalidImportState("extracting");
+      const body = await readJson(request);
+      if (!doc.confirmed_latest_at) {
+        if (body.confirm_latest !== true) return fail(409, "IMPORT_NEEDS_LATEST_CONFIRM", "Cần xác nhận đây là bản mới nhất của tài liệu trước", { import_id: doc.id });
+        doc.confirmed_latest_at = now();
+      }
+      if (doc.status === "awaiting_latest_confirm") parseDocument();
+      if (doc.status !== "extracting") {
+        autoConfirmMapping();
+        if (!S().sections.length) S().sections = sectionIds().map((section_id): ExtractionSection => ({ section_id, status: "pending", fields_total: 0, fields_needing_review: 0, error: null }));
+        setImportStatus("extracting");
+      }
       if (!S().extractRunning) startExtraction();
       return ok({ import: doc, sections: S().sections });
     }),
@@ -676,7 +845,7 @@ export const mode1Handlers = [
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
       // Đang chạy ⇒ không làm gì, trả trạng thái hiện tại
-      if (S().finalizeJob) return ok({ import: doc, doc_version: "0.0", baseline: null, spine_version: S().spineVersion, flags: null });
+      if (S().finalizeJob) return ok({ import: doc, doc_version: "0.1", baseline: null, spine_version: S().spineVersion, flags: null });
       if (doc.status !== "baselining") return invalidImportState("checking");
       const body = await readJson(request);
       const conflict = versionConflict(body.base_version);
@@ -684,7 +853,7 @@ export const mode1Handlers = [
       S().finalizedRecordOfChanges = (body.record_of_changes as RocRow[] | undefined) ?? null;
       doc.paused = null;
       S().finalizeJob = "finalize";
-      return ok({ import: doc, doc_version: "0.0", baseline: null, spine_version: S().spineVersion, flags: null });
+      return ok({ import: doc, doc_version: "0.1", baseline: null, spine_version: S().spineVersion, flags: null });
     }),
   ),
 
@@ -696,7 +865,7 @@ export const mode1Handlers = [
       const body = (await request.json()) as { step_id: string; enabled: boolean };
       const entry = S().stepPlan.find((s) => s.step_id === body.step_id);
       if (!entry) return fail(404, "STEP_NOT_IN_PLAN", `Step ${body.step_id} không có trong kế hoạch`);
-      if (!body.enabled && entry.state === "applied") return fail(409, "CORE_STEP_REQUIRED", "Không tắt được step của đầu mục mẫu FPT");
+      if (!body.enabled && !entry.section_ids.length) return fail(409, "CORE_STEP_REQUIRED", "Bước ghép / kiểm tra tài liệu luôn chạy nên không tắt được.");
       entry.state = body.enabled ? "enabled" : "hidden";
       return ok({ steps: S().stepPlan });
     }),
@@ -712,18 +881,15 @@ export const mode1Handlers = [
       const flags = [...(S().redFlags > 0 ? [redFlag()] : []), yellowFlag()];
       return ok({
         project_id: MODE1_PROJECT_ID,
-        doc_version: "0.0",
+        doc_version: "0.1",
         generated_at: now(),
-        totals: { red: S().redFlags, yellow: 1, missing_sections: 1, unmapped_headings: 1, low_confidence_fields: 0, missing_fpt_sections: 1, unrendered_diagrams: 1 },
-        missing_fpt_sections: [{ section_id: "fixed:5.1", title: "Business Rules", step_id: "S-7.1", in_layout: false }],
+        totals: { red: S().redFlags, yellow: 1, low_confidence_fields: 0, unrendered_diagrams: 1 },
         unrendered_diagrams: [{ diagram_id: "", kind: "usecase", section_id: "", title: "Sơ đồ use case", reason: "not_rendered" }],
         layout: [
           { order: 0, section_id: "fixed:1", heading: "1 Giới thiệu", level: 1, kind: "fpt", red: 0, yellow: 0 },
           { order: 1, section_id: "custom:CS01", heading: "Phụ lục B — Biên bản họp", level: 1, kind: "custom", red: 0, yellow: 0 },
         ],
         sections: [...new Set(flags.map((f) => f.section_id))].map((section_id) => ({ section_id, title: section_id, flags: flags.filter((f) => f.section_id === section_id) })),
-        missing_sections: [{ section_id: "fixed:5.3", title: "Application Messages List" }],
-        unmapped_headings: [{ block_id: "B0011", text: "Phụ lục B — Biên bản họp" }],
         low_confidence_fields: [],
       });
     }),
@@ -735,7 +901,10 @@ export const mode1Handlers = [
     mode1(() => {
       const doc = S().importDoc;
       if (!doc) return fail(404, "IMPORT_NOT_FOUND", "Chưa upload file");
-      if (!doc.paused || !["extracting", "baselining", "checking"].includes(doc.status)) return invalidImportState("extracting");
+      // FLF-343: bản ghi cũ ở fields_review / baselining chưa có job ⇒ finalize một mạch
+      const legacy = doc.status === "fields_review" || (doc.status === "baselining" && !S().finalizeJob);
+      if (!legacy && (!doc.paused || !["extracting", "baselining", "checking"].includes(doc.status))) return invalidImportState("extracting");
+      if (doc.status === "fields_review") setImportStatus("baselining");
       if (doc.status === "extracting") startExtraction();
       else {
         doc.paused = null;
@@ -754,7 +923,7 @@ export const mode1Handlers = [
       const file = asFile(form.get("file"));
       if (!file) return fail(400, "VALIDATION_ERROR", "Thiếu field file (.docx)");
       if (/other-project/i.test(file.name)) {
-        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.3", source: "cr_revision" } });
+        return fail(422, "IMPORT_STAMP_FOREIGN_PROJECT", "File này thuộc project khác", { stamp: { project_id: "650000000000000000000099", version: "0.4", source: "cr_revision", base_version: "0", latest_cr: "CR-004", kind: "draft" } });
       }
       const diff = {
         id: `66f00000000000000000r${String(S().reuploads.length + 1).padStart(3, "0")}`,
@@ -824,8 +993,9 @@ export const mode1Handlers = [
       // Mode 1 v3: chỉ 6 nguồn BPMN 3.1 — `chat` chỉ còn ở CR cũ
       if (!(NEW_CR_SOURCE_KINDS as readonly string[]).includes(source.kind)) return fail(400, "VALIDATION_ERROR", `Nguồn "${source.kind}" không hợp lệ`);
       if (!String(body.title ?? "").trim() || !String(body.description ?? "").trim()) return fail(400, "VALIDATION_ERROR", "Cần title và description");
-      // Mock không giữ kho bản xem trước: có `preview_id` ⇒ seed gợi ý từ mô tả (BE: lệnh + op + phần tử bị chạm)
-      const seed = body.preview_id ? { instruction: String(body.description), ops: [], targets: [] } : null;
+      // Mock không giữ kho bản xem trước: có `preview_id` ⇒ seed từ mô tả + một op đại diện cho lô đã duyệt (BE: lệnh + op +
+      // phần tử bị chạm; FLF-318 có op ⇒ CR làm đúng lô, không bắt duyệt lại từng phần)
+      const seed = body.preview_id ? { instruction: String(body.description), ops: [{ op: "add", path: "use_cases[]", value: { name: String(body.title) } }], targets: [] } : null;
       const detail = newCr(String(body.title), String(body.description), { kind: source.kind as Cr["source"]["kind"], ref: source.ref ?? null, note: source.note ?? null }, String(body.requester), seed);
       const pasted = (body.materials as { name: string; text: string }[] | undefined) ?? [];
       if (pasted.length > 5) return fail(400, "VALIDATION_ERROR", "Tối đa 5 đoạn văn bản khi tạo");
@@ -839,6 +1009,22 @@ export const mode1Handlers = [
       const status = new URL(request.url).searchParams.get("status");
       const list = [...S().crs.values()].map((d) => d.change_request).filter((c) => !status || c.status === status);
       return ok(list.reverse());
+    }),
+  ),
+  // BF §3.2: mục đang có bản sửa chưa xác nhận của CR chưa đóng
+  http.get(
+    api("/projects/:projectId/change-requests/pending-sections"),
+    mode1(() => {
+      const open = [...S().crs.values()].filter((d) => !["written", "released", "cancelled", "rejected", "dropped"].includes(d.change_request.status));
+      const by = new Map<string, { cr_id: string; who: string }[]>();
+      for (const d of open)
+        for (const l of d.locations) {
+          if (!["edit", "comment"].includes(l.conclusion ?? "") || !l.section_id || l.section_id === "misc") continue;
+          const list = by.get(l.section_id) ?? [];
+          if (!list.some((x) => x.cr_id === d.change_request.cr_id)) list.push({ cr_id: d.change_request.cr_id, who: d.change_request.requester });
+          by.set(l.section_id, list);
+        }
+      return ok([...by].map(([section_id, items]) => ({ section_id, title: section_id, items })));
     }),
   ),
   http.get(
@@ -902,6 +1088,30 @@ export const mode1Handlers = [
     }),
   ),
 
+  // FLF-375 (BF nguyên tắc 9): tin nhắn khi CR đang mở — câu hỏi (kết thúc bằng "?") ⇒ AI trả lời, CR giữ nguyên;
+  // còn lại là lệnh sửa ⇒ gộp vào CR như `/amend`.
+  http.post(
+    api("/projects/:projectId/change-requests/:crId/messages"),
+    mode1(async ({ params, request }) => {
+      const d = crOr404(params.crId);
+      if (d instanceof Response) return d;
+      const cr = d.change_request;
+      const text = String((await readJson(request)).text ?? "").trim();
+      if (!text) return fail(400, "VALIDATION_ERROR", "Cần nội dung tin nhắn");
+      if (/\?\s*$/.test(text)) {
+        return ok({ ...withCurrent(d), message: { kind: "answer" as const, reply: `Trả lời (mock): ${text}` } });
+      }
+      if (!(CR_AMENDABLE_STATUSES as readonly string[]).includes(cr.status)) return invalidTransition(cr, "clarifying");
+      cr.amendments.push({ text, at: now() });
+      cr.paused = null;
+      if (cr.status !== "draft") {
+        setCrStatus(d, "clarifying");
+        runClarify(d);
+      }
+      return ok({ ...withCurrent(d), message: { kind: "amended" as const } });
+    }),
+  ),
+
   // Phase 7: tài liệu bổ sung — JSON { name, text } hoặc multipart `file`; chỉ draft / awaiting_answers
   http.post(
     api("/projects/:projectId/change-requests/:crId/materials"),
@@ -959,13 +1169,19 @@ export const mode1Handlers = [
       const found = hits.length ? hits : S().elements.filter((e) => e.path.startsWith("nfrs[")).slice(0, 1);
       const conflicts = lock(cr.cr_id, found.map((e) => e.path));
       if (conflicts.length) return pathLocked(conflicts);
+      // §4.17: có ứng viên vector ⇒ chúng THAY nguồn `keyword`. Vị trí đầu giả là trường hợp vừa có
+      // liên kết field vừa gần nghĩa (hợp đồng cho phép trùng) ⇒ không phải recall-only, chip để tông
+      // xám như cũ; các vị trí sau chỉ đến từ nghĩa.
+      const vector = S().vectorEnabled;
       d.locations = found.map((e, i): CrLocation => ({
         location_id: `L${String(i + 1).padStart(3, "0")}`,
         path: e.path,
         section_id: e.section_id,
         section_title: e.section_title,
         current_text: valueText(e.value),
-        found_by: ["keyword"],
+        // FLF-375: CR tạo từ bản xem trước đã duyệt ⇒ BE gắn nguồn `preview` cho các chỗ thuộc lô đã duyệt
+        found_by: cr.seed?.ops.length ? ["preview"] : vector ? (i === 0 ? ["spine_link", "vector"] : ["vector"]) : ["keyword"],
+        vector_score: vector ? Number((0.91 - i * 0.04).toFixed(2)) : null,
         entity_paths: [],
         owner_step: null,
         conclusion: null,
@@ -1048,6 +1264,8 @@ export const mode1Handlers = [
       loc.proposal = { ...(loc.proposal ?? { old_text: loc.current_text, comment_text: null, spine_ops: [], assumptions: [] }), new_text: `${loc.current_text} (${instruction})`, assumptions: [] };
       loc.manual = true;
       loc.verify = null;
+      // FLF-375: soạn lại trên nội dung hiện tại ⇒ hết xung đột (như BE)
+      loc.conflict = null;
       regroup(d);
       if (cr.status === "ready_to_submit") setCrStatus(d, "verifying");
       return okCr(d);
@@ -1077,9 +1295,12 @@ export const mode1Handlers = [
       const cr = d.change_request;
       const open = d.locations.filter((l) => !l.conclusion).map((l) => l.location_id);
       if (open.length) return fail(409, "CR_LOCATION_UNCONCLUDED", "Còn vị trí chưa có kết luận", { location_ids: open });
-      if (cr.status !== "ready_to_submit") return invalidTransition(cr, "in_review");
+      if (cr.status !== "ready_to_submit") return invalidTransition(cr, "written");
+      // FLF-330 C-6: BA xác nhận ⇒ ghi ngay; gói đang chờ Lead ⇒ bản nháp khoá
+      if (S().submission?.status === "pending") return fail(409, "PACKAGE_PENDING", "Gói thay đổi đang chờ Lead duyệt nên bản nháp tạm khoá.");
       cr.submitted_at = now();
-      setCrStatus(d, "in_review");
+      for (const g of d.groups) Object.assign(g, { decision: "approved", reason: "BA xác nhận, ghi vào bản nháp", decided_by: MODE1_USER_ID, decided_at: now() });
+      writeCr(d);
       return okCr(d);
     }),
   ),
@@ -1177,7 +1398,35 @@ export const mode1Handlers = [
     }),
   ),
 
-  // #31 Release
+  // FLF-330: gói duyệt
+  http.get(api("/projects/:projectId/review-package"), mode1(() => ok(reviewPackage()))),
+  http.post(
+    api("/projects/:projectId/review-package/submit"),
+    mode1(async ({ request }) => {
+      const conflict = versionConflict((await readJson(request)).base_version);
+      if (conflict) return conflict;
+      if (S().submission?.status === "pending") return fail(409, "PACKAGE_ALREADY_SUBMITTED", "Gói thay đổi đang chờ Lead duyệt — không gửi lại được.");
+      if (pendingCrIds().length === 0) return fail(409, "PACKAGE_EMPTY", "Chưa có thay đổi nào được ghi vào bản nháp.");
+      if (S().redFlags > 0) return fail(422, "RELEASE_RED_FLAGS_OPEN", `Còn ${S().redFlags} cờ đỏ — xử lý qua change request rồi gửi duyệt`, { flags: [redFlag()] });
+      S().spineVersion += 1;
+      S().submission = { status: "pending", submitted_by: MODE1_USER_ID, submitted_at: now(), spine_version: S().spineVersion, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] };
+      return ok(reviewPackage());
+    }),
+  ),
+  http.post(
+    api("/projects/:projectId/review-package/request-changes"),
+    mode1(async ({ request }) => {
+      const body = await readJson(request);
+      const conflict = versionConflict(body.base_version);
+      if (conflict) return conflict;
+      if (S().submission?.status !== "pending") return fail(422, "NO_PENDING_SUBMISSION", "Không có gói nào đang chờ duyệt.");
+      S().spineVersion += 1;
+      S().submission = { ...S().submission!, status: "rejected", decided_by: MODE1_USER_ID, decided_at: now(), reason: String(body.reason ?? "") };
+      return ok(reviewPackage());
+    }),
+  ),
+
+  // #31 Release — FLF-330: Lead duyệt cả gói = phát hành; xoá trạng thái chờ
   http.post(
     api("/projects/:projectId/release"),
     mode1(async ({ request }) => {
@@ -1196,7 +1445,8 @@ export const mode1Handlers = [
       const baseline = newBaseline("release", to);
       S().baselines.push(baseline);
       S().blocks.set(to, latestBlocks().map((b) => ({ ...b, doc_version: to, revisions: undefined })));
-      const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true, has_tracked_file: false, has_original_file: false });
+      const version = addVersion({ version: to, kind: "release", based_on: from, cr_ids: crIds, baseline_id: baseline.id, has_clean_file: true, has_tracked_file: false, has_original_file: false, other_language_available: false });
+      S().submission = null;
       return ok({ version, baseline, cr_ids: crIds, spine_version: S().spineVersion });
     }),
   ),

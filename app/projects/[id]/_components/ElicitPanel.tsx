@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import type { Question, StepAnswer } from "@/types/pipeline";
 import { replyContainsQuestion, toDiscoveryQuestion } from "@/lib/question-options";
 import QuestionStepperInput from "./QuestionStepperInput";
@@ -75,6 +76,7 @@ export const unansweredOpen = (open: Question[], typed: StepAnswer[]): Question[
 };
 
 export default function ElicitPanel({ questions, onSubmit, chatDraft = "", onChatDraftUsed, onCardChange, onDismiss, sending = false }: ElicitPanelProps) {
+  const t = useTranslations("workspace.elicit");
   const { card, open } = splitQuestions(questions);
   /**
    * Câu tự luận chưa trả lời lúc bấm Gửi (E2E FAP: "Thành phần điểm và trọng số…" bị gửi trống, AI hỏi lại 4 lần).
@@ -86,8 +88,11 @@ export default function ElicitPanel({ questions, onSubmit, chatDraft = "", onCha
     <>
       {missing.length > 0 && (
         <p role="alert" className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-caption text-amber-900">
-          Còn {missing.length} câu tự luận chưa trả lời: {missing.map((q) => `“${q.text}”`).join("; ")}. Gõ câu trả lời ở ô chat
-          {open.length > 1 ? " (đánh số 1), 2)… theo thứ tự câu)" : ""} rồi bấm Gửi — hoặc bấm Gửi lần nữa để AI tự giả định.
+          {t("missing", {
+            count: missing.length,
+            questions: missing.map((q) => `“${q.text}”`).join("; "),
+            numbered: open.length > 1 ? "yes" : "no",
+          })}
         </p>
       )}
       <QuestionStepperInput

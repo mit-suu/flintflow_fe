@@ -33,7 +33,7 @@ describe("ValueEditor", () => {
     });
     const onSave = vi.fn();
     renderWithIntl(<ValueEditor oldText={old} startText={old} onSave={onSave} />);
-    expect(screen.getByText("(ảnh trong tài liệu — giữ nguyên)")).toBeInTheDocument();
+    expect(screen.getByText("(ảnh trong tài liệu - giữ nguyên)")).toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText("Đoạn 1"), { target: { value: "Họp mỗi thứ Hai" } });
     fireEvent.change(screen.getByLabelText("Bảng 2"), { target: { value: "Ngày | Việc\nT2 | Họp\nT6 | Tổng kết" } });

@@ -23,7 +23,7 @@ const PAGES = [
   ["đặt lại mật khẩu", <ResetPasswordPage key="reset" />],
 ] as const;
 
-describe("Trang xác thực — song ngữ", () => {
+describe("Trang xác thực - song ngữ", () => {
   it.each(PAGES)("bản en của trang %s không còn chữ tiếng Việt", (_name, page) => {
     const { container } = renderWithIntl(page, "en");
     expect(vietnameseLeftovers(container)).toEqual([]);

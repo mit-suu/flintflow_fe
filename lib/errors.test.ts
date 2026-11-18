@@ -12,7 +12,7 @@ describe("friendlyError (BUG-25)", () => {
   });
 
   it("step đang chạy ⇒ mời huỷ lượt cũ, kèm giờ bắt đầu lấy từ câu của BE", () => {
-    const friendly = friendlyError("STEP_NOT_RUNNABLE", "Bước S-3.1 đang chạy ở lượt trước (bắt đầu 14:02) — huỷ lượt đó rồi chạy lại");
+    const friendly = friendlyError("STEP_NOT_RUNNABLE", "Bước S-3.1 đang chạy ở lượt trước (bắt đầu 14:02) - huỷ lượt đó rồi chạy lại");
     expect(friendly.message).toContain("14:02");
     expect(friendly.actions[0].kind).toBe("cancel_and_rerun");
   });
@@ -33,7 +33,7 @@ describe("friendlyError (BUG-25)", () => {
     expect(friendlyError("path_not_resolved", "").actions[0].kind).toBe("edit_command");
   });
 
-  it("không lỗi nào mời user 'Báo lỗi' — nút đó từng không gửi đi đâu", () => {
+  it("không lỗi nào mời user 'Báo lỗi' - nút đó từng không gửi đi đâu", () => {
     const codes = ["NEEDS_USER_INPUT", "NOT_IMPLEMENTED", "STREAM_FAILED", "UNKNOWN_ERROR", "AI_PROVIDER_ERROR", "MỘT_MÃ_LẠ"];
     for (const code of codes) expect(friendlyError(code, "").actions.map((a) => a.kind)).not.toContain("report");
   });

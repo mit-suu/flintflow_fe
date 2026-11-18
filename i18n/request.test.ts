@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 /*
  * Cấu hình locale mỗi request. Test chạy thẳng hàm callback (bỏ lớp bọc của next-intl) với cookie `en`.
- * Bug đã gặp: bỏ qua `locale` do nơi gọi xin ⇒ `getMessages({ locale: "vi" })` ở layout admin nhận bản `en`.
+ * Bug đã gặp: bỏ qua `locale` do nơi gọi xin ⇒ `getMessages({ locale: "vi" })` (layout admin hồi còn ghim `vi`) nhận bản `en`.
  */
 
 const request = vi.hoisted(() => ({ cookie: "en" as string | undefined, acceptLanguage: "en-US,en;q=0.9" }));

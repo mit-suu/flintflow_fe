@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import type { PreflightIssue } from "@/types/import";
 import PreflightIssues from "./PreflightIssues";
 
-describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I-1, 1.2)", () => {
+describe("PreflightIssues - lý do từ chối kèm vị trí + cách sửa (I-1, 1.2)", () => {
   it("không có vấn đề ⇒ không render gì", () => {
     const { container } = renderWithIntl(<PreflightIssues issues={[]} fileName="SRS.docx" />);
     expect(container).toBeEmptyDOMElement();
@@ -22,16 +22,16 @@ describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I
     renderWithIntl(<PreflightIssues issues={issues} fileName="SRS_tracked.docx" />);
 
     const alert = screen.getByRole("alert");
-    expect(alert).toHaveTextContent("“SRS_tracked.docx” chưa nhập được — 2 vấn đề cần sửa:");
+    expect(alert).toHaveTextContent("“SRS_tracked.docx” chưa nhập được - 2 vấn đề cần sửa:");
     const [first, second] = within(alert).getAllByRole("listitem");
 
     expect(within(first).getByText("Track Changes chưa xử lý")).toBeInTheDocument();
     expect(within(first).getByText(/Nguyen Van A/)).toBeInTheDocument();
-    expect(within(first).getByText("Vị trí: đoạn thứ 5 — “3.2.5 Create SRS project”")).toBeInTheDocument();
+    expect(within(first).getByText("Vị trí: đoạn thứ 5 - “3.2.5 Create SRS project”")).toBeInTheDocument();
     expect(within(first).getByText(/Cách sửa: Vào Review → Accept\/Reject tất cả thay đổi/)).toBeInTheDocument();
 
     expect(within(second).getByText("Comment chưa xử lý")).toBeInTheDocument();
-    expect(within(second).getByText("Vị trí: đoạn thứ 12 — “BR-01: …”")).toBeInTheDocument();
+    expect(within(second).getByText("Vị trí: đoạn thứ 12 - “BR-01: …”")).toBeInTheDocument();
     expect(within(second).getByText(/Cách sửa: Vào Review → Delete All Comments/)).toBeInTheDocument();
   });
 
@@ -45,7 +45,7 @@ describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I
         ]}
       />
     );
-    expect(screen.getByRole("alert")).toHaveTextContent("File chưa nhập được — 3 vấn đề cần sửa:");
+    expect(screen.getByRole("alert")).toHaveTextContent("File chưa nhập được - 3 vấn đề cần sửa:");
     expect(screen.queryByText(/Vị trí:/)).not.toBeInTheDocument();
     expect(screen.getByText("File .doc cũ (Word 97-2003)")).toBeInTheDocument();
     expect(screen.getByText(/Cách sửa: Mở bằng Word, chọn File → Save As/)).toBeInTheDocument();
@@ -53,6 +53,18 @@ describe("PreflightIssues — lý do từ chối kèm vị trí + cách sửa (I
     expect(screen.getByText(/Cách sửa: Bỏ mật khẩu/)).toBeInTheDocument();
     expect(screen.getByText("File quá lớn")).toBeInTheDocument();
     expect(screen.getByText(/Cách sửa: Nén ảnh/)).toBeInTheDocument();
+  });
+
+  it("FLF-331: NOT_SRS hiện nhãn, lý do của BE và gợi ý đính kèm trong chat làm tài liệu tham khảo", () => {
+    renderWithIntl(
+      <PreflightIssues
+        issues={[{ code: "NOT_SRS", message: "Không thấy dấu hiệu tài liệu yêu cầu: không có mục Use Case, Requirements, Actor hay mã yêu cầu (UC-01, FR-01); nội dung giống hồ sơ / CV.", location: null }]}
+        fileName="cv.docx"
+      />
+    );
+    expect(screen.getByText("Không phải tài liệu yêu cầu (SRS)")).toBeInTheDocument();
+    expect(screen.getByText(/nội dung giống hồ sơ \/ CV/)).toBeInTheDocument();
+    expect(screen.getByText(/đính kèm trong chat làm tài liệu tham khảo/)).toBeInTheDocument();
   });
 
   it("mã không có hướng dẫn sửa (NOT_DOCX, CORRUPT_ZIP, EMPTY_DOCUMENT) chỉ hiện nhãn + thông điệp", () => {

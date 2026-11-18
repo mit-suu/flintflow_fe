@@ -8,12 +8,13 @@ import DropdownMenu, {
 } from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
-import { IMPORT_DONE_STATUSES, IMPORT_STATUS_LABELS } from "@/app/projects/[id]/_components/mode1/labels";
+import { IMPORT_DONE_STATUSES } from "@/app/projects/[id]/_components/mode1/labels";
 import { tStep, type Locale } from "@/lib/i18n";
 import { timeAgo, type TimeTranslator } from "@/lib/time-ago";
 import { PHASES, type PhaseId } from "@/lib/constants/step-registry";
 import { tPhase } from "@/lib/i18n";
-import { getSourceModeOption } from "@/lib/project-source-mode";
+import { getSourceModeOption, projectSourceMode } from "@/lib/project-source-mode";
+import type { ImportStatus } from "@/types/import";
 import type { ProgressResponse } from "@/types/pipeline";
 import type { Project, ProjectMode } from "@/types/project";
 
@@ -31,6 +32,12 @@ interface Props {
   onMoveToFolder?: (p: Project) => void;
   /** Có ⇒ menu thêm "Ngôn ngữ tài liệu" (FLF-265) — trừ dự án mode `import` (ngôn ngữ theo file). */
   onChangeDocumentLanguage?: (p: Project) => void;
+  /** Có ⇒ menu thêm "Ký pháp ERD" (FLF-324) — mọi mode đều đổi được. */
+  onChangeErdNotation?: (p: Project) => void;
+  /** FLF-418: mức vẽ Sequence Diagram. */
+  onChangeSequenceLevel?: (p: Project) => void;
+  /** Có ⇒ menu thêm "Giao diện màn hình" (FLF-410): theme mockup + vẽ lại ảnh gốc (dự án import). */
+  onChangeScreenTheme?: (p: Project) => void;
   /** Tên thư mục chứa dự án — hiện chip ở tab "Dự án" (nơi hiện cả dự án trong thư mục). */
   folderName?: string | null;
   /** Cho kéo card thả vào thẻ thư mục. */
@@ -98,12 +105,15 @@ export type Mode1Translator = (
   values?: { state?: string; count?: number }
 ) => string;
 
-export function mode1NextLabel(project: Project, t: Mode1Translator, openCrs?: number): string {
+/** Nhãn trạng thái import theo ngôn ngữ (`mode1.labels.importStatus.*`); mã lạ ⇒ giữ mã. */
+export type ImportStatusLabel = (state: ImportStatus) => string;
+
+export function mode1NextLabel(project: Project, t: Mode1Translator, statusLabel: ImportStatusLabel, openCrs?: number): string {
   const state = project.import_state;
   if (!state) return t("notUploaded");
-  if (!IMPORT_DONE_STATUSES.includes(state)) return t("importing", { state: IMPORT_STATUS_LABELS[state] });
-  if (openCrs === undefined) return IMPORT_STATUS_LABELS[state];
-  return openCrs > 0 ? t("openCrs", { count: openCrs }) : IMPORT_STATUS_LABELS[state];
+  if (!IMPORT_DONE_STATUSES.includes(state)) return t("importing", { state: statusLabel(state) });
+  if (openCrs === undefined) return statusLabel(state);
+  return openCrs > 0 ? t("openCrs", { count: openCrs }) : statusLabel(state);
 }
 
 /** Nguồn mặc định (gần như mọi dự án) — không ghi nhãn trên card; chỉ nguồn khác mới hiện tên. */
@@ -208,6 +218,9 @@ export default function ProjectCard({
   onHardDelete,
   onMoveToFolder,
   onChangeDocumentLanguage,
+  onChangeErdNotation,
+  onChangeSequenceLevel,
+  onChangeScreenTheme,
   folderName,
   draggable = false,
   selectable = false,
@@ -220,8 +233,12 @@ export default function ProjectCard({
   const tMode = useTranslations("app.sourceMode");
   const tNext = useTranslations("app.projectCard.next");
   const tMode1 = useTranslations("app.projectCard.mode1");
+  const tImport = useTranslations("mode1.labels.importStatus");
+  const importStatusLabel: ImportStatusLabel = (state) => (tImport.has(state) ? tImport(state) : state);
   const status = getStatusBadge(progress);
-  const mode = getSourceModeOption(project.mode);
+  const mode = getSourceModeOption(projectSourceMode(project));
+  // FLF-318: tạo SRS đã chốt baseline ⇒ quản lý thay đổi qua CR, 12 giai đoạn đã xong — không hiện thanh giai đoạn
+  const converted = project.converted_from === "fpt";
   const archived = project.status === "archived";
 
   const menuItems: DropdownMenuItem[] = [
@@ -235,13 +252,41 @@ export default function ProjectCard({
           } as const
         ]
       : []),
-    // Mode 1: ngôn ngữ tài liệu theo file tải lên, không đổi được (D3)
-    ...(onChangeDocumentLanguage && project.mode !== "import"
+    // Mode 1: ngôn ngữ tài liệu theo file tải lên, không đổi được (D3). Dự án tạo SRS đã chốt baseline (FLF-318) không
+    // phải dự án tải file lên ⇒ vẫn đổi được (business-flow nguyên tắc 7)
+    ...(onChangeDocumentLanguage && (project.mode !== "import" || converted)
       ? [
           {
             label: t("menu.documentLanguage"),
             icon: "translate",
             onSelect: () => onChangeDocumentLanguage(project)
+          } as const
+        ]
+      : []),
+    ...(onChangeErdNotation
+      ? [
+          {
+            label: t("menu.erdNotation"),
+            icon: "layers",
+            onSelect: () => onChangeErdNotation(project)
+          } as const
+        ]
+      : []),
+    ...(onChangeSequenceLevel
+      ? [
+          {
+            label: t("menu.sequenceLevel"),
+            icon: "layers",
+            onSelect: () => onChangeSequenceLevel(project)
+          } as const
+        ]
+      : []),
+    ...(onChangeScreenTheme
+      ? [
+          {
+            label: t("menu.screenTheme"),
+            icon: "eye",
+            onSelect: () => onChangeScreenTheme(project)
           } as const
         ]
       : []),
@@ -276,7 +321,7 @@ export default function ProjectCard({
           : undefined
       }
       // Nền phẳng tím nhạt như thẻ thư mục (đổi màu này thì đổi cả màu chữ/rãnh tiến độ — xem PhaseBar), không viền, không bóng; hover ngả tím nhạt.
-      // Đang mở menu ⋮ ⇒ nâng cả card (z-21 > nút ⋮ z-20 của card khác, < tiêu đề mục dính z-25), để menu không bị nút ⋮ của card bên dưới đè lên
+      // Đang mở menu ⋮ ⇒ nâng cả card (z-21 > nút ⋮ z-20 của card khác, < tiêu đề mục dính z-27), để menu không bị nút ⋮ của card bên dưới đè lên
       className={`relative flex flex-col rounded-card transition-colors duration-200 has-[[aria-expanded=true]]:z-[21] ${
         selected ? "bg-primary-soft" : "bg-surface-card hover:bg-surface-card-hover"
       } ${draggable && !selectable ? "cursor-grab active:cursor-grabbing" : ""}`}>
@@ -328,20 +373,23 @@ export default function ProjectCard({
             <Icon name="arrow-right" size={13} className="shrink-0 text-primary" />
             <span className="truncate">
               {project.mode === "import"
-                ? mode1NextLabel(project, tMode1 as Mode1Translator, openCrs)
+                ? mode1NextLabel(project, tMode1 as Mode1Translator, importStatusLabel, openCrs)
                 : nextStepLabel(progress, tNext as NextTranslator, locale)}
             </span>
           </span>
-          <div className="flex items-center gap-3">
-            <div className="flex-1 min-w-0">
-              <PhaseBar progress={progress} locale={locale} />
+          {/* Dự án import (kể cả chuyển từ mode 2) không đi theo bước soạn của mode 2 ⇒ không có thanh giai đoạn / số bước */}
+          {project.mode !== "import" && (
+            <div className="flex items-center gap-3">
+              <div className="flex-1 min-w-0">
+                <PhaseBar progress={progress} locale={locale} />
+              </div>
+              {progress && progress.progress.total > 0 && (
+                <span className="shrink-0 tabular-nums text-body font-semibold text-on-card-strong">
+                  {progress.progress.done}/{progress.progress.total}
+                </span>
+              )}
             </div>
-            {progress && progress.progress.total > 0 && (
-              <span className="shrink-0 tabular-nums text-body font-semibold text-on-card-strong">
-                {progress.progress.done}/{progress.progress.total}
-              </span>
-            )}
-          </div>
+          )}
         </div>
       </Link>
 

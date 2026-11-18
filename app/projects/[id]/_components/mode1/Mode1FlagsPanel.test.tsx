@@ -7,7 +7,7 @@ import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it } from "vitest";
 import type { Flag } from "@/types/spine";
 import Mode1FlagsPanel from "./Mode1FlagsPanel";
-import { readCrPrefill } from "./prefill";
+import { readChatCrDraft } from "./prefill";
 
 const P = "p1";
 
@@ -34,12 +34,12 @@ describe("Mode1FlagsPanel", () => {
     expect(within(list).getByText("Cờ đỏ đang chặn release (1)")).toBeInTheDocument();
     const link = within(list).getByRole("link", { name: "Tạo CR" });
     const href = link.getAttribute("href")!;
-    expect(href.startsWith(`/projects/${P}?panel=cr&`)).toBe(true);
-    const prefill = readCrPrefill(new URLSearchParams(href.split("?")[1]));
+    expect(href.startsWith(`/projects/${P}?crdraft=1&`)).toBe(true);
+    const prefill = readChatCrDraft(new URLSearchParams(href.split("?")[1]));
     expect(prefill).toMatchObject({ source: "gap_report", ref: "5.1 Business Rules" });
-    expect(prefill?.title).toContain("Business Rules trống");
-    expect(prefill?.description).toContain("Mục còn trống, mục 5.1 Business Rules");
-    expect(prefill?.description).not.toContain("section_empty");
+    expect(prefill?.text.split("\n")[0]).toContain("Business Rules trống");
+    expect(prefill?.text).toContain("Mục còn trống, mục 5.1 Business Rules");
+    expect(prefill?.text).not.toContain("section_empty");
     expect(within(list).getByText("Mục còn trống")).toHaveAttribute("title", "section_empty");
   });
 
@@ -57,16 +57,38 @@ describe("Mode1FlagsPanel", () => {
       />
     );
     expect(screen.getByText("Không còn cờ đỏ nào.")).toBeInTheDocument();
-    expect(screen.getByText(/1 cờ vàng — không chặn release/)).toBeInTheDocument();
+    expect(screen.getByText(/1 cờ vàng - không chặn release/)).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
   });
 });
 
-describe("Mode1FlagsPanel — Viewer (readOnly)", () => {
+describe("Mode1FlagsPanel - Viewer (readOnly)", () => {
   it("vẫn liệt kê cờ đỏ nhưng không có lối Tạo CR", () => {
     renderWithIntl(<Mode1FlagsPanel projectId={P} flags={[flag("F1")]} readOnly />);
     const list = screen.getByRole("region", { name: "Cờ đỏ đang chặn release" });
     expect(within(list).getByText("Cờ đỏ đang chặn release (1)")).toBeInTheDocument();
     expect(within(list).queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
+  });
+
+  it("mẫu cố định: mục của mẫu còn trống (cờ vàng) được liệt kê kèm Tạo CR, không gộp vào dòng đếm cờ vàng", () => {
+    renderWithIntl(
+      <Mode1FlagsPanel
+        projectId={P}
+        flags={[
+          flag("y1", { level: "yellow", rule_id: "template_section_empty", section_id: "custom:CS02", message: "Mục \"1.4 References\" của mẫu chưa có nội dung" }),
+          flag("y2", { level: "yellow", rule_id: "unconfirmed_assumption", message: "Giả định chưa xác nhận" }),
+        ]}
+      />
+    );
+    const list = screen.getByRole("region", { name: "Mục của mẫu còn trống" });
+    expect(within(list).getByText(/1\.4 References/)).toBeInTheDocument();
+    expect(within(list).getByText("Mục của mẫu còn trống")).toBeInTheDocument();
+    expect(within(list).getByRole("link", { name: "Tạo CR" })).toBeInTheDocument();
+    expect(screen.getByText(/^1 cờ vàng/)).toBeInTheDocument();
+  });
+
+  it("chỉ xem (Viewer) ⇒ mục mẫu trống vẫn liệt kê nhưng không có nút Tạo CR", () => {
+    renderWithIntl(<Mode1FlagsPanel projectId={P} readOnly flags={[flag("y1", { level: "yellow", rule_id: "template_section_empty" })]} />);
+    expect(screen.queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
   });
 });

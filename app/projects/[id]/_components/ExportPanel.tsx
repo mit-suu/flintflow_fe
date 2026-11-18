@@ -1,15 +1,22 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 import { ApiClientError } from "@/lib/api/client";
-import { downloadWordExport, listBaselines } from "@/lib/api/export";
-import { DOCUMENT_LANGUAGE_NAME, shownDocumentLanguage } from "@/lib/document-language";
+import { downloadPdfExport, downloadWordExport, listBaselines, type ExportFormat } from "@/lib/api/export";
+import { shownDocumentLanguage } from "@/lib/document-language";
+import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
 import { useDocument } from "../hooks/useDocument";
-import type { DocumentSource } from "@/types/document";
+import type { DocumentSource, TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import type { Baseline } from "@/types/spine";
+import { versionFileName } from "@/types/doc-version";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { hookErrorText } from "@/lib/hook-errors";
+import { isGoogleAuthEnabled } from "@/lib/google-auth";
+import GoogleDocsExportSection from "./GoogleDocsExportSection";
+import { openMigrationMissing } from "./template-migration/missing-flags";
 
 interface ExportPanelProps {
   projectId: string;
@@ -19,8 +26,23 @@ interface ExportPanelProps {
   flags?: Flag[];
   /** Ngôn ngữ tài liệu client đã biết (FLF-265, `knownDocumentLanguage`) — file .docx ra đúng ngôn ngữ này. */
   documentLanguage?: DocumentLanguage | null;
-  /** Mở hộp "Dịch tài liệu" từ cảnh báo mục chưa dịch — chỉ truyền cho Lead/Analyst ở mode 2 (như `DocumentPane`). */
-  onTranslate?: () => void;
+  /**
+   * Mở hộp "Dịch tài liệu" từ cảnh báo mục chưa dịch — chỉ truyền cho Lead/Analyst ở mode 2 (như `DocumentPane`).
+   * `locale` (FLF-334 B): dịch nốt sang ngôn ngữ file vừa chọn (khác ngôn ngữ tài liệu); bỏ trống ⇒ ngôn ngữ tài liệu.
+   * `target.baselineId`: baseline vừa tải bị 409 — hộp dịch đếm / dịch đúng snapshot đó (bỏ trống ⇒ bản nháp).
+   */
+  onTranslate?: (locale?: DocumentLanguage, target?: { baselineId?: string }) => void;
+  /** FLF-334 B: cho chọn tải theo ngôn ngữ còn lại — chỉ mode 2 (mode 1 tải theo version ở VersionsPanel). */
+  otherLanguageAvailable?: boolean;
+  /**
+   * Dự án "Upload SRS có sẵn": bản in lấy chính file upload làm nền, không có phụ lục cờ §I ⇒ chỉ báo số cờ đỏ đang mở.
+   */
+  sourceFile?: boolean;
+  /**
+   * FLF-410: số màn đang chờ lượt "Vẽ lại bằng mockup" chạy nền. > 0 ⇒ bấm tải bản nháp hỏi trước: xuất ngay (các màn đó dùng
+   * ảnh gốc) hoặc đợi vẽ xong rồi tự xuất.
+   */
+  mockupPending?: number;
 }
 
 /** Ghim thẻ `<a download>` vào DOM trước khi click — Safari/Firefox bỏ qua click trên thẻ rời DOM. */
@@ -36,24 +58,99 @@ const triggerDownload = (blob: Blob, fileName: string) => {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 };
 
-/** Export UI (Phases §6.5): Word draft (watermark DRAFT) / Word baseline. */
-export default function ExportPanel({ projectId, projectName = "Dự án", onClose, flags, documentLanguage = null, onTranslate }: ExportPanelProps) {
+/** Word / PDF tải file về máy; Google Docs upload lên Drive của user (cần client id Google ở FE). */
+type PanelFormat = ExportFormat | "google-docs";
+
+const FORMAT_OPTIONS: ReadonlyArray<{ value: PanelFormat; label: string; extension: string }> = [
+  { value: "word", label: "Word", extension: ".docx" },
+  { value: "pdf", label: "PDF", extension: ".pdf" },
+  ...(isGoogleAuthEnabled ? [{ value: "google-docs" as const, label: "Google Docs", extension: "" }] : []),
+];
+
+/**
+ * Export UI (Phases §6.5): bản nháp (watermark DRAFT) / baseline, mỗi nguồn ra Word hoặc PDF (FLF-316 — PDF là
+ * chính file Word chuyển ở BE nên bố cục y hệt).
+ */
+export default function ExportPanel({
+  projectId,
+  projectName,
+  onClose,
+  flags,
+  documentLanguage = null,
+  onTranslate,
+  otherLanguageAvailable = false,
+  sourceFile = false,
+  mockupPending = 0,
+}: ExportPanelProps) {
+  const t = useTranslations("workspace.export");
+  const tHook = useTranslations("workspace.hookErrors");
+  const tLanguage = useTranslations("common.documentLanguage");
+  const baselineCheckFailed = t("baselineCheckFailed");
   const [source, setSource] = useState<DocumentSource>("draft");
+  /** Người dùng đã tự chọn nguồn ⇒ không đổi mặc định khi danh sách baseline về muộn. */
+  const sourceTouched = useRef(false);
+  const [format, setFormat] = useState<PanelFormat>("word");
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   const [baselineCheckError, setBaselineCheckError] = useState<string | null>(null);
   const hasBaseline = baselines.length > 0;
-  // Baseline mới nhất — ExportPanel chưa có bộ chọn version cụ thể (ngoài phạm vi T16).
-  const baselineId = source === "baseline" ? baselines[0]?.id : undefined;
+  // Baseline mới nhất — ExportPanel chưa có bộ chọn version cụ thể (ngoài phạm vi T16). `GET /baselines` trả theo thứ tự
+  // ghi, mới nhất ở CUỐI (FLF-318: dự án chuyển đổi release 2.0 sau 1.0 — trước đây lấy nhầm phần tử đầu = 1.0).
+  const latestBaseline = baselines.at(-1);
+  const baselineId = source === "baseline" ? latestBaseline?.id : undefined;
+  const baselineVersion = typeof latestBaseline?.version === "string" ? latestBaseline.version.replace(/^v/, "") : undefined;
   const { document, translation, loading, empty, error } = useDocument(projectId, source, baselineId, 0, documentLanguage);
   // FLF-265: `meta.translation` của chính nguồn đang xem thắng giá trị client tự suy
   const language = shownDocumentLanguage(translation, documentLanguage);
   const [downloading, setDownloading] = useState(false);
+  /** FLF-410: hỏi "xuất ngay hay đợi" khi còn màn đang vẽ mockup; `waiting` ⇒ tự xuất khi lượt vẽ xong. */
+  const [mockupAsk, setMockupAsk] = useState(false);
+  const [waitingMockups, setWaitingMockups] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  // FLF-334 B: ngôn ngữ của file — mặc định ngôn ngữ tài liệu (không gửi `lang`, file như trước)
+  const [fileLanguage, setFileLanguage] = useState<DocumentLanguage | null>(null);
+  const languageChoices: DocumentLanguage[] | null =
+    otherLanguageAvailable && documentLanguage ? [documentLanguage, documentLanguage === "vi" ? "en" : "vi"] : null;
+  const requestedLanguage = languageChoices && fileLanguage && fileLanguage !== documentLanguage ? fileLanguage : undefined;
+  /**
+   * 409 `TRANSLATION_INCOMPLETE` của lần tải theo ngôn ngữ khác — số mục còn thiếu (`null` khi BE không gửi số ⇒ câu
+   * chung, không bao giờ "0"), ngôn ngữ + baseline của lần tải đó để "Dịch nốt" dịch đúng snapshot.
+   */
+  const [incomplete, setIncomplete] = useState<{ count: number | null; message: string; locale: DocumentLanguage; baselineId?: string } | null>(null);
+
+  /**
+   * Câu 11 (P09): tài liệu còn mục chưa dịch ⇒ bấm tải hỏi "Dịch {n} mục còn thiếu (~x credit) rồi xuất?" — không tự dịch.
+   * `translateAsk` = trạng thái dịch của đúng file sắp tải; `translating` = đang chạy lô dịch trước khi xuất.
+   */
+  const [translateAsk, setTranslateAsk] = useState<TranslationStatus | null>(null);
+  const [translating, setTranslating] = useState(false);
+  const translationScope = { ...(requestedLanguage ? { locale: requestedLanguage } : {}), ...(baselineId ? { baselineId } : {}) };
+
+  const resetDownloadError = () => {
+    setDownloadError(null);
+    setIncomplete(null);
+    setTranslateAsk(null);
+  };
 
   const selectSource = (next: DocumentSource) => {
+    sourceTouched.current = true;
     setSource(next);
-    setDownloadError(null);
+    resetDownloadError();
   };
+
+  const selectFormat = (next: PanelFormat) => {
+    setFormat(next);
+    resetDownloadError();
+    // Câu hỏi / lượt chờ mockup thuộc lần tải của định dạng cũ — để lại thì tự tải nhầm định dạng khi vẽ xong
+    setMockupAsk(false);
+    setWaitingMockups(false);
+  };
+
+  const selectLanguage = (next: DocumentLanguage) => {
+    setFileLanguage(next);
+    resetDownloadError();
+  };
+
+  const extension = format === "pdf" ? ".pdf" : ".docx";
 
   useEffect(() => {
     let cancelled = false;
@@ -62,40 +159,121 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
         if (cancelled) return;
         setBaselines(res.data ?? []);
         setBaselineCheckError(null);
+        // FLF-431 (FLF-413 #16): đã có baseline ⇒ mặc định bản đã ký — thứ duy nhất gửi ra ngoài (BF §2); bản nháp vẫn chọn được
+        if ((res.data ?? []).length > 0) setSource((current) => (sourceTouched.current ? current : "baseline"));
       })
       .catch((err: unknown) => {
         if (cancelled) return;
         setBaselines([]);
-        setBaselineCheckError(userErrorMessage(err, "Không kiểm tra được baseline"));
+        setBaselineCheckError(userErrorMessage(err, baselineCheckFailed));
       });
     return () => {
       cancelled = true;
     };
+    // `baselineCheckFailed` chỉ là câu dự phòng — đổi ngôn ngữ không cần gọi lại BE
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
 
   // BUG-26: bản xuất báo "2 cờ đỏ" trong khi Verification panel đếm 10 — hai nguồn khác nhau. Ưu tiên
   // danh sách cờ đang mở mà panel đang dùng; chỉ rơi về phụ lục của bản đã ghép khi chưa có nó.
-  const openRedFlags = flags?.filter((f) => f.level === "red" && !f.resolved_at && !f.waived_by_user).length;
+  // FLF-329: cờ đỏ đã waive (dữ liệu cũ) / giữ nguyên vẫn chặn ⇒ vẫn đếm
+  const openRedFlags = flags?.filter((f) => f.level === "red" && !f.resolved_at).length;
   const redCount = openRedFlags ?? document?.flagsAppendix?.redOpen.length ?? 0;
+  // Mục của mẫu mới chưa viết sau đổi mẫu: chặn phát hành bản mới, bản nháp vẫn tải được
+  const migrationMissing = flags ? openMigrationMissing(flags).length : 0;
 
   const handleDownload = async () => {
     setDownloading(true);
-    setDownloadError(null);
+    resetDownloadError();
     try {
-      const { blob, filename } = await downloadWordExport(projectId, source, baselineId);
-      const suffix = source === "draft" ? "-draft" : "";
-      const fallbackName = `${projectName}-${document?.version ?? "v0"}${suffix}.docx`;
+      const download = format === "pdf" ? downloadPdfExport : downloadWordExport;
+      const { blob, filename } = await download(projectId, source, baselineId, requestedLanguage);
+      // Tên dự phòng khi BE không gửi `Content-Disposition` — cùng quy tắc FLF-334 với BE: baseline ⇒ `_v1.0`, bản nháp ⇒
+      // `_v<baseline cuối>_DRAFT`, chưa baseline ⇒ `<tên>_DRAFT`. FLF-356: gốc `0.x` của dự án import giữ đúng số
+      // (`_v0.1`, không gộp về `_v0`); bản baseline không có watermark DRAFT ⇒ tên không `_DRAFT` (`FAP_v0.1.docx`)
+      const fallbackName = versionFileName({
+        name: projectName ?? t("untitled"),
+        release: source === "baseline",
+        base: baselineVersion ?? null,
+        ext: format === "pdf" ? "pdf" : "docx",
+        language: requestedLanguage ?? null,
+      });
       triggerDownload(blob, filename ?? fallbackName);
     } catch (err) {
+      if (err instanceof ApiClientError && err.code === "TRANSLATION_INCOMPLETE" && requestedLanguage) {
+        const missing = err.meta?.missing;
+        setIncomplete({
+          count: typeof missing === "number" ? missing : null,
+          message: userErrorMessage(err, t("downloadFailed")),
+          locale: requestedLanguage,
+          ...(baselineId ? { baselineId } : {}),
+        });
+        return;
+      }
       setDownloadError(
-        err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT"
-          ? "Dự án chưa có nội dung nào để xuất ra tài liệu."
-          : userErrorMessage(err, "Tải file thất bại")
+        err instanceof ApiClientError && err.code === "DOCUMENT_LANGUAGE_UNAVAILABLE"
+          ? t("languageUnavailable")
+          : err instanceof ApiClientError && err.code === "NO_WORKING_DRAFT"
+            ? t("noWorkingDraft")
+            : userErrorMessage(err, t("downloadFailed"))
       );
     } finally {
       setDownloading(false);
     }
   };
+
+  /** Sau câu hỏi dịch: còn màn đang vẽ mockup ⇒ hỏi tiếp như cũ, không thì tải. */
+  const proceedDownload = () => (mockupPending > 0 && source === "draft" ? setMockupAsk(true) : void handleDownload());
+
+  /**
+   * Bấm tải: người dịch được (Lead / Analyst mode 2 — có `onTranslate`) và file sắp tải còn mục chưa dịch ⇒ hỏi trước. Đếm bằng
+   * `GET /translations/status` (không gọi model); đếm lỗi ⇒ tải như cũ (BE vẫn là nơi chặn ngôn ngữ khác).
+   */
+  const startDownload = async () => {
+    resetDownloadError();
+    if (onTranslate) {
+      try {
+        const status = (await getTranslationStatus(projectId, translationScope)).data;
+        if (status && status.missing > 0) {
+          setTranslateAsk(status);
+          return;
+        }
+      } catch {
+        // không đếm được ⇒ không hỏi
+      }
+    }
+    proceedDownload();
+  };
+
+  /** "Dịch rồi xuất": chạy lô tới khi `remaining = 0` hoặc lô không tiến (`translated = 0`), rồi xuất. Lỗi (hết credit…) ⇒ dừng, báo. */
+  const translateThenDownload = async () => {
+    setTranslateAsk(null);
+    setTranslating(true);
+    try {
+      for (;;) {
+        const result = (await runTranslation(projectId, undefined, translationScope)).data;
+        if (!result || result.remaining === 0 || result.translated === 0) break;
+      }
+    } catch (err) {
+      setDownloadError(userErrorMessage(err, t("translateBeforeExportFailed")));
+      return;
+    } finally {
+      setTranslating(false);
+    }
+    proceedDownload();
+  };
+
+  // FLF-410: "Đợi vẽ xong rồi xuất" — lượt vẽ mockup hết màn chờ ⇒ tự tải bản nháp (lùi một microtask: không set state đồng
+  // bộ trong effect)
+  useEffect(() => {
+    if (!waitingMockups || mockupPending > 0) return;
+    queueMicrotask(() => {
+      setWaitingMockups(false);
+      void handleDownload();
+    });
+    // `handleDownload` đọc state mới nhất mỗi lần render — chỉ cần chạy khi điều kiện chờ đổi
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [waitingMockups, mockupPending]);
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose}>
@@ -104,8 +282,8 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between">
-          <h3 className="font-extrabold text-heading text-[#191817]">Xuất tài liệu SRS</h3>
-          <button type="button" onClick={onClose} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
+          <h3 className="font-extrabold text-heading text-[#191817]">{t("title")}</h3>
+          <button type="button" onClick={onClose} aria-label={t("close")} className="p-1.5 hover:bg-[#F5F3F0] rounded-full text-[#8A867E] cursor-pointer">
             ✕
           </button>
         </div>
@@ -120,7 +298,7 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
               source === "draft" ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#6B6862]"
             }`}
           >
-            Word nháp (DRAFT)
+            {t("draftTab")}
           </button>
           <button
             type="button"
@@ -128,75 +306,229 @@ export default function ExportPanel({ projectId, projectName = "Dự án", onClo
             aria-selected={source === "baseline"}
             disabled={!hasBaseline}
             onClick={() => selectSource("baseline")}
-            title={hasBaseline ? undefined : "Chưa có baseline nào"}
+            title={hasBaseline ? undefined : t("noBaseline")}
             className={`px-3 py-1.5 rounded-full text-body font-bold cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed ${
               source === "baseline" ? "bg-[#191817] text-white" : "bg-[#F0EEEA] text-[#6B6862]"
             }`}
           >
-            Word baseline
+            {t("baselineTab")}
           </button>
         </div>
 
-        {baselineCheckError && (
-          <div className="text-caption text-[#B03030]">Không kiểm tra được baseline: {baselineCheckError}</div>
-        )}
+        <div className="flex items-center justify-between gap-3">
+          <span id="export-format-label" className="text-body text-[#4B4842]">
+            {t("format")}
+          </span>
+          <div role="radiogroup" aria-labelledby="export-format-label" className="flex gap-1 p-1 rounded-full bg-[#F0EEEA]">
+            {FORMAT_OPTIONS.map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                role="radio"
+                aria-checked={format === option.value}
+                onClick={() => selectFormat(option.value)}
+                className={`px-3 py-1 rounded-full text-body font-bold cursor-pointer ${
+                  format === option.value ? "bg-white text-[#191817] shadow-sm" : "text-[#6B6862]"
+                }`}
+              >
+                {option.label} <span className="font-mono font-normal text-caption">{option.extension}</span>
+              </button>
+            ))}
+          </div>
+        </div>
 
-        {loading && <div className="text-body text-[#A8A49C] italic">Đang tải thông tin tài liệu…</div>}
-
-        {empty && (
-          <div className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] p-3.5 text-body text-[#6B5A2A]">
-            Dự án chưa có nội dung nào để xuất ở nguồn này.
+        {languageChoices && (
+          <div className="flex items-center justify-between gap-3">
+            <span id="export-language-label" className="text-body text-[#4B4842]">
+              {t("fileLanguage")}
+            </span>
+            <div role="radiogroup" aria-labelledby="export-language-label" className="flex gap-1 p-1 rounded-full bg-[#F0EEEA]">
+              {languageChoices.map((option) => {
+                const checked = (fileLanguage ?? documentLanguage) === option;
+                return (
+                  <button
+                    key={option}
+                    type="button"
+                    role="radio"
+                    aria-checked={checked}
+                    onClick={() => selectLanguage(option)}
+                    className={`px-3 py-1 rounded-full text-body font-bold cursor-pointer ${checked ? "bg-white text-[#191817] shadow-sm" : "text-[#6B6862]"}`}
+                  >
+                    {tLanguage(option)}
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 
-        {!empty && error && <div className="text-caption text-[#B03030]">{error}</div>}
+        {baselineCheckError && (
+          <div className="text-caption text-[#B03030]">{t("baselineCheckFailedWith", { error: baselineCheckError })}</div>
+        )}
+
+        {loading && <div className="text-body text-[#A8A49C] italic">{t("loading")}</div>}
+
+        {empty && (
+          <div className="bg-[#FBF4E4] border border-[#F0DFB4] rounded-[12px] p-3.5 text-body text-[#6B5A2A]">
+            {t("emptySource")}
+          </div>
+        )}
+
+        {!empty && error && <div className="text-caption text-[#B03030]">{hookErrorText(error, tHook)}</div>}
 
         {!empty && document && (
           <div className="bg-[#FAF9F7] border border-[#ECEAE5] rounded-[12px] p-3.5 flex flex-col gap-1.5 text-body text-[#4B4842]">
             <div className="flex items-center justify-between">
-              <span>Phiên bản</span>
+              <span>{t("version")}</span>
               <span className="font-mono font-bold">
                 {document.version}
                 {source === "draft" ? "-draft" : ""}
               </span>
             </div>
             <div className="flex items-center justify-between">
-              <span>Số cờ đỏ sẽ in vào §I</span>
+              <span>{sourceFile ? t("redOpenCount") : t("redCount")}</span>
               <span className={`font-bold ${redCount > 0 ? "text-[#B03030]" : "text-[#1F7A45]"}`}>{redCount}</span>
             </div>
-            {language && (
+            {(requestedLanguage ?? language) && (
               <div className="flex items-center justify-between">
-                <span>Ngôn ngữ</span>
-                <span lang={language} className="font-bold">
-                  {DOCUMENT_LANGUAGE_NAME[language]}
+                <span>{t("language")}</span>
+                <span className="font-bold">
+                  {tLanguage(requestedLanguage ?? language!)}
                 </span>
               </div>
             )}
           </div>
         )}
 
+        {migrationMissing > 0 && (
+          <div role="status" className="bg-accent-gold-soft rounded-control p-3 text-body text-accent-gold-text leading-relaxed">
+            {t("migrationMissing", { count: migrationMissing })}
+          </div>
+        )}
+
         {/* FLF-265: chỉ báo, KHÔNG chặn tải — mục chưa dịch in chữ gốc trong file (BE không bao giờ dịch lúc xuất) */}
-        {!empty && document && translation && translation.missing > 0 && (
+        {!requestedLanguage && !empty && document && translation && translation.missing > 0 && (
           <div role="status" className="bg-accent-gold-soft border border-accent-gold-border rounded-control p-3 text-body text-accent-gold-text leading-relaxed flex flex-col items-start gap-1.5">
-            <span>Còn {translation.missing} mục chưa dịch — file sẽ in chữ gốc ở các mục này. Vẫn tải được.</span>
+            <span>{t("untranslated", { count: translation.missing })}</span>
             {onTranslate && (
-              <button type="button" onClick={onTranslate} className="font-bold hover:underline cursor-pointer">
-                Dịch tài liệu trước
+              <button type="button" onClick={() => onTranslate()} className="font-bold hover:underline cursor-pointer">
+                {t("translateFirst")}
               </button>
             )}
           </div>
         )}
 
-        {downloadError && <div className="text-body text-[#B03030]">{downloadError}</div>}
+        {/* FLF-334 B: ngôn ngữ khác KHÔNG in chữ gốc thay chỗ thiếu — BE chặn, mời dịch nốt (hộp dịch báo credit trước khi chạy) */}
+        {incomplete && (
+          <div role="alert" className="bg-accent-gold-soft border border-accent-gold-border rounded-control p-3 text-body text-accent-gold-text leading-relaxed flex flex-col items-start gap-1.5">
+            <span>
+              {incomplete.count === null
+                ? incomplete.message
+                : t("translationIncomplete", { count: incomplete.count, language: tLanguage(incomplete.locale) })}
+            </span>
+            {onTranslate ? (
+              <button
+                type="button"
+                onClick={() => {
+                  // Hộp dịch mở ⇒ cảnh báo cũ không còn đúng sau khi dịch; lần tải sau tự báo lại nếu vẫn thiếu
+                  setIncomplete(null);
+                  onTranslate(incomplete.locale, incomplete.baselineId ? { baselineId: incomplete.baselineId } : undefined);
+                }}
+                className="font-bold hover:underline cursor-pointer"
+              >
+                {t("translateRest")}
+              </button>
+            ) : (
+              <span>{t("translateAskEditor")}</span>
+            )}
+          </div>
+        )}
 
-        <button
-          type="button"
-          disabled={downloading || empty || loading}
-          onClick={() => void handleDownload()}
-          className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
-        >
-          {downloading ? "Đang tải…" : `Tải ${source === "draft" ? "bản nháp" : "bản baseline"} (.docx)`}
-        </button>
+        {format === "google-docs" ? (
+          <GoogleDocsExportSection
+            projectId={projectId}
+            source={source}
+            baselineId={baselineId}
+            lang={requestedLanguage}
+            fileLanguage={requestedLanguage ?? language ?? undefined}
+            disabled={empty || loading}
+          />
+        ) : (
+          <>
+            {(mockupAsk || waitingMockups) && mockupPending > 0 && source === "draft" && (
+              <div role="alert" className="flex flex-col gap-2 rounded-[10px] bg-[#FFF6E5] px-3 py-2.5 text-body text-[#7A4B00]">
+                <span>{waitingMockups ? t("mockupWaiting", { count: mockupPending }) : t("mockupPending", { count: mockupPending })}</span>
+                {!waitingMockups && (
+                  <div className="flex flex-wrap gap-3">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMockupAsk(false);
+                        void handleDownload();
+                      }}
+                      className="font-bold hover:underline cursor-pointer"
+                    >
+                      {t("mockupExportNow")}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMockupAsk(false);
+                        setWaitingMockups(true);
+                      }}
+                      className="font-bold hover:underline cursor-pointer"
+                    >
+                      {t("mockupWait")}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {translateAsk && (
+              <div role="alert" className="flex flex-col gap-2 rounded-[10px] bg-[#FFF6E5] px-3 py-2.5 text-body text-[#7A4B00]">
+                <span>{t("translateBeforeExport", { count: translateAsk.missing, credits: translateAsk.estimated_credits })}</span>
+                <div className="flex flex-wrap gap-3">
+                  <button type="button" onClick={() => void translateThenDownload()} className="font-bold hover:underline cursor-pointer">
+                    {t("translateThenExport")}
+                  </button>
+                  {/* Ngôn ngữ khác ngôn ngữ tài liệu: BE không xuất khi thiếu bản dịch ⇒ chỉ có Thôi */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTranslateAsk(null);
+                      if (!requestedLanguage) proceedDownload();
+                    }}
+                    className="font-bold hover:underline cursor-pointer"
+                  >
+                    {requestedLanguage ? t("translateCancel") : t("exportAsIs")}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {translating && <div role="status" className="text-body text-[#7A4B00]">{t("translatingBeforeExport")}</div>}
+
+            {downloadError && <div className="text-body text-[#B03030]">{downloadError}</div>}
+
+            <button
+              type="button"
+              disabled={downloading || translating || empty || loading}
+              onClick={() => void startDownload()}
+              className="w-full py-2.5 rounded-[10px] bg-[#191817] text-white text-body font-bold disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
+            >
+              {downloading
+                ? format === "pdf"
+                  ? t("creatingPdf")
+                  : t("downloading")
+                : source === "draft"
+                  ? t("downloadDraft", { extension })
+                  : baselineVersion
+                    ? t("downloadBaselineVersion", { extension, version: baselineVersion })
+                    : t("downloadBaseline", { extension })}
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

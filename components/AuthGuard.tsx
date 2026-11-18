@@ -12,6 +12,11 @@ import Skeleton from "./ui/Skeleton";
 interface AuthGuardProps {
   children: React.ReactNode;
   requireAdmin?: boolean;
+  /**
+   * Khung giữ chỗ riêng của khu vực (vd khung app có sidebar thật của `/home/*`), nhận nhãn đọc màn hình.
+   * Không truyền ⇒ khối giữ chỗ chung cả trang.
+   */
+  renderSkeleton?: (label: string) => React.ReactNode;
 }
 
 /** Lỗi mạng / BE 5xx / cold start: thử lại vài lần trước khi báo lỗi — tuyệt đối không đăng xuất. */
@@ -35,7 +40,7 @@ const refreshWithRetry = async (): Promise<RefreshOutcome> => {
   return outcome;
 };
 
-export default function AuthGuard({ children, requireAdmin = false }: AuthGuardProps) {
+export default function AuthGuard({ children, requireAdmin = false, renderSkeleton }: AuthGuardProps) {
   const router = useRouter();
   // Dùng chung với admin: `app/admin/layout.tsx` ghim provider về `vi` nên ở đó luôn là tiếng Việt.
   const t = useTranslations("app.authGuard");
@@ -95,8 +100,9 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
       return (
         <div className="flex min-h-screen items-center justify-center bg-surface">
           <div className="flex flex-col items-center gap-3">
-            <Icon name="cloud-off" size={30} className="text-secondary" label={t("offlineTitle")} />
-            <p className="text-xs text-secondary font-medium">
+            {/* Chữ phụ dùng `on-surface-variant`; `text-secondary` là màu nền nút phụ (#eceae5) nên gần như trùng nền */}
+            <Icon name="cloud-off" size={30} className="text-on-surface-variant" label={t("offlineTitle")} />
+            <p className="text-xs text-on-surface-variant font-medium">
               {t("offline")}
             </p>
             <button
@@ -110,6 +116,10 @@ export default function AuthGuard({ children, requireAdmin = false }: AuthGuardP
         </div>
       );
     }
+
+    // Khung riêng của khu vực vẽ NGAY từ lần render đầu (cả HTML server trả về), không chờ hẹn giờ: nó trùng hình với
+    // khung thật nên không có gì để "chớp". Chờ thì người dùng nhìn trang trống suốt lúc tải + hydrate JS.
+    if (renderSkeleton) return <>{renderSkeleton(t("checking"))}</>;
 
     return (
       <div className="min-h-screen bg-surface p-6 sm:p-8">

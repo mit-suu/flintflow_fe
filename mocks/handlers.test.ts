@@ -1,7 +1,19 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { normalizeOption } from "@/lib/question-options";
 import { getSpine, applyChanges } from "@/lib/api/spine";
-import { getProject, setDocumentLanguage } from "@/lib/api/projects";
+import {
+  cancelScreenMockupRun,
+  disableScreenMockups,
+  estimateScreenMockups,
+  getProject,
+  getScreenMockupRun,
+  getScreenMockupSummary,
+  runScreenMockups,
+  setDocumentLanguage,
+  setErdNotation,
+  setScreenTheme,
+  setSequenceLevel,
+} from "@/lib/api/projects";
 import { answerStep, getProgress, listSteps, resumeProject, runStep, submitGate } from "@/lib/api/pipeline";
 import { getDocument } from "@/lib/api/export";
 import { getTranslationStatus, runTranslation } from "@/lib/api/translations";
@@ -10,7 +22,8 @@ import { MOCK_TRANSLATION_UNITS, mockTiming, mockTranslation, resetMockTranslati
 import { mockServer } from "./server";
 import { MOCK_PROJECT_ID, MOCK_SESSION_ID, mockState, resetMockState } from "./state";
 import { apiCall } from "@/lib/api";
-import type { ChatSession } from "@/types/chat";
+import { streamChatMessage } from "@/lib/ai-stream";
+import type { ChatSession, KnowledgeReply } from "@/types/chat";
 
 const P = MOCK_PROJECT_ID;
 
@@ -126,6 +139,81 @@ describe("mock pipeline theo contract (DoD T12)", () => {
     });
   });
 
+  describe("FLF-279 lượt hỏi tri thức (§1.2)", () => {
+    /** Thu các sự kiện của một lượt `knowledge: true`; luồng đúng phải chỉ có một `finish`. */
+    const askKnowledge = async (content: string) => {
+      const events: { type: string; data?: unknown; cost?: number; tokensUsed?: unknown }[] = [];
+      await streamChatMessage({
+        projectId: P,
+        chatId: MOCK_SESSION_ID,
+        content,
+        step: "chat",
+        knowledge: true,
+        onTextDelta: () => events.push({ type: "text-delta" }),
+        onFinish: (payload) => events.push({ type: "finish", ...payload }),
+      });
+      return events;
+    };
+
+    it("có trích dẫn: một finish duy nhất, grounded, citations đủ hai source_kind, 2 credit", async () => {
+      const events = await askKnowledge("Trần lượt gọi model mỗi bước là bao nhiêu?");
+
+      expect(events.map((e) => e.type)).toEqual(["finish"]);
+      const data = events[0].data as KnowledgeReply;
+      expect(data.grounded).toBe(true);
+      expect(data.reply).toMatch(/\[K1\]/);
+      expect(data.citations.map((c) => c.ref)).toEqual(["K1", "K2"]);
+      expect(data.citations.map((c) => c.source_kind)).toEqual(["internal_skill", "standard"]);
+      expect(events[0].cost).toBe(2);
+    });
+
+    it("không đủ căn cứ: grounded false, citations rỗng, không trừ credit", async () => {
+      const events = await askKnowledge("Câu này ngoài kho tri thức của FlintFlow");
+
+      const data = events[0].data as KnowledgeReply;
+      expect(data.grounded).toBe(false);
+      expect(data.citations).toEqual([]);
+      expect(events[0].cost).toBe(0);
+      expect(events[0].tokensUsed).toBeNull();
+    });
+
+    it("tin AI lưu vào phiên dưới dạng JSON ⇒ tải lại phiên vẫn đọc được trích dẫn", async () => {
+      await askKnowledge("Trần regenerate mỗi bước là bao nhiêu?");
+
+      const reloaded = await apiCall<ChatSession>(`/projects/${P}/chats/${MOCK_SESSION_ID}`);
+      const last = reloaded.data!.messages.at(-1)!;
+      expect(last.role).toBe("ai");
+      const parsed = JSON.parse(last.content) as KnowledgeReply;
+      expect(parsed.grounded).toBe(true);
+      expect(parsed.citations[0].source).toBe("gate-check");
+    });
+
+    it("KNOWLEDGE_ENABLED=false ⇒ 409 KNOWLEDGE_DISABLED và phiên không ghi gì", async () => {
+      mockState.knowledgeDisabled = true;
+      const before = mockState.sessions[0].messages.length;
+
+      await expect(askKnowledge("Trần lượt gọi model?")).rejects.toMatchObject({
+        code: "KNOWLEDGE_DISABLED",
+        status: 409,
+      });
+      expect(mockState.sessions[0].messages).toHaveLength(before);
+    });
+
+    it("lượt chat thường không đi nhánh tri thức: vẫn stream chữ, tin AI là chữ thuần", async () => {
+      const deltas: string[] = [];
+      await streamChatMessage({
+        projectId: P,
+        chatId: MOCK_SESSION_ID,
+        content: "Chào bạn",
+        step: "chat",
+        onTextDelta: (d) => deltas.push(d),
+      });
+
+      expect(deltas.length).toBeGreaterThan(0);
+      expect(mockState.sessions[0].messages.at(-1)!.content).not.toMatch(/^\{/);
+    });
+  });
+
   it("POST /resume trả reverted_step + spine_version hiện tại", async () => {
     const res = await resumeProject(P);
     expect(res.data).toMatchObject({ reverted_step: null, spine_version: await version() });
@@ -156,6 +244,29 @@ describe("mock PATCH /projects/:id/document-language (FLF-265 #1a)", () => {
     mockState.project = { ...mockState.project, mode: "import" };
     await expect(setDocumentLanguage(P, "vi")).rejects.toMatchObject({ code: "DOCUMENT_LANGUAGE_LOCKED", status: 409 });
     expect(mockState.project.documentLanguage).toBeUndefined();
+  });
+});
+
+describe("mock PATCH /projects/:id/sequence-level (FLF-418)", () => {
+  it("đổi mức ⇒ GET trả field mới; giá trị lạ ⇒ 400; projectId lạ ⇒ 404", async () => {
+    expect((await setSequenceLevel(P, "component")).data?.sequenceLevel).toBe("component");
+    expect((await getProject(P)).data?.sequenceLevel).toBe("component");
+    await expect(setSequenceLevel(P, "design" as never)).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(setSequenceLevel("khac", "system")).rejects.toMatchObject({ code: "PROJECT_NOT_FOUND", status: 404 });
+  });
+});
+
+describe("mock PATCH /projects/:id/erd-notation (FLF-324)", () => {
+  it("đổi ký pháp ⇒ GET trả field mới, mọi mode đều đổi được; giá trị lạ hoặc key lạ ⇒ 400", async () => {
+    expect((await setErdNotation(P, "crowsfoot")).data?.erdNotation).toBe("crowsfoot");
+    expect((await getProject(P)).data?.erdNotation).toBe("crowsfoot");
+    mockState.project = { ...mockState.project, mode: "import" };
+    expect((await setErdNotation(P, "idef1x")).data?.erdNotation).toBe("idef1x");
+    await expect(setErdNotation(P, "Chen" as never)).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+  });
+
+  it("projectId lạ ⇒ 404 PROJECT_NOT_FOUND", async () => {
+    await expect(setErdNotation("khac", "chen")).rejects.toMatchObject({ code: "PROJECT_NOT_FOUND", status: 404 });
   });
 });
 
@@ -192,5 +303,32 @@ describe("mock dịch tài liệu theo lô (FLF-265 #16, #26, #27)", () => {
     }
     mockTranslation.failure = "stalled";
     expect((await runTranslation(P)).data).toEqual({ translated: 0, remaining: 60, credits_used: 2 });
+  });
+});
+
+describe("mock screen theme + screen-mockups (FLF-410)", () => {
+  it("PATCH theme: chỉ đổi field gửi; domain URL ⇒ hostname; màu chữ hoa; null về mặc định; sai ⇒ 400", async () => {
+    expect((await setScreenTheme(P, { primaryColor: "#00897b", domain: "https://Shop.Example.com/signup" })).data?.screenTheme).toEqual({
+      primaryColor: "#00897B",
+      domain: "shop.example.com",
+      platforms: null,
+    });
+    expect((await setScreenTheme(P, { platforms: ["web", "mobile"] })).data?.screenTheme?.primaryColor).toBe("#00897B");
+    expect((await getProject(P)).data?.screenTheme).toEqual({ primaryColor: "#00897B", domain: "shop.example.com", platforms: ["web", "mobile"] });
+    expect((await setScreenTheme(P, { primaryColor: null })).data?.screenTheme?.primaryColor).toBeNull();
+    await expect(setScreenTheme(P, {})).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(setScreenTheme(P, { platforms: [] })).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    await expect(setScreenTheme(P, { primaryColor: "red" })).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+  });
+
+  it("dự án mock không có ảnh gốc: tóm tắt rỗng, ước tính 0, POST all ⇒ lượt xong 0 màn; màn không có trong Spine ⇒ 404", async () => {
+    expect((await getScreenMockupSummary(P)).data).toMatchObject({ with_original: 0, using_mockup: 0 });
+    expect((await estimateScreenMockups(P, "system", "all")).data).toMatchObject({ screens: 0, credits: 0 });
+    expect((await runScreenMockups(P, "original", "all")).data).toMatchObject({ status: "done", total: 0 });
+    await expect(runScreenMockups(P, "system", "screen", ["SCR-KHONG-CO"])).rejects.toMatchObject({ code: "SCREEN_NOT_FOUND", status: 404 });
+    expect((await disableScreenMockups(P, "all")).data).toEqual({ disabled: [] });
+    await expect(disableScreenMockups(P, "screen")).rejects.toMatchObject({ code: "VALIDATION_ERROR", status: 400 });
+    expect((await getScreenMockupRun(P)).data).toBeNull();
+    expect((await cancelScreenMockupRun(P)).data).toBeNull();
   });
 });

@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
+import { keepFlag, listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { HOOK_ERROR } from "@/lib/hook-errors";
 
 export interface UseFlagsResult {
   flags: Flag[];
@@ -12,7 +13,13 @@ export interface UseFlagsResult {
   busy: boolean;
   reload: () => Promise<void>;
   waive: (flagId: string, reason: string) => Promise<void>;
-  recompute: () => Promise<void>;
+  /** FLF-329: giữ nguyên + lý do — cờ vẫn mở. */
+  keep: (flagId: string, reason: string) => Promise<void>;
+  /**
+   * Tính lại cờ và trả danh sách cờ mới. Lỗi thì đặt `error` rồi NÉM — nơi gọi tự quyết bắt hay báo (vẽ lại sơ đồ cần
+   * phân biệt "còn lỗi" với "không kiểm lại được").
+   */
+  recompute: () => Promise<Flag[]>;
 }
 
 /** `GET /flags`, tải lại mỗi khi `spineVersion` đổi (ops mới có thể mở/đóng cờ). */
@@ -35,7 +42,7 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
         setError(null);
       })
       .catch((err: unknown) => {
-        if (request === requestRef.current) setError(userErrorMessage(err, "Không tải được danh sách cờ"));
+        if (request === requestRef.current) setError(userErrorMessage(err, HOOK_ERROR.flagsLoadFailed));
       })
       .finally(() => {
         if (request === requestRef.current) setLoading(false);
@@ -60,7 +67,27 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
         }
         setError(null);
       } catch (err) {
-        setError(userErrorMessage(err, "Chưa bỏ qua được vấn đề này. Vui lòng thử lại."));
+        setError(userErrorMessage(err, HOOK_ERROR.waiveFailed));
+        throw err;
+      } finally {
+        setBusy(false);
+      }
+    },
+    [projectId]
+  );
+
+  const keep = useCallback(
+    async (flagId: string, reason: string) => {
+      setBusy(true);
+      try {
+        const res = await keepFlag(projectId, flagId, reason);
+        if (res.data) {
+          const updated = res.data;
+          setFlags((prev) => prev.map((f) => (f.id === updated.id ? updated : f)));
+        }
+        setError(null);
+      } catch (err) {
+        setError(userErrorMessage(err, HOOK_ERROR.keepFailed));
         throw err;
       } finally {
         setBusy(false);
@@ -73,14 +100,17 @@ export function useFlags(projectId: string, spineVersion: number | null): UseFla
     setBusy(true);
     try {
       const res = await recomputeFlags(projectId);
-      setFlags(res.data ?? []);
+      const next = res.data ?? [];
+      setFlags(next);
       setError(null);
+      return next;
     } catch (err) {
-      setError(userErrorMessage(err, "Chưa kiểm tra lại được. Vui lòng thử lại."));
+      setError(userErrorMessage(err, HOOK_ERROR.recomputeFailed));
+      throw err;
     } finally {
       setBusy(false);
     }
   }, [projectId]);
 
-  return { flags, loading, error, busy, reload, waive, recompute };
+  return { flags, loading, error, busy, reload, waive, keep, recompute };
 }

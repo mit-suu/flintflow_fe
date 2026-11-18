@@ -41,7 +41,7 @@ const setup = (startVersion: number) => {
   return { hook, onSpineChanged, versionSeen: () => version };
 };
 
-describe("useStepRunner — lệch version (L11)", () => {
+describe("useStepRunner - lệch version (L11)", () => {
   it("base_version cũ ⇒ đọc lại Spine rồi chạy lại, không báo lỗi cho người dùng", async () => {
     const real = (await getSpine(P)).data!.spine_version;
     const { hook, versionSeen } = setup(real - 1); // FE tụt lại một nhịp

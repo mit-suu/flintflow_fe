@@ -29,10 +29,11 @@ export const CR_LOCKING_STATUSES: readonly CrStatus[] = ["impact_review", "propo
  * `chat` (FLF-182): chỉ còn ở CR cũ. Mode 1 v3 (BPMN 3.1): tạo CR mới chỉ nhận 6 nguồn `NEW_CR_SOURCE_KINDS` — lệnh
  * sửa trong chat là yêu cầu miệng (`verbal`, `ref: chat:<id>`).
  */
-export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal" | "chat";
+/** `template_migration` (FLF-395): CR do lần đổi mẫu tự ghi, không nhận khi tạo CR. `reference_document` (FLF-338): CR tạo từ danh sách rút yêu cầu của tài liệu thô — `ref` = tên tài liệu + mã đoạn. */
+export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal" | "chat" | "reference_document" | "template_migration";
 
 /** Nguồn nhận khi tạo CR (BE `NEW_CR_SOURCE_KINDS`) — đúng 6 nguồn BPMN 3.1. */
-export const NEW_CR_SOURCE_KINDS = ["stakeholder_email", "meeting_minutes", "gap_report", "reupload", "viewer_comment", "verbal"] as const satisfies readonly CrSourceKind[];
+export const NEW_CR_SOURCE_KINDS = ["stakeholder_email", "meeting_minutes", "gap_report", "reupload", "viewer_comment", "verbal", "reference_document"] as const satisfies readonly CrSourceKind[];
 
 /** Mode 1 v3: bản xem trước đính kèm lúc tạo CR — gợi ý cho C-2/C-3/C-4. */
 export interface CrSeed {
@@ -82,6 +83,8 @@ export interface Cr {
   base_doc_version: string;
   result_doc_version: string | null;
   created_by: string;
+  /** Tên người tạo CR (BA giữ đề xuất) — BF §3.2 "treo ở người đó". */
+  created_by_name?: string | null;
   submitted_at: IsoDateTime | null;
   decided_by: string | null;
   closed_reason: string | null;
@@ -97,7 +100,12 @@ export interface Cr {
 
 /** `preview` (mode 1 v3): phần tử bị op của bản xem trước đính kèm CR chạm tới. */
 /** `diagram` (§4.13): phần nối giữ hình gốc của người dùng — BE tự đề xuất vẽ lại (không qua AI). */
-export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview" | "diagram";
+/**
+ * `vector` (import-change-contract §4.17): phần tử gần nghĩa với CR theo Atlas Vector Search. Có ứng viên
+ * vector thì chúng **thay** nguồn `keyword`; tắt tính năng (`EMBEDDING_PROVIDER=off`) thì `keyword` như cũ.
+ * Một vị trí có thể vừa `spine_link` vừa `vector`.
+ */
+export type LocationFoundBy = "spine_link" | "mention" | "keyword" | "preview" | "diagram" | "vector";
 export type LocationConclusion = "edit" | "comment" | "not_related";
 
 /**
@@ -111,6 +119,11 @@ export interface CrLocation {
   section_title: string;
   current_text: string;
   found_by: LocationFoundBy[];
+  /**
+   * Điểm gần nghĩa 0..1 của vị trí có `found_by: vector`; `null` với vị trí tìm bằng đồ thị / từ khoá.
+   * Tuỳ chọn trong DTO của BE, nên có thể thiếu hẳn ở CR cũ.
+   */
+  vector_score?: number | null;
   entity_paths: string[];
   owner_step: string | null;
   conclusion: LocationConclusion | null;
@@ -132,7 +145,40 @@ export interface CrLocation {
     at: IsoDateTime;
   } | null;
   group_id: string | null;
+  /** FLF-375: tên chỗ + nội dung trước / sau người đọc được (không mã nội bộ) — hiện cái này, không tự ghép path / id. */
+  display?: CrLocationDisplay;
+  /** FLF-375 (BF §3.2 "Hai người sửa cùng lúc"): lúc xác nhận, người khác đã sửa đúng phần đề xuất định đổi ⇒ so 3 cột. */
+  conflict?: CrLocationConflict | null;
+  /** FLF-375: CR khác chưa đóng đang có bản sửa chưa xác nhận ở đúng chỗ này. */
+  others_pending?: { cr_id: string; requester: string }[];
 }
+
+export interface CrLocationDisplay {
+  /** Tên mảng Spine (`use_cases`, `nfrs`…) hoặc khối văn bản của file (`paragraph` · `table` · `image`). */
+  kind: string;
+  label: string;
+  change: "edit" | "add" | "remove" | "comment" | "none";
+  before: string | null;
+  after: string | null;
+}
+
+export interface CrLocationConflict {
+  /** ① lúc AI soạn */
+  at_proposal: string;
+  /** ② hiện tại (người khác vừa sửa) */
+  current: string;
+  /** ③ đề xuất của bạn */
+  proposal: string | null;
+  changed_by: string;
+  changed_at: IsoDateTime | null;
+  /** Thời điểm AI soạn đề xuất ① (BF §3.2: "Lúc AI soạn (9:00)"). */
+  proposed_at?: IsoDateTime | null;
+  /** BF §3.2: AI hỏi lại khi yêu cầu gốc đụng thẳng phần vừa sửa — trả lời bằng gợi ý hoặc gõ tự do. */
+  question?: { text: string; suggestions: string[] } | null;
+}
+
+/** FLF-375: `POST …/messages` — lệnh sửa gộp vào CR, câu hỏi được trả lời. */
+export type CrMessageOutcome = { kind: "amended" } | { kind: "answer"; reply: string };
 
 export type GroupDecision = "pending" | "approved" | "rejected";
 
@@ -189,14 +235,13 @@ export interface AnswersRequest {
   answers: string[];
 }
 
+/**
+ * Quyết định một chỗ: chấp nhận đề xuất AI (`edit` / `comment`) hoặc giữ nguyên / bỏ (`not_related` + lý do).
+ * FLF-375 (BF nguyên tắc 6): không gửi nội dung tự gõ — muốn khác thì gõ hướng sửa cho AI (`draftInOwnerStep`).
+ */
 export interface PatchLocationRequest {
   conclusion?: LocationConclusion;
   reason?: string;
-  /** FLF-186: giá trị mới của cả phần tử ⇒ op `set` tại `path`. */
-  new_value?: unknown;
-  /** FLF-186: op Spine tự viết thay `new_value`. */
-  spine_ops?: Record<string, unknown>[];
-  comment_text?: string;
 }
 
 export interface GroupDecisionRequest {
@@ -261,3 +306,11 @@ export type Mode1ErrorCode =
   | "IMPORT_FILE_REJECTED"
   | "IMPORT_STAMP_FOREIGN_PROJECT"
   | "RELEASE_RED_FLAGS_OPEN";
+
+/** BF §3.2: mục của tài liệu đang có bản sửa chưa xác nhận (CR chưa đóng), ai giữ — `GET …/change-requests/pending-sections`. */
+export interface PendingSection {
+  section_id: string;
+  title: string;
+  /** `cr_id` vắng ⇒ bản xem trước sửa qua chat trước baseline (chưa thành CR). */
+  items: { cr_id?: string; who: string }[];
+}

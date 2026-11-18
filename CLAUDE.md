@@ -135,3 +135,9 @@ phần chuỗi: thêm/sửa key ở **cả** `messages/vi.json` và `messages/en
 không còn literal tiếng Việt/Anh trong JSX vừa sửa, và đổi locale không lòi key thô hay chuỗi trống.
 Ngoại lệ duy nhất là vùng chưa chuyển (`app/projects/**`, admin) — sửa ở đó vẫn viết thẳng tiếng Việt,
 không tự ý i18n hoá nửa vời.
+
+**Trang mới phải có nút đổi ngôn ngữ.** Tạo trang (hoặc header) mới nào thì cân nhắc đặt `components/LocaleSwitcher`
+ở header, góc phải, cạnh các thao tác chung. Đã có sẵn ở: landing (`SiteHeader`), auth layout, `HomeFrame`/`TopBar`,
+`AdminHeader`, `WorkspaceHeader`, trang đọc `/projects/[id]/view`, trang bảo trì (qua `StatusScreen` `headerEnd`).
+Chỉ bỏ khi có lý do rõ: trang chuyển hướng / skeleton chớp qua, hoặc trang lỗi gốc nằm ngoài provider i18n
+(`global-error`). Header chật trên màn hẹp thì ẩn ở `< sm` (`hidden sm:inline-flex`), không bỏ hẳn.

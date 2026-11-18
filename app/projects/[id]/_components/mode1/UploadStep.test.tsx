@@ -14,7 +14,7 @@ const DEFAULT_TITLE = "Tải lên SRS có sẵn (.docx)";
 const zone = (name = DEFAULT_TITLE) => screen.getByRole("button", { name });
 const drop = (target: HTMLElement, file: File) => fireEvent.drop(target, { dataTransfer: { files: [file] } });
 
-describe("UploadStep — kéo thả / chọn file .docx (UC-20, 1.1)", () => {
+describe("UploadStep - kéo thả / chọn file .docx (UC-20, 1.1)", () => {
   it("chọn file qua hộp chọn ⇒ gọi onUpload với đúng file; hộp chọn chỉ nhận .docx", () => {
     const onUpload = vi.fn();
     renderWithIntl(<UploadStep onUpload={onUpload} />);

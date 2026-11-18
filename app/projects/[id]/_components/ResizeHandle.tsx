@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 interface ResizeHandleProps {
   /** Đang kéo ⇒ vạch sáng tím. */
   active: boolean;
@@ -8,13 +10,16 @@ interface ResizeHandleProps {
   onReset: () => void;
   /** Tên khung đang đổi cỡ — cho trình đọc màn hình. */
   label: string;
+  /** Vạch luôn hiện (xám) thay vì chỉ hiện khi rê chuột — dùng khi khe giữa hai khung không có ranh giới nào khác để nhận ra. */
+  visible?: boolean;
 }
 
 /**
  * Thanh kéo đổi cỡ giữa hai khung: vùng bắt chuột 10px nằm đè lên khe, chỉ hiện một vạch ngắn bo tròn ở giữa
  * (không chạy suốt chiều cao, khỏi đâm qua góc bo của khung bên cạnh).
  */
-export default function ResizeHandle({ active, onStart, onReset, label }: ResizeHandleProps) {
+export default function ResizeHandle({ active, onStart, onReset, label, visible = false }: ResizeHandleProps) {
+  const t = useTranslations("workspace.shell");
   return (
     <div
       role="separator"
@@ -26,9 +31,13 @@ export default function ResizeHandle({ active, onStart, onReset, label }: Resize
       }}
       onDoubleClick={onReset}
       className="relative w-[10px] -mx-[5px] z-20 cursor-col-resize group shrink-0 select-none flex items-center justify-center"
-      title="Kéo để thay đổi kích thước (nháy đúp để về mặc định)"
+      title={t("resizeHint")}
     >
-      <div className={`h-12 w-1 rounded-full transition-colors ${active ? "bg-primary" : "bg-transparent group-hover:bg-primary/60"}`} />
+      <div
+        className={`${visible ? "h-16 w-1.5" : "h-12 w-1"} rounded-full transition-colors ${
+          active ? "bg-primary" : `${visible ? "bg-outline" : "bg-transparent"} group-hover:bg-primary/60`
+        }`}
+      />
     </div>
   );
 }

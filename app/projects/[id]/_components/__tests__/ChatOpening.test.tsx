@@ -5,7 +5,7 @@ import ChatOpening from "../ChatOpening";
 import type { ChatOpeningChipKey } from "../chat-opening.constants";
 
 const GREETING_VI =
-  "Chào bạn! Kể cho mình nghe ý tưởng phần mềm bạn muốn làm — ai sẽ dùng, dùng để làm gì, vì sao bạn muốn làm nó. Kể được bao nhiêu cứ kể, mình chỉ hỏi thêm phần còn thiếu.";
+  "Chào bạn! Kể cho mình nghe ý tưởng phần mềm bạn muốn làm - ai sẽ dùng, dùng để làm gì, vì sao bạn muốn làm nó. Kể được bao nhiêu cứ kể, mình chỉ hỏi thêm phần còn thiếu.";
 
 /** Nhãn + câu gửi đi của chip ý tưởng ở bản vi — nguyên văn như trước khi chuyển sang messages. */
 const IDEAS_VI = [

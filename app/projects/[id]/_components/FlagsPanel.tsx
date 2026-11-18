@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useLocale, useTranslations } from "next-intl";
 import Tabs from "@/components/ui/Tabs";
-import { workspaceStepLabel as stepLabel } from "./phase-labels";
-import { isFlagWaivable } from "@/types/flags";
+import { workspaceStepLabel } from "./phase-labels";
+import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 import Icon from "@/components/ui/Icon";
-import { humanizeText, sectionName as fptSectionName } from "./mode1/spine-labels";
-import { ACTION_INFO, WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup } from "./flag-rules";
+import { useMode1Labels } from "./mode1/i18n";
+import { WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isRedrawable, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup, type RedrawReport } from "./flag-rules";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { hookErrorText } from "@/lib/hook-errors";
 
 /** Nhóm dài hơn mức này chỉ hiện chừng ấy dòng đầu + "Xem thêm". */
 const PREVIEW_ROWS = 5;
@@ -21,9 +23,16 @@ interface WaiveModalProps {
   onSubmit: (reason: string) => void;
 }
 
+/**
+ * Một modal, hai nghĩa (FLF-329, BR-04): cờ đỏ ⇒ "Giữ nguyên + lý do" — ghi lý do, cờ **vẫn chặn** chốt bản;
+ * cờ vàng ⇒ bỏ qua như cũ. Chữ trên modal phải nói đúng điều sẽ xảy ra.
+ */
 function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) {
+  const t = useTranslations("workspace.flags");
+  const { humanizeText } = useMode1Labels();
   const [reason, setReason] = useState("");
   const canSubmit = reason.trim().length >= WAIVE_REASON_MIN_LENGTH && !busy;
+  const keeping = flag.level === "red";
 
   return (
     <div className="fixed inset-0 bg-black/35 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onCancel}>
@@ -31,10 +40,11 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
         className="bg-surface-container-lowest rounded-dialog p-5 w-[420px] max-w-[90vw] flex flex-col gap-3"
         onClick={(e) => e.stopPropagation()}
       >
-        <h4 className="font-extrabold text-body text-on-surface">Bỏ qua vấn đề này?</h4>
+        <h4 className="font-extrabold text-body text-on-surface">{keeping ? t("keepHeading") : t("waiveHeading")}</h4>
         <p className="text-body text-on-surface-variant leading-relaxed">{humanizeText(flag.message)}</p>
+        {keeping && <p className="text-caption text-error leading-relaxed">{t("keepStillBlocks")}</p>}
         <label htmlFor="waive-reason" className="text-body font-semibold text-on-surface">
-          Lý do (tối thiểu {WAIVE_REASON_MIN_LENGTH} ký tự) — sẽ in kèm trong tài liệu
+          {t("waiveReasonLabel", { min: WAIVE_REASON_MIN_LENGTH })}
         </label>
         <textarea
           id="waive-reason"
@@ -42,7 +52,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           className="w-full px-3 py-2 rounded-control bg-surface-container text-body outline-none resize-none focus:ring-2 focus:ring-primary/30"
-          placeholder="Vì sao chấp nhận để nguyên vấn đề này?"
+          placeholder={keeping ? t("keepPlaceholder") : t("waivePlaceholder")}
         />
         <span className="text-caption text-on-surface-subtle tabular-nums">
           {reason.trim().length}/{WAIVE_REASON_MIN_LENGTH}
@@ -55,7 +65,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
             disabled={busy}
             className="h-8 px-3.5 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer disabled:opacity-50"
           >
-            Huỷ
+            {t("cancel")}
           </button>
           <button
             type="button"
@@ -63,7 +73,7 @@ function WaiveModal({ flag, busy, error, onCancel, onSubmit }: WaiveModalProps) 
             onClick={() => onSubmit(reason.trim())}
             className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
-            {busy ? "Đang lưu…" : "Bỏ qua vấn đề"}
+            {busy ? t("saving") : keeping ? t("keepSubmit") : t("waiveSubmit")}
           </button>
         </div>
       </div>
@@ -75,13 +85,18 @@ interface FlagsPanelProps {
   flags: Flag[];
   busy?: boolean;
   error?: string | null;
-  /** Không truyền ⇒ không có nút bỏ qua (mode 1 v3: cờ chỉ đóng bằng change request). */
+  /** Không truyền ⇒ không có nút bỏ qua (mode 1 v3: cờ chỉ đóng bằng change request). Chỉ cờ vàng (FLF-329). */
   onWaive?: (flagId: string, reason: string) => Promise<void>;
+  /** FLF-329 "Giữ nguyên + lý do" cho cờ đỏ — ghi lý do, cờ vẫn chặn. Không truyền ⇒ cờ đỏ không có nút. */
+  onKeep?: (flagId: string, reason: string) => Promise<void>;
   /** Không truyền ⇒ không có nút kiểm lại (Viewer: kiểm lại là thao tác ghi). */
   onRecompute?: () => void;
   onSelectStep?: (stepId: string) => void;
-  /** Vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (BUG-17). */
-  onRedraw?: (flag: Flag) => Promise<void> | void;
+  /**
+   * Vẽ lại sơ đồ của các cờ `diagram_stale` / `render_error` (BUG-17) — MỘT lời gọi cho cả lô, kể cả nút "Vẽ lại tất cả".
+   * Trả báo cáo kết quả để panel nói rõ sơ đồ nào vẫn lỗi; không trả gì ⇒ panel không báo thêm.
+   */
+  onRedraw?: (flags: Flag[]) => Promise<RedrawReport | void>;
   /**
    * Xác nhận / bác bỏ một giả định ngay tại panel (BUG-13). Trước đây chỗ này chỉ có Waive, nên 27 giả
    * định chưa xác nhận ở S-9.1 không có đường xử lý nào ngoài "bỏ qua có lý do".
@@ -98,18 +113,22 @@ interface FlagsPanelProps {
   onShowSection?: (sectionId: string) => void;
   /** Chỉ hiện vấn đề của một mục (bấm chấm số trên tài liệu). */
   focusSectionId?: string | null;
-  onClearFocus?: () => void;
   /** Số mục đã cũ (dữ liệu nguồn đổi sau khi chốt) — nhóm "Mục cần viết lại" đứng đầu, có nút viết lại tất cả. */
   outdatedCount?: number;
   onRewriteOutdated?: () => void;
   rewriting?: boolean;
-  /** "Sửa trong chat" trên một vấn đề — bật chip Sửa tài liệu, điền sẵn tên mục. */
-  onEditSection?: (sectionLabel: string) => void;
+  /**
+   * "Sửa trong chat" trên một vấn đề — bật chip Sửa tài liệu, điền sẵn tên mục **và câu của cờ** (FLF-428: BE nhận ra cờ đích
+   * từ câu này để model sửa đúng field và báo lại nếu cờ chưa đóng).
+   */
+  onEditSection?: (sectionLabel: string, issue?: string) => void;
+  /** FLF-278: "Nhờ AI soạn" trên cờ mục của mẫu còn trống — điền sẵn lệnh soạn nháp vào ô chat. */
+  onDraftSection?: (sectionLabel: string) => void;
   /** Bước đã chốt: cờ "rỗng" của bước đã chốt là vấn đề cần xử lý, không phải "sẽ điền ở bước sau" (FLF-248). */
   acceptedSteps?: ReadonlySet<string>;
 }
 
-const isOpen = (flag: Flag): boolean => !flag.resolved_at && !flag.waived_by_user;
+const isOpen = (flag: Flag): boolean => isOpenFlag(flag);
 
 /**
  * BUG-34: cờ đỏ luôn đứng trước cờ vàng, rồi tới thứ tự step xử lý. Panel cũ xếp theo thứ tự BE trả về
@@ -122,8 +141,7 @@ export const sortFlags = (flags: readonly Flag[]): Flag[] =>
     return a.id < b.id ? -1 : 1;
   });
 
-/** Cờ mà việc cần làm là vẽ lại sơ đồ, không phải sửa nội dung. */
-export const isRedrawable = (flag: Flag): boolean => flag.rule_id === "diagram_stale" || flag.rule_id === "render_error";
+export { isRedrawable };
 
 /** Tab của panel: cờ đỏ (+ mục cần viết lại) chặn chốt bản · cờ vàng nên xem · đã bỏ qua. */
 type IssueTab = "blocking" | "suggestions" | "waived";
@@ -143,6 +161,7 @@ export default function FlagsPanel({
   busy = false,
   error,
   onWaive,
+  onKeep,
   onRecompute,
   onSelectStep,
   onRedraw,
@@ -151,16 +170,24 @@ export default function FlagsPanel({
   sectionLabelOf,
   onShowSection,
   focusSectionId = null,
-  onClearFocus,
   outdatedCount = 0,
   onRewriteOutdated,
   rewriting = false,
   onEditSection,
+  onDraftSection,
   acceptedSteps,
 }: FlagsPanelProps) {
+  const t = useTranslations("workspace.flags");
+  const tRule = useTranslations("workspace.flagRules");
+  const tHook = useTranslations("workspace.hookErrors");
+  const { humanizeText, sectionName: fptSectionName } = useMode1Labels();
+  const locale = useLocale();
+  const stepLabel = (stepId: string) => workspaceStepLabel(stepId, locale);
   const [waivingId, setWaivingId] = useState<string | null>(null);
   const [waiveError, setWaiveError] = useState<string | null>(null);
-  const [redrawing, setRedrawing] = useState<string | null>(null);
+  /** Id các cờ đang được vẽ lại — mọi dòng của lô cùng hiện "Đang vẽ…" và mọi nút Vẽ lại khoá. */
+  const [redrawing, setRedrawing] = useState<ReadonlySet<string>>(new Set());
+  const [redrawReport, setRedrawReport] = useState<RedrawReport | null>(null);
   /** Nhóm đã bấm "Xem thêm". */
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   // Mở sẵn tab có việc: chỉ sang "Nên xem" khi không còn gì phải xử lý mà vẫn có gợi ý
@@ -170,12 +197,19 @@ export default function FlagsPanel({
       : "blocking"
   );
 
-  const openFlags = sortFlags(flags.filter(isOpen)).filter((f) => !focusSectionId || f.section_id === focusSectionId);
+  /**
+   * Bấm chấm đỏ trên một mục **không lọc** danh sách — nó cuộn tới và làm nổi bật đúng dòng của mục đó.
+   * Lọc đẩy panel vào một chế độ phải bấm "Xem tất cả" mới thoát, mà khi mục đó là mục duy nhất có vấn đề
+   * thì vào/ra chế độ nhìn y hệt nhau nên không ai biết mình đang ở đâu. Nổi bật thì thấy ngay chỗ cần,
+   * vẫn giữ nguyên bối cảnh các vấn đề khác.
+   */
+  const openFlags = sortFlags(flags.filter(isOpen));
   const redGroups = groupByAction(openFlags.filter((f) => f.level === "red"), acceptedSteps);
   const yellowGroups = groupByAction(openFlags.filter((f) => f.level === "yellow"), acceptedSteps);
-  const waivedFlags = flags.filter((f) => f.waived_by_user);
+  // FLF-329: cờ đỏ không waive được nữa — tab này chỉ còn cờ vàng đã bỏ qua
+  const waivedFlags = flags.filter((f) => f.waived_by_user && f.level === "yellow");
   const waivingFlag = waivingId ? flags.find((f) => f.id === waivingId) : undefined;
-  const showOutdated = !focusSectionId && outdatedCount > 0 && Boolean(onRewriteOutdated);
+  const showOutdated = outdatedCount > 0 && Boolean(onRewriteOutdated);
   // Tài liệu chưa tải xong ⇒ tên mục theo mẫu FPT, không hiện mã `fixed:3.1.2` (FLF-247)
   const sectionName = (id: string) => sectionLabelOf?.(id) ?? (fptSectionName(id) || id);
   const counts = issueCounts(openFlags, showOutdated ? outdatedCount : 0, acceptedSteps);
@@ -190,24 +224,51 @@ export default function FlagsPanel({
   const submitWaive = async (reason: string) => {
     if (!waivingFlag) return;
     setWaiveError(null);
+    const keeping = waivingFlag.level === "red";
     try {
-      await onWaive?.(waivingFlag.id, reason);
+      await (keeping ? onKeep : onWaive)?.(waivingFlag.id, reason);
       setWaivingId(null);
     } catch (err) {
-      setWaiveError(userErrorMessage(err, "Không bỏ qua được vấn đề này"));
+      setWaiveError(userErrorMessage(err, keeping ? t("keepFailed") : t("waiveFailed")));
     }
   };
 
   const redraw = async (targets: Flag[]) => {
-    if (!onRedraw) return;
-    for (const flag of targets) {
-      setRedrawing(flag.id);
-      try {
-        await onRedraw(flag);
-      } finally {
-        setRedrawing(null);
-      }
+    if (!onRedraw || redrawing.size > 0 || targets.length === 0) return;
+    // Cờ khác cùng trỏ tới sơ đồ đó cũng được vẽ trong lượt này ⇒ dòng của chúng cũng hiện "Đang vẽ…"
+    const diagramIds = new Set(targets.map((f) => f.target_id));
+    const ids = new Set([...targets, ...flags.filter((f) => isRedrawable(f) && isOpen(f) && diagramIds.has(f.target_id))].map((f) => f.id));
+    setRedrawReport(null);
+    setRedrawing(ids);
+    try {
+      setRedrawReport((await onRedraw(targets)) ?? null);
+    } catch (err) {
+      setRedrawReport({ failed: targets, stillBroken: [], flagsCheckFailed: false, error: userErrorMessage(err, t("redrawFailed")) });
+    } finally {
+      setRedrawing(new Set());
     }
+  };
+
+  /** Tên các mục của một nhóm cờ, bỏ trùng — thông báo nói "sơ đồ <mục>", không in mã sơ đồ. */
+  const sectionNames = (list: readonly Flag[]) => [...new Set(list.map((f) => sectionName(f.section_id)))].join(", ");
+
+  /** Kết quả lượt vẽ lại gần nhất — chỉ hiện khi vẫn còn cờ sơ đồ để người dùng xử lý tiếp. */
+  const redrawNotice = () => {
+    if (!redrawReport || !flags.some((f) => isRedrawable(f) && isOpen(f))) return null;
+    const lines: string[] = [];
+    if (redrawReport.failed.length > 0) {
+      lines.push(t("redrawFailedFor", { sections: sectionNames(redrawReport.failed) }) + (redrawReport.error ? ` ${redrawReport.error}` : ""));
+    }
+    if (redrawReport.stillBroken.length > 0) lines.push(t("redrawStillBroken", { sections: sectionNames(redrawReport.stillBroken) }));
+    if (redrawReport.flagsCheckFailed) lines.push(t("redrawCheckFailed"));
+    if (lines.length === 0) return null;
+    return (
+      <div role="status" className="rounded-card bg-error-container px-3.5 py-2.5 text-body text-on-error-container flex flex-col gap-0.5">
+        {lines.map((line) => (
+          <p key={line}>{line}</p>
+        ))}
+      </div>
+    );
   };
 
   const sectionLink = (flag: Flag, className = "") =>
@@ -223,7 +284,7 @@ export default function FlagsPanel({
    * Mũi tên › ở cuối dòng: cả dòng bấm được để mở bước, nút này là đích bàn phím / trình đọc màn hình. `label`: tên nút
    * trùng chữ người thấy trên dòng ("Duyệt lại ở …") để trình đọc màn hình / getByRole tìm được (E2E FAP #15).
    */
-  const chevron = (stepId: string, label = `Mở bước ${stepLabel(stepId)} (${stepId})`) =>
+  const chevron = (stepId: string, label = t("openStepAria", { label: stepLabel(stepId), stepId })) =>
     onSelectStep && (
       <button
         type="button"
@@ -241,8 +302,29 @@ export default function FlagsPanel({
   const rowOpen = (stepId: string) =>
     onSelectStep ? { onClick: () => onSelectStep(stepId), className: "cursor-pointer hover:bg-surface-container-low -mx-2 px-2 rounded-control" } : { className: "" };
 
+  /**
+   * Dòng của mục vừa bấm chấm đỏ: nền nổi bật + `data-focus-row` để cuộn tới. Không dùng viền/ring
+   * (luật phẳng của repo) — nền `primary-soft` đã đủ tách khỏi nền trắng của card.
+   */
+  const focusClass = (flag: Flag) => (flag.section_id === focusSectionId ? "bg-primary-soft -mx-2 px-2 rounded-control" : "");
+
+  // Dòng được làm nổi bật có thể nằm dưới tầm nhìn (danh sách dài) ⇒ cuộn tới, nếu không thì nổi bật vô nghĩa
+  useEffect(() => {
+    if (!focusSectionId) return;
+    // `?.` trên chính hàm: jsdom (và trình duyệt cũ) không có `scrollIntoView`, thiếu nó thì chỉ mất
+    // phần cuộn chứ không được phép làm hỏng panel
+    document.querySelector("[data-focus-row]")?.scrollIntoView?.({ behavior: "smooth", block: "center" });
+  }, [focusSectionId, tab]);
+
+  /**
+   * BR-04: cờ **đỏ** không waive được — chọn "giữ nguyên kèm lý do" chỉ ghi lại lý do, cờ vẫn chặn chốt
+   * bản. Nên nhãn phải nói thẳng điều đó; để nguyên chữ "Bỏ qua" là hứa một lối thoát không có thật,
+   * người dùng bấm xong vẫn không chốt được mà không hiểu vì sao.
+   */
+  // FLF-428: là nút mở hộp ghi lý do, không phải trạng thái — chữ dạng mệnh lệnh + gạch chân chấm để không đọc nhầm thành
+  // "đang giữ nguyên"
   const waiveLink = (flag: Flag) =>
-    onWaive &&
+    (flag.level === "red" ? onKeep : onWaive) &&
     isFlagWaivable(flag.rule_id) && (
       <button
         type="button"
@@ -251,11 +333,18 @@ export default function FlagsPanel({
           setWaiveError(null);
           setWaivingId(flag.id);
         }}
-        className={`${textButton} ${secondary} text-on-surface-muted hover:text-on-surface`}
+        title={flag.level === "red" ? t("keepTitle") : undefined}
+        className={`${textButton} ${secondary} text-on-surface-muted underline decoration-dotted underline-offset-2 hover:text-on-surface`}
       >
-        Bỏ qua
+        {flag.level === "red" ? (flag.kept_reason ? t("keptEdit") : t("keepBlocking")) : t("waive")}
       </button>
     );
+
+  /** Lý do giữ nguyên đã ghi (FLF-329) — hiện ngay dưới dòng để người duyệt đọc được mà không mở modal. */
+  const keptNote = (flag: Flag) =>
+    flag.level === "red" && flag.kept_reason ? (
+      <span className="text-caption text-on-surface-muted italic">{t("keptReason", { reason: flag.kept_reason })}</span>
+    ) : null;
 
   /** Một dòng vấn đề, trình bày theo việc phải làm của nhóm. */
   const renderRow = (group: ActionGroup, flag: Flag) => {
@@ -268,10 +357,10 @@ export default function FlagsPanel({
             {onAssumptionDecision && flag.target_id ? (
               <span className="shrink-0 flex items-center gap-1.5 pt-0.5">
                 <button type="button" disabled={busy} onClick={() => onAssumptionDecision({ kind: "confirm", id: flag.target_id as string })} className={`${pillButton} h-6 px-2 bg-success text-white hover:opacity-90`}>
-                  Đúng
+                  {t("right")}
                 </button>
                 <button type="button" disabled={busy} onClick={() => onAssumptionDecision({ kind: "reject", id: flag.target_id as string })} className={`${pillButton} h-6 px-2 text-error hover:bg-error-container`}>
-                  Sai
+                  {t("wrong")}
                 </button>
               </span>
             ) : (
@@ -282,15 +371,21 @@ export default function FlagsPanel({
       case "reaccept": {
         const open = rowOpen(flag.remediation_step);
         return (
-          <li key={flag.id} onClick={open.onClick} className={`group/row py-1.5 flex items-center justify-between gap-2 ${open.className}`}>
+          <li
+            key={flag.id}
+            onClick={open.onClick}
+            data-focus-row={flag.section_id === focusSectionId || undefined}
+            className={`group/row py-1.5 flex items-center justify-between gap-2 ${open.className} ${focusClass(flag)}`}
+          >
             <div className="min-w-0 flex flex-col">
               <span className="text-body text-on-surface truncate">{sectionName(flag.section_id)}</span>
               <span className="text-caption text-on-surface-muted flex items-center gap-2.5">
-                {isSectionLevelRule(flag.rule_id) ? `Duyệt lại ở ${stepLabel(flag.remediation_step)}` : message}
+                {/* Nói việc phải làm, không chỉ nói chỗ phải tới — bấm vào dòng này là mở đúng bước đó */}
+                {isSectionLevelRule(flag.rule_id) ? t("reacceptHint", { label: stepLabel(flag.remediation_step) }) : message}
                 <span onClick={(e) => e.stopPropagation()}>{waiveLink(flag)}</span>
               </span>
             </div>
-            {chevron(flag.remediation_step, isSectionLevelRule(flag.rule_id) ? `Duyệt lại ở ${stepLabel(flag.remediation_step)}` : undefined)}
+            {chevron(flag.remediation_step, isSectionLevelRule(flag.rule_id) ? t("reacceptAt", { label: stepLabel(flag.remediation_step) }) : undefined)}
           </li>
         );
       }
@@ -302,8 +397,8 @@ export default function FlagsPanel({
               {sectionLink(flag, "text-caption text-on-surface-muted")}
             </div>
             {onRedraw && (
-              <button type="button" disabled={busy || redrawing === flag.id} onClick={() => void redraw([flag])} className={`${textButton} text-primary shrink-0`}>
-                {redrawing === flag.id ? "Đang vẽ…" : "Vẽ lại"}
+              <button type="button" disabled={busy || redrawing.size > 0} onClick={() => void redraw([flag])} className={`${textButton} text-primary shrink-0`}>
+                {redrawing.has(flag.id) ? t("redrawing") : t("redraw")}
               </button>
             )}
           </li>
@@ -319,15 +414,26 @@ export default function FlagsPanel({
                 {onEditSection && (
                   <button
                     type="button"
-                    onClick={() => onEditSection(sectionName(flag.section_id))}
+                    onClick={() => onEditSection(sectionName(flag.section_id), flag.message)}
                     className={`${textButton} ${secondary} text-primary`}
-                    title="Gõ lệnh sửa cho mục này trong chat"
+                    title={t("editInChatTitle")}
                   >
-                    Sửa trong chat
+                    {t("editInChat")}
+                  </button>
+                )}
+                {onDraftSection && flag.rule_id === "template_section_empty" && (
+                  <button
+                    type="button"
+                    onClick={() => onDraftSection(sectionName(flag.section_id))}
+                    className={`${textButton} ${secondary} text-primary`}
+                    title={t("draftInChatTitle")}
+                  >
+                    {t("draftInChat")}
                   </button>
                 )}
                 {waiveLink(flag)}
               </span>
+              {keptNote(flag)}
             </div>
             {chevron(flag.remediation_step)}
           </li>
@@ -343,14 +449,14 @@ export default function FlagsPanel({
       if (ids.length > 1)
         return (
           <button type="button" disabled={busy} onClick={() => onConfirmAllAssumptions(ids)} className={`${pillButton} bg-success text-white hover:opacity-90`}>
-            Đúng hết
+            {t("allRight")}
           </button>
         );
     }
     if (group.action === "redraw" && onRedraw && group.flags.length > 1)
       return (
-        <button type="button" disabled={busy || redrawing !== null} onClick={() => void redraw(group.flags)} className={`${pillButton} bg-primary-soft text-primary-hover hover:bg-primary-fixed`}>
-          {redrawing ? "Đang vẽ…" : "Vẽ lại tất cả"}
+        <button type="button" disabled={busy || redrawing.size > 0} onClick={() => void redraw(group.flags)} className={`${pillButton} bg-primary-soft text-primary-hover hover:bg-primary-fixed`}>
+          {redrawing.size > 0 ? t("redrawing") : t("redrawAll")}
         </button>
       );
     return null;
@@ -380,7 +486,7 @@ export default function FlagsPanel({
   };
 
   const renderGroup = (group: ActionGroup, key: string) => {
-    const info = ACTION_INFO[group.action];
+    const info = { title: t(`action.${group.action}.title`), hint: t(`action.${group.action}.hint`) };
     if (group.action === "run_step") {
       const steps = new Set(group.flags.map((f) => f.remediation_step)).size;
       const sections = new Set(group.flags.map((f) => f.section_id)).size;
@@ -388,7 +494,7 @@ export default function FlagsPanel({
         <section key={key} className="rounded-card bg-surface-container-lowest px-3.5 pt-3 pb-2 flex flex-col gap-1">
           <h5 className="text-body font-bold text-on-surface">
             {info.title}{" "}
-            <span className="font-semibold text-on-surface-muted tabular-nums">({sections === steps ? sections : `${sections} mục · ${steps} bước`})</span>
+            <span className="font-semibold text-on-surface-muted tabular-nums">({sections === steps ? sections : t("sectionsSteps", { sections, steps })})</span>
           </h5>
           <p className="text-body text-on-surface-muted">{info.hint}</p>
           <ul className="flex flex-col">{renderStepRows(group)}</ul>
@@ -411,7 +517,7 @@ export default function FlagsPanel({
         <ul className="flex flex-col">{rows.map((flag) => renderRow(group, flag))}</ul>
         {!expanded && (
           <button type="button" onClick={() => setShowAll((prev) => ({ ...prev, [key]: true }))} className={`${textButton} self-start text-primary py-1`}>
-            Xem thêm {group.flags.length - PREVIEW_ROWS}
+            {t("showMore", { count: group.flags.length - PREVIEW_ROWS })}
           </button>
         )}
       </section>
@@ -421,34 +527,22 @@ export default function FlagsPanel({
   const emptyNote = (text: string) => <p className="px-1 py-2 text-body text-on-surface-muted">{text}</p>;
 
   return (
-    <div className="flex flex-col gap-3" aria-label="Danh sách vấn đề">
-      {focusSectionId && (
-        <div className="flex items-center justify-between gap-2 rounded-control bg-primary-soft px-3 py-2 text-body text-primary-hover">
-          <span className="min-w-0 truncate">
-            Vấn đề của <span className="font-bold">{sectionName(focusSectionId)}</span>
-          </span>
-          {onClearFocus && (
-            <button type="button" onClick={onClearFocus} className="font-bold hover:underline cursor-pointer shrink-0">
-              Xem tất cả
-            </button>
-          )}
-        </div>
-      )}
-
+    <div className="flex flex-col gap-3" aria-label={t("listAria")}>
       <Tabs
-        label="Loại vấn đề"
+        label={t("tabsLabel")}
         idBase="doc-issues"
         value={tab}
         onChange={setTab}
-        className="self-stretch [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
+        className="self-stretch flex-wrap [&>button]:flex-1 [&>button]:justify-center [&>button]:px-1.5 [&>button]:gap-1 [&>button]:whitespace-nowrap [&>button]:text-body"
         options={[
-          { value: "blocking", label: "Cần xử lý", count: counts.blocking },
-          { value: "suggestions", label: "Nên xem", count: counts.suggestions },
-          { value: "waived", label: "Đã bỏ qua", count: waivedFlags.length },
+          { value: "blocking", label: t("tab.blocking"), count: counts.blocking },
+          { value: "suggestions", label: t("tab.suggestions"), count: counts.suggestions },
+          { value: "waived", label: t("tab.waived"), count: waivedFlags.length },
         ]}
       />
 
-      {error && <div className="text-body text-error">{error}</div>}
+      {error && <div className="text-body text-error">{hookErrorText(error, tHook)}</div>}
+      {redrawNotice()}
 
       <div role="tabpanel" id="doc-issues-panel" aria-labelledby={`doc-issues-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "blocking" && (
@@ -457,48 +551,54 @@ export default function FlagsPanel({
               <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <h5 className="text-body font-bold text-on-surface">
-                    Viết lại cho khớp <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
+                    {t("rewriteTitle")} <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
                   </h5>
                   <p className="text-body text-on-surface-muted leading-relaxed">
-                    Có mục viết dựa trên dữ liệu đã bị sửa sau đó. AI viết lại, bạn xem trước rồi mới áp dụng.
+                    {t("rewriteHint")}
                   </p>
                 </div>
                 <button type="button" onClick={onRewriteOutdated} disabled={rewriting} className={`${pillButton} bg-primary text-on-primary hover:bg-primary-hover`}>
-                  {rewriting ? "Đang kiểm tra…" : "Viết lại"}
+                  {rewriting ? t("rewriteChecking") : t("rewrite")}
                 </button>
               </section>
             )}
             {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
             {redGroups.length === 0 &&
               !showOutdated &&
-              emptyNote(focusSectionId ? "Mục này không còn vấn đề phải xử lý." : "Không còn vấn đề nào chặn việc chốt bản.")}
+              emptyNote(t("noBlocking"))}
           </>
         )}
 
         {tab === "suggestions" &&
-          (yellowGroups.length > 0 ? yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`)) : emptyNote("Không có gợi ý nào."))}
+          (yellowGroups.length > 0 ? yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`)) : emptyNote(t("noSuggestions")))}
 
         {tab === "waived" &&
           (waivedFlags.length > 0 ? (
             <ul className="rounded-card bg-surface-container-lowest px-3.5 py-1.5">
               {waivedFlags.map((flag) => (
                 <li key={flag.id} className="py-1.5 flex flex-col gap-0.5">
-                  <span className="text-body font-semibold text-on-surface">{flagGroupTitle(flag.rule_id) ?? humanizeText(flag.message)}</span>
+                  <span className="text-body font-semibold text-on-surface">{flagGroupTitle(flag.rule_id, tRule) ?? humanizeText(flag.message)}</span>
                   <span className="text-caption text-on-surface-muted">
-                    {sectionName(flag.section_id)} · Lý do: {flag.waive_reason}
+                    {t("waivedReason", { section: sectionName(flag.section_id), reason: flag.waive_reason ?? "" })}
                   </span>
                 </li>
               ))}
             </ul>
           ) : (
-            emptyNote("Chưa bỏ qua vấn đề nào.")
+            emptyNote(t("noWaived"))
           ))}
       </div>
 
-      {/* BE tự kiểm lại sau mỗi lần ghi — nút này chỉ để dùng khi nghi số liệu lệch */}
+      {/* BE tự kiểm lại sau mỗi lần ghi — nút này chỉ để dùng khi nghi số liệu lệch.
+          Chạy việc thật (tính lại cờ) ⇒ trông phải ra một nút, không phải dòng chú thích. */}
       {onRecompute && (
-        <button type="button" onClick={onRecompute} disabled={busy} className="self-start px-1 text-caption font-semibold text-on-surface-muted hover:text-on-surface hover:underline cursor-pointer disabled:opacity-50">
-          Kiểm tra lại toàn bộ tài liệu
+        <button
+          type="button"
+          onClick={onRecompute}
+          disabled={busy}
+          className="self-start h-8 px-2.5 rounded-control text-body font-semibold text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {t("recompute")}
         </button>
       )}
 

@@ -9,8 +9,9 @@ import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
 import * as mode1State from "@/mocks/mode1/state";
 import { importToGapReview } from "@/mocks/mode1/flows";
 import type { ReuploadDiff } from "@/types/import";
-import { readCrPrefill } from "./prefill";
+import { readChatCrDraft } from "./prefill";
 import ReuploadDiffView, { reuploadPrefill } from "./ReuploadDiffView";
+import { labelsFor } from "./test-labels";
 
 const P = MODE1_PROJECT_ID;
 
@@ -51,7 +52,7 @@ const rejectForeignOnce = () => {
 const DIFF: ReuploadDiff = {
   id: "66f00000000000000000r001",
   original_name: "SRS_sua.docx",
-  against_version: "0.1",
+  against_version: "0.2",
   created_at: "2026-09-19T00:00:00.000Z",
   summary: { added: 1, removed: 1, modified: 1, moved: 1 },
   blocks: [
@@ -62,13 +63,13 @@ const DIFF: ReuploadDiff = {
   ],
 };
 
-describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 1.4)", () => {
+describe("ReuploadDiffView - tải lại bản sửa ngoài FlintFlow (UC-24, 1.4)", () => {
   it("file project khác (422 IMPORT_STAMP_FOREIGN_PROJECT) ⇒ báo lỗi thân thiện, không có diff", async () => {
     await importToGapReview();
     rejectForeignOnce();
     renderWithIntl(<ReuploadDiffView projectId={P} />);
     pick("SRS_other-project.docx");
-    expect(await screen.findByRole("alert")).toHaveTextContent("File này được xuất từ một dự án khác — không nhập vào dự án này được.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("File này được xuất từ một dự án khác - không nhập vào dự án này được.");
     expect(screen.queryByRole("link", { name: "Tạo CR từ khác biệt" })).not.toBeInTheDocument();
     expect(mode1State.mode1State.reuploads).toHaveLength(0);
   });
@@ -83,7 +84,7 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     pick("SRS_sua.docx");
     expect(await screen.findByText(/1 thêm · 0 xoá · 1 sửa · 0 di chuyển/)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(mode1State.mode1State.versions.map((v) => v.version)).toEqual(["0.0"]);
+    expect(mode1State.mode1State.versions.map((v) => v.version)).toEqual(["0.1"]);
   });
 
   it("chưa có baseline ⇒ hiện lỗi BE (IMPORT_INVALID_STATE)", async () => {
@@ -136,9 +137,10 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
     await waitFor(() => expect(sent).not.toBeNull());
     expect(typeof sent).toBe("object");
     expect(screen.getByText("SRS_sua.docx")).toBeInTheDocument();
-    expect(screen.getByText(/so với bản 0.1/)).toBeInTheDocument();
-    expect(readCrPrefill(new URL(link.getAttribute("href")!, "http://x").searchParams)).toEqual({
-      ...reuploadPrefill(DIFF),
+    expect(screen.getByText(/so với bản 0.2/)).toBeInTheDocument();
+    const { title, description } = reuploadPrefill(DIFF, labelsFor());
+    expect(readChatCrDraft(new URL(link.getAttribute("href")!, "http://x").searchParams)).toEqual({
+      text: `${title}\n${description}`,
       source: "reupload",
       ref: "File tải lại SRS_sua.docx",
     });
@@ -147,10 +149,10 @@ describe("ReuploadDiffView — tải lại bản sửa ngoài FlintFlow (UC-24, 
 
 describe("reuploadPrefill", () => {
   it("mỗi loại khác biệt một dòng", () => {
-    const { title, description } = reuploadPrefill(DIFF);
+    const { title, description } = reuploadPrefill(DIFF, labelsFor());
     expect(title).toBe("Cập nhật theo file SRS_sua.docx");
     expect(description.split("\n")).toEqual([
-      "Áp các thay đổi trong file tải lại SRS_sua.docx (so với bản 0.1):",
+      "Áp các thay đổi trong file tải lại SRS_sua.docx (so với bản 0.2):",
       "- Thêm: NFR-P03: 500 learners.",
       '- Xoá: "[SmartArt]"',
       '- Sửa: "quickly" → "within 2 seconds"',
@@ -166,7 +168,7 @@ describe("reuploadPrefill", () => {
         { block_id: "B0001", change: "removed" },
         { block_id: "B0002", change: "modified" },
       ],
-    });
+    }, labelsFor());
     expect(description).not.toContain("undefined");
     expect(description).toContain('- Sửa: "" → ""');
     expect(description).not.toMatch(/B000\d/);

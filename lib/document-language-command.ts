@@ -61,7 +61,8 @@ export const parseLanguageCommand = (text: string): DocumentLanguage | null => {
 /**
  * Lệnh đã khớp thì làm gì:
  * - `send` — không phải lệnh, hoặc Viewer (không chặn gì, đi đường cũ);
- * - `locked` — mode 1: dự án upload giữ ngôn ngữ của file (D3);
+ * - `locked` — mode 1: dự án upload giữ ngôn ngữ của file (D3). Dự án tạo SRS đã chuyển sang mode 1 (FLF-318) không
+ *   khoá — nơi gọi truyền `mode1 = false` cho nó;
  * - `same` — tài liệu đã ở ngôn ngữ đó: vẫn không gửi cho AI (AI sẽ viết lại chữ Spine sang ngôn ngữ khác);
  * - `switch` — mode 2, Lead/Analyst, đích khác ngôn ngữ hiện tại: hỏi xác nhận rồi mới đổi.
  */

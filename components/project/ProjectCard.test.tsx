@@ -19,7 +19,7 @@ const progress = (over: Partial<ProgressResponse["progress"]> = {}, readiness: P
   sections: [],
 });
 
-describe("nextStepLabel — việc tiếp theo lấy từ step registry", () => {
+describe("nextStepLabel - việc tiếp theo lấy từ step registry", () => {
   it("đang tải ⇒ nói đang tải, không hiện nhãn sai", () => {
     expect(nextStepLabel(undefined, tNext())).toBe("Đang tải…");
   });
@@ -52,7 +52,7 @@ describe("nextStepLabel — việc tiếp theo lấy từ step registry", () => 
   });
 });
 
-describe("ProjectCard — màu và nhãn theo source mode", () => {
+describe("ProjectCard - màu và nhãn theo source mode", () => {
   const baseProject: Project = {
     _id: "p1",
     name: "Lumen",
@@ -66,7 +66,7 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
 
   it.each([
     ["import", "SRS có sẵn"],
-    ["customer_template", "Template khách"],
+    ["customer_template", "Mẫu bắt buộc"],
   ] as const)("%s ⇒ ghi tên nguồn %s ở dòng meta; card nền tím nhạt", (mode, label) => {
     const { container } = renderWithIntl(
       <ProjectCard project={{ ...baseProject, mode }} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />
@@ -75,15 +75,45 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     expect(container.querySelector("article")?.className.split(/\s+/)).toContain("bg-surface-card");
   });
 
-  it("nguồn mặc định (Template FlintFlow) không ghi nhãn — gần như mọi dự án đều là nó", () => {
+  it("nguồn mặc định (Mẫu chuẩn FlintFlow) không ghi nhãn - gần như mọi dự án đều là nó", () => {
     renderWithIntl(<ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
-    expect(screen.queryByText("Template FlintFlow")).toBeNull();
+    expect(screen.queryByText("Mẫu chuẩn FlintFlow")).toBeNull();
   });
 
   it("dự án BE trả thiếu mode ⇒ coi là mặc định, không ghi nhãn", () => {
     const missing = { ...baseProject, mode: undefined } as unknown as Project;
     renderWithIntl(<ProjectCard project={missing} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
-    expect(screen.queryByText("Template FlintFlow")).toBeNull();
+    expect(screen.queryByText("Mẫu chuẩn FlintFlow")).toBeNull();
+  });
+
+  it("FLF-318: tạo SRS đã chốt baseline (mode import, converted_from fpt) ⇒ nguồn vẫn là Tạo SRS, không thanh giai đoạn", () => {
+    renderWithIntl(
+      <ProjectCard
+        project={{ ...baseProject, mode: "import", import_state: "delivered", converted_from: "fpt" }}
+        progress={progress({ done: 51, total: 51 })}
+        onRename={noop}
+        onDelete={noop}
+        onHardDelete={noop}
+      />
+    );
+    expect(screen.queryByTitle(tMode()(`${getSourceModeOption("import").key}.label`))).toBeNull();
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.queryByText("51/51")).toBeNull();
+  });
+
+  it("FLF-343: dự án import SRS có sẵn ⇒ không thanh giai đoạn / số bước, xong import ghi sẵn sàng tạo change request", () => {
+    renderWithIntl(
+      <ProjectCard
+        project={{ ...baseProject, mode: "import", import_state: "gap_review" }}
+        progress={progress({ done: 30, total: 39 })}
+        onRename={noop}
+        onDelete={noop}
+        onHardDelete={noop}
+      />
+    );
+    expect(screen.queryByRole("progressbar")).toBeNull();
+    expect(screen.queryByText("30/39")).toBeNull();
+    expect(screen.getByText("Sẵn sàng tạo change request")).toBeInTheDocument();
   });
 
   it("thanh 12 giai đoạn: phase đã qua tô đậm, phase đang làm tô nhạt, kèm số bước từ BE", () => {
@@ -136,6 +166,15 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Đổi tên", "Xoá vĩnh viễn"]);
   });
 
+  it("FLF-318 (business-flow nguyên tắc 7): tạo SRS đã chốt baseline chạy ở mode import nhưng không phải dự án tải file ⇒ vẫn đổi được ngôn ngữ", () => {
+    const onChangeDocumentLanguage = vi.fn();
+    const converted = { ...baseProject, mode: "import" as const, import_state: "delivered" as const, converted_from: "fpt" as const };
+    renderWithIntl(<ProjectCard project={converted} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} onChangeDocumentLanguage={onChangeDocumentLanguage} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ngôn ngữ tài liệu" }));
+    expect(onChangeDocumentLanguage).toHaveBeenCalledWith(converted);
+  });
+
   it("FLF-265: menu có 'Ngôn ngữ tài liệu' cho dự án mode 2; ẩn với mode import và với Viewer", () => {
     const onChangeDocumentLanguage = vi.fn();
     const props = { progress: null, onRename: noop, onDelete: noop, onHardDelete: noop, onChangeDocumentLanguage };
@@ -152,9 +191,22 @@ describe("ProjectCard — màu và nhãn theo source mode", () => {
     rerender(<ProjectCard project={baseProject} {...props} readOnly />);
     expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
   });
+
+  it("menu có 'Ký pháp ERD' cho mọi mode (kể cả import); Viewer không có menu", () => {
+    const onChangeErdNotation = vi.fn();
+    const props = { progress: null, onRename: noop, onDelete: noop, onHardDelete: noop, onChangeErdNotation };
+    const imported = { ...baseProject, mode: "import" as const };
+    const { rerender } = renderWithIntl(<ProjectCard project={imported} {...props} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    fireEvent.click(screen.getByRole("menuitem", { name: "Ký pháp ERD" }));
+    expect(onChangeErdNotation).toHaveBeenCalledWith(imported);
+
+    rerender(<ProjectCard project={baseProject} {...props} readOnly />);
+    expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
+  });
 });
 
-describe("phasePosition — đếm theo phase để thanh không thụt lùi khi tổng bước được chốt", () => {
+describe("phasePosition - đếm theo phase để thanh không thụt lùi khi tổng bước được chốt", () => {
   it.each([
     [undefined, { done: 0, current: -1 }],
     [null, { done: 0, current: -1 }],

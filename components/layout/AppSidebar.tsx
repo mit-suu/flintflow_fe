@@ -2,18 +2,16 @@
 
 import { useTranslations } from "next-intl";
 import { useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import Logo from "@/components/Logo";
 import { useUnreadNotificationCount } from "@/components/NotificationBell";
 import FeedbackDialog from "@/components/project/FeedbackDialog";
-import Badge from "@/components/ui/Badge";
-import DropdownMenu from "@/components/ui/DropdownMenu";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
-import { logoutAndRedirect } from "@/lib/auth";
-import { selectRecentProjects, useProjects } from "@/lib/hooks/use-projects";
-import { useActiveOrganization } from "@/lib/hooks/use-active-org";
+import { useProjects } from "@/lib/hooks/use-projects";
+import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 import { useAppShell } from "./AppShell";
+import OrgSwitcher, { OrgSwitcherPlaceholder } from "./OrgSwitcher";
 import RecentProjects from "./RecentProjects";
 import SidebarNavItem, {
   SIDEBAR_ROW,
@@ -23,40 +21,24 @@ import SidebarNavItem, {
 } from "./SidebarNavItem";
 import { SIDEBAR_SECTIONS, isSidebarItemActive } from "./sidebar-config";
 
-export interface SidebarUser {
-  name: string;
-  email: string;
-  isAdmin: boolean;
-}
-
-/** Avatar chữ cái đầu của user — dùng chung cho sidebar và trang hồ sơ. Màu trơn (không gradient): nền tím nhạt, chữ tím. */
-export const USER_AVATAR = "bg-primary-fixed text-primary";
-
-export default function AppSidebar({ user }: { user: SidebarUser }) {
+export default function AppSidebar() {
   const t = useTranslations("app.shell");
   const pathname = usePathname();
-  const router = useRouter();
   const {
     navOpen,
     closeNav,
     collapsed: collapsedPref,
-    toggleCollapsed,
-    balance
+    toggleCollapsed
   } = useAppShell();
-  const { projects } = useProjects();
+  // 3 dự án đang làm sửa gần nhất — BE sắp sẵn (FLF-404: không còn tải mọi dự án)
+  const { recentProjects: recent, loading: projectsLoading } = useProjects();
   const unreadCount = useUnreadNotificationCount();
-  const activeOrg = useActiveOrganization();
+  const { org: activeOrg, loading: orgLoading, error: orgError } = useActiveOrganizationState();
+  const hideBilling = orgLoading || orgError || activeOrg?.role === "viewer";
   const [feedbackOpen, setFeedbackOpen] = useState(false);
 
   // Drawer mobile luôn mở rộng; thu gọn chỉ áp dụng trên desktop
   const collapsed = collapsedPref && !navOpen;
-  const recent = selectRecentProjects(projects);
-  const planLabel = user.isAdmin ? t("planAdmin") : balance ? t("plan", { plan: balance.planLabel }) : t("planFree");
-  const initial = user.name.charAt(0).toUpperCase();
-
-  const handleLogout = () => {
-    void logoutAndRedirect();
-  };
 
   return (
     // Cột nền xám nhạt, bên trong là một card trắng bo góc nổi lên (sidebar kiểu "floating panel")
@@ -134,39 +116,40 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
                 ) : (
                   <div className="px-3 pb-1">
                     <div className="text-body font-medium text-on-surface-muted">{t(section.labelKey)}</div>
-                    {/* Tổ chức đang mở — người ở nhiều tổ chức trước đây chỉ biết mình đang ở đâu khi mở trang "Đổi tổ chức" */}
-                    {section.id === "org" && activeOrg ? (
-                      <div
-                        data-testid="active-org-name"
-                        title={activeOrg.name}
-                        className="mt-0.5 text-body font-semibold text-on-surface truncate">
-                        {activeOrg.name}
-                      </div>
-                    ) : null}
                   </div>
                 ))}
-              {section.items.map((item) => (
-                <SidebarNavItem
-                  key={item.id}
-                  item={item}
-                  collapsed={collapsed}
-                  active={
-                    item.status === "ready" &&
-                    isSidebarItemActive(item, pathname)
-                  }
-                  count={
-                    item.status === "ready" && item.badge === "unread"
-                      ? unreadCount
-                      : 0
-                  }
-                  onNavigate={closeNav}
-                />
-              ))}
+              {/* Tổ chức đang mở, bấm được để đổi sang tổ chức khác hoặc tạo/tham gia tổ chức mới. Đang tải lần đầu
+                  (chưa có bản nhớ) ⇒ giữ đúng dòng đó, chỉ tên là thanh giữ chỗ; tải lỗi hẳn thì bỏ dòng. */}
+              {section.id === "org" && activeOrg ? (
+                <OrgSwitcher activeOrg={activeOrg} collapsed={collapsed} />
+              ) : section.id === "org" && orgLoading ? (
+                <OrgSwitcherPlaceholder collapsed={collapsed} />
+              ) : null}
+              {section.items
+                .filter((item) => !(item.id === "billing" && hideBilling))
+                .map((item) => (
+                  <SidebarNavItem
+                    key={item.id}
+                    item={item}
+                    collapsed={collapsed}
+                    active={
+                      item.status === "ready" &&
+                      isSidebarItemActive(item, pathname)
+                    }
+                    count={
+                      item.status === "ready" && item.badge === "unread"
+                        ? unreadCount
+                        : 0
+                    }
+                    onNavigate={closeNav}
+                  />
+                ))}
             </nav>
           ))}
           {!collapsed && (
             <RecentProjects
               projects={recent}
+              loading={projectsLoading}
               onNavigate={closeNav}
             />
           )}
@@ -191,79 +174,6 @@ export default function AppSidebar({ user }: { user: SidebarUser }) {
             )}
           </button>
 
-          <DropdownMenu
-            placement="top"
-            header={
-              <div className="flex items-center gap-2.5">
-                <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-body font-semibold shrink-0 ${USER_AVATAR}`}>
-                  {initial}
-                </span>
-                <span className="min-w-0">
-                  <span className="block text-body font-semibold text-on-surface truncate">
-                    {user.name}
-                  </span>
-                  <span className="block text-caption text-on-surface-muted truncate">
-                    {user.email}
-                  </span>
-                </span>
-              </div>
-            }
-            items={[
-              {
-                label: t("profile"),
-                icon: "user",
-                onSelect: () => {
-                  closeNav();
-                  router.push("/home/profile");
-                }
-              },
-              {
-                label: t("billing"),
-                icon: "credit-card",
-                onSelect: () => {
-                  closeNav();
-                  router.push("/home/billing");
-                },
-                trailing: <Badge>{planLabel}</Badge>
-              },
-              {
-                label: t("logout"),
-                icon: "logout",
-                tone: "danger",
-                onSelect: handleLogout
-              }
-            ]}
-            trigger={(props) => (
-              <button
-                type="button"
-                {...props}
-                aria-label={t("account", { name: user.name })}
-                className={`${SIDEBAR_ROW} ${SIDEBAR_ROW_IDLE} w-full cursor-pointer text-left ${collapsed ? "justify-center h-10 w-10 mx-auto" : "h-12 px-2"}`}>
-                <span
-                  className={`w-8 h-8 rounded-full flex items-center justify-center text-body font-semibold shrink-0 ${USER_AVATAR}`}>
-                  {initial}
-                </span>
-                {!collapsed && (
-                  <>
-                    <span className="min-w-0 flex-1 leading-[1.4]">
-                      <span className="block text-body font-medium text-on-surface truncate">
-                        {user.name}
-                      </span>
-                      <span className="block text-body font-normal text-on-surface-muted truncate">
-                        {planLabel}
-                      </span>
-                    </span>
-                    <Icon
-                      name="caret-up-down"
-                      size={15}
-                      className="text-on-surface-subtle"
-                    />
-                  </>
-                )}
-              </button>
-            )}
-          />
         </div>
       </div>
 

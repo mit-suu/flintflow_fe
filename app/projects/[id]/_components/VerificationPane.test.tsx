@@ -28,6 +28,7 @@ const baseProps = {
   readiness,
   onClose: () => {},
   onWaive: vi.fn(),
+  onKeep: vi.fn(),
   onRecompute: vi.fn(),
 };
 
@@ -53,11 +54,26 @@ describe("VerificationPane", () => {
     expect(screen.queryByRole("button", { name: "Bỏ qua" })).toBeNull();
   });
 
-  it("vấn đề bỏ qua được thì có nút Bỏ qua", () => {
+  it("cờ đỏ: nhãn nói rõ giữ nguyên vẫn chặn chốt bản (BR-04), không hứa một lối thoát không có thật", () => {
     renderWithIntl(
       <VerificationPane
         {...baseProps}
         flags={[{ ...redFlag, id: "FL02", rule_id: "unconfirmed_assumption" }]}
+        flagsLoading={false}
+        flagsError={null}
+        flagsBusy={false}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: "Giữ nguyên kèm lý do…" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Bỏ qua" })).toBeNull();
+  });
+
+  it("cờ vàng vẫn là Bỏ qua - nó không chặn chốt bản", () => {
+    renderWithIntl(
+      <VerificationPane
+        {...baseProps}
+        flags={[{ ...redFlag, id: "FL03", level: "yellow", rule_id: "orphan_actor" }]}
         flagsLoading={false}
         flagsError={null}
         flagsBusy={false}

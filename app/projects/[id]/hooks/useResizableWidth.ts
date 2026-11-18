@@ -33,7 +33,13 @@ const save = (key: string, width: number) => {
  * lưu localStorage, `reset` về mặc định. Trong lúc kéo khoá con trỏ `col-resize` và chặn bôi đen chữ toàn trang.
  */
 export function useResizableWidth({ storageKey, defaultWidth, min, max, measure }: ResizableWidthOptions) {
-  const [width, setWidth] = useState<number>(() => readSaved(storageKey, defaultWidth, min));
+  const [preferred, setWidth] = useState<number>(() => readSaved(storageKey, defaultWidth, min));
+  /**
+   * Trần tạm do bố cục áp xuống (mở panel phải thì khung khác phải nhường chỗ) — **không** ghi localStorage:
+   * bỏ trần là bề rộng user đã kéo quay lại nguyên vẹn. `null` = không ép.
+   */
+  const [cap, setCap] = useState<number | null>(null);
+  const width = cap === null ? preferred : Math.max(min, Math.min(preferred, cap));
   const [resizing, setResizing] = useState(false);
   const widthRef = useRef(width);
   // Giữ hàm đo/trần mới nhất mà không phải gỡ-gắn lại listener mỗi lần render
@@ -73,6 +79,8 @@ export function useResizableWidth({ storageKey, defaultWidth, min, max, measure 
     setWidth(defaultWidth);
     save(storageKey, defaultWidth);
   }, [defaultWidth, storageKey]);
+  /** Ép trần tạm (hoặc `null` để bỏ ép). Giá trị dưới `min` bị kẹp lên `min` khi tính `width`. */
+  const capTo = useCallback((next: number | null) => setCap(next === null ? null : Math.round(next)), []);
 
-  return { width, resizing, startResize, reset };
+  return { width, resizing, startResize, reset, capTo };
 }

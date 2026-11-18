@@ -1,7 +1,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { getSpine, previewChanges, applyChanges, reconcile, undoLastChange, listChanges, getTraceability } from "@/lib/api/spine";
 import { listFlags, recomputeFlags, waiveFlag } from "@/lib/api/flags";
-import { assembleDocument, getDocument, downloadWordExport } from "@/lib/api/export";
+import { assembleDocument, getDocument, downloadPdfExport, downloadWordExport } from "@/lib/api/export";
 import { apiCall } from "@/lib/api/client";
 import { mockTiming, resetMockChangeFlowState } from "./handlers";
 import { mockServer } from "./server";
@@ -214,6 +214,12 @@ describe("mock T16: assemble/document/export", () => {
     const { blob, filename } = await downloadWordExport(P);
     expect(blob.size).toBeGreaterThan(0);
     expect(filename).toContain("-draft.docx");
+  });
+
+  it("export pdf trả {blob, filename} đuôi .pdf (FLF-316)", async () => {
+    const { blob, filename } = await downloadPdfExport(P);
+    expect(blob.size).toBeGreaterThan(0);
+    expect(filename).toContain("-draft.pdf");
   });
 });
 

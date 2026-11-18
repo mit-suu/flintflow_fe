@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { createTranslator } from "next-intl";
+import { MESSAGES } from "@/test/intl";
 import type { Flag } from "@/types/flags";
 import { actionOf, actionOfFlag, flagGroupTitle, groupByAction, issueCounts, readableMessage } from "../flag-rules";
 
@@ -22,7 +24,13 @@ describe("flag-rules", () => {
     expect(actionOf("section_empty")).toBe("run_step");
     expect(actionOf("diagram_stale")).toBe("redraw");
     expect(actionOf("luat_moi_cua_be")).toBe("fix");
-    expect(flagGroupTitle("luat_moi_cua_be")).toBeNull();
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.flagRules" });
+    expect(flagGroupTitle("luat_moi_cua_be", t)).toBeNull();
+    expect(flagGroupTitle("section_empty", t)).toBe("Mục còn trống");
+    expect(flagGroupTitle("goal_not_covered", t)).toBe("Mục tiêu chưa được đáp ứng");
+    // FLF-278 trên FLF-335/336 — chế độ 3 (mẫu bắt buộc)
+    expect(flagGroupTitle("template_section_absent", t)).toBe("Mẫu bắt buộc không có mục này");
+    expect(flagGroupTitle("template_section_empty", t)).toBe("Mục của mẫu chưa có nội dung");
 
     const groups = groupByAction([
       flag({ id: "A", rule_id: "section_empty" }),
@@ -33,7 +41,7 @@ describe("flag-rules", () => {
     expect(groups.map((g) => g.action)).toEqual(["confirm", "fix", "run_step"]);
   });
 
-  it("đếm: mục 'sẽ điền ở bước sau' không tính là vấn đề; cờ đã bỏ qua/đã đóng không tính", () => {
+  it("đếm: mục 'sẽ điền ở bước sau' không tính là vấn đề; cờ vàng đã bỏ qua / cờ đã đóng không tính, cờ đỏ đã waive vẫn chặn (FLF-329)", () => {
     const counts = issueCounts(
       [
         flag({ id: "1", rule_id: "nfr_missing_number" }),
@@ -42,10 +50,11 @@ describe("flag-rules", () => {
         flag({ id: "4", rule_id: "orphan_actor", level: "yellow" }),
         flag({ id: "5", rule_id: "nfr_missing_number", waived_by_user: true }),
         flag({ id: "6", rule_id: "dead_reference", resolved_at: "2026-09-23T00:00:00Z" }),
+        flag({ id: "7", rule_id: "screen_no_function", level: "yellow", waived_by_user: true }),
       ],
       2
     );
-    expect(counts).toEqual({ blocking: 1 + 2, suggestions: 1, later: 1 });
+    expect(counts).toEqual({ blocking: 1 + 3, suggestions: 1, later: 1 });
   });
 
   it("FLF-248: cờ 'rỗng' của bước đã chốt chuyển sang 'fill' và tính là chặn", () => {
@@ -65,5 +74,35 @@ describe("flag-rules", () => {
       "Section bắt buộc §3.1.2 Screen Descriptions chưa có dữ liệu"
     );
     expect(readableMessage("Thiếu fixed:4.1", "fixed:4.1", undefined)).toBe("Thiếu fixed:4.1");
+  });
+});
+
+describe("FLF-411 U2-3: màn / use case chưa gắn chức năng", () => {
+  it("bước đã chốt ⇒ nhóm riêng 'link', không lẫn vào 'Mục bắt buộc còn trống'", () => {
+    const screen = flag({ id: "S1", rule_id: "screen_no_function", remediation_step: "S-4.2", level: "yellow" });
+    const empty = flag({ id: "E1", rule_id: "section_empty", remediation_step: "S-4.2" });
+    const done = new Set(["S-4.2"]);
+    expect(actionOfFlag(screen, done)).toBe("link");
+    expect(actionOfFlag(screen)).toBe("run_step");
+    expect(groupByAction([screen, empty], done).map((g) => g.action)).toEqual(["fill", "link"]);
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.flags.action" });
+    expect(t("link.title")).toBe("Chưa gắn chức năng");
+    expect(t("link.hint")).not.toMatch(/§|mục này đã chốt mà chưa điền/);
+  });
+
+  it("FLF-428: màn chưa có tác nhân ⇒ nhóm 'Chưa gắn tác nhân' (cờ vàng screen_no_actor, cờ đỏ lúc ký ở mục 3.1.3); màn mồ côi luồng vẫn 'Chưa gắn chức năng'", () => {
+    const yellow = flag({ id: "Y", level: "yellow", rule_id: "screen_no_actor", section_id: "fixed:3.1.3", remediation_step: "S-4.3" });
+    const redActor = flag({ id: "R1", rule_id: "orphan_screen_at_baseline", section_id: "fixed:3.1.3", remediation_step: "S-4.3" });
+    const redFlow = flag({ id: "R2", rule_id: "orphan_screen_at_baseline", section_id: "fixed:3.1.1", remediation_step: "S-4.2" });
+    const accepted = new Set(["S-4.2", "S-4.3"]);
+    expect(actionOfFlag(yellow)).toBe("actor");
+    expect(actionOfFlag(redActor, accepted)).toBe("actor");
+    expect(actionOfFlag(redFlow, accepted)).toBe("link");
+    expect(groupByAction([redFlow, redActor, yellow], accepted).map((g) => [g.action, g.flags.map((f) => f.id)])).toEqual([
+      ["link", ["R2"]],
+      ["actor", ["R1", "Y"]],
+    ]);
+    const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.flags.action" });
+    expect(t("actor.title")).toBe("Chưa gắn tác nhân");
   });
 });

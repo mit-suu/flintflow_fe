@@ -1,3 +1,4 @@
+import { DEFAULT_LOCALE, tStep, type Locale } from "@/lib/i18n";
 import { stepLabel as registryStepLabel, type PhaseId } from "@/lib/constants/step-registry";
 
 /**
@@ -19,6 +20,26 @@ export const PHASE_NAV_LABELS: Readonly<Record<PhaseId, string>> = {
   "S-9": "Kiểm & chốt",
 };
 
+/** Bản tiếng Anh của `PHASE_NAV_LABELS` — cùng giọng đời thường, không phải tên phase chính thức của registry. */
+const PHASE_NAV_LABELS_EN: Readonly<Record<PhaseId, string>> = {
+  "B-0": "Idea",
+  "B-1": "Clarify the idea",
+  "B-2": "Finalize the brief",
+  "S-1": "Analysis",
+  "S-2": "Overview",
+  "S-3": "Users",
+  "S-4": "System",
+  "S-5": "Screen details",
+  "S-6": "Non-functional",
+  "S-7": "Appendix",
+  "S-8": "Finishing",
+  "S-9": "Check & sign-off",
+};
+
+/** Tên giai đoạn đời thường theo ngôn ngữ giao diện; phase lạ ⇒ `undefined` (nơi gọi tự chọn chữ thay thế). */
+export const phaseNavLabel = (phase: string, locale: Locale = DEFAULT_LOCALE): string | undefined =>
+  (locale === "en" ? PHASE_NAV_LABELS_EN : PHASE_NAV_LABELS)[phase as PhaseId];
+
 /** Giai đoạn hiện thành MỘT mục, không xổ danh sách bước con (B-0.1…0.3 là một cuộc trò chuyện về ý tưởng). */
 export const SINGLE_ITEM_PHASES: ReadonlySet<PhaseId> = new Set<PhaseId>(["B-0"]);
 
@@ -36,4 +57,17 @@ const STEP_DISPLAY_LABELS: Readonly<Record<string, string>> = {
   "S-9.1": "Rà đầy đủ & điều tạm hiểu",
 };
 
-export const workspaceStepLabel = (stepId: string): string => STEP_DISPLAY_LABELS[stepId] ?? registryStepLabel(stepId);
+/** Cùng các bước trên, bản tiếng Anh — `label_en` của registry ở đó cũng mang chữ nội bộ ("Addendum Triage"). */
+const STEP_DISPLAY_LABELS_EN: Readonly<Record<string, string>> = {
+  "B-1.4": "First-release scope & planned features",
+  "B-1.6": "Risks & open questions",
+  "B-2.1": "Review my guesses",
+  "B-2.2": "Sort the notes",
+  "S-1.1": "Re-read the idea summary",
+  "S-1.3": "Conflicts & my guesses",
+  "S-9.1": "Completeness & my guesses",
+};
+
+/** Nhãn bước theo ngôn ngữ giao diện: bản đè ở trên, còn lại `label_vi` / `label_en` của registry. */
+export const workspaceStepLabel = (stepId: string, locale: Locale = DEFAULT_LOCALE): string =>
+  locale === "en" ? (STEP_DISPLAY_LABELS_EN[stepId] ?? tStep(stepId, "en")) : (STEP_DISPLAY_LABELS[stepId] ?? registryStepLabel(stepId));

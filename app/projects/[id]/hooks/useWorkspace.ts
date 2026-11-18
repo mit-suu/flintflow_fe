@@ -2,8 +2,9 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { ApiClientError, apiCall, refreshSession } from "@/lib/api";
-import { streamChatMessage } from "@/lib/ai-stream";
-import { getStoredAuthToken, isAuthenticated, logoutAndRedirect } from "@/lib/auth";
+import { ChatStreamError, streamChatMessage } from "@/lib/ai-stream";
+import { isAiErrorCode } from "@/lib/ai-error-codes";
+import { getAccessToken, isAuthenticated, logoutAndRedirect } from "@/lib/auth";
 import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { OrgRole } from "@/types/organization";
@@ -12,14 +13,77 @@ import type { ChatMessage, ChatSession } from "@/types/chat";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
+import { uploadReferenceDocument, type DocumentVersionChooser } from "@/lib/reference-upload";
+import { fileFingerprint, splitDuplicateFiles } from "@/lib/file-fingerprint";
+import { listProjectDocuments } from "@/lib/api/documents";
+import type { SrsAttachmentSuggestion } from "../_components/mode1/srs-attachment-chip";
 
-const errorMessage = (error: unknown, fallback: string) => userErrorMessage(error, fallback);
+/** Thông báo ở pill toast của trang — có thể là: */
+export type SessionNoticeKey =
+  | "loadFailed"
+  | "createFailed"
+  | "offline"
+  | "deleteFailed"
+  | "uploadFailed"
+  | "knowledgeFailed"
+  | "stopped"
+  | "knowledgeDisabled"
+  | "sendFailed"
+  | "attachmentDuplicate";
+
+/**
+ * Hook không gọi `useTranslations` (lỗi ghi trong callback/effect, test `renderHook` không có provider — xem
+ * `lib/hook-errors.ts`) nên thông báo là MÃ: `{ key }` ⇒ trang dịch `workspace.session.<key>`; `{ text }` ⇒ câu BE đã dịch
+ * sẵn, hiện nguyên văn. `deleteFailed` kèm `error` là câu BE (thiếu ⇒ câu "Lỗi" chung). `attachmentDuplicate` (FLF-398):
+ * `files` = tệp trùng tệp đang đính kèm, `inProject` = tệp trùng tài liệu đã có trong dự án (`tên tệp → "tài liệu" (D<n>)`).
+ */
+export type WorkspaceNotice = { key: SessionNoticeKey; error?: string; files?: string; inProject?: string } | { text: string };
+
+const NO_MESSAGE = "@";
+const errorNotice = (error: unknown, key: SessionNoticeKey): WorkspaceNotice => {
+  const message = userErrorMessage(error, NO_MESSAGE);
+  return message === NO_MESSAGE ? { key } : { text: message };
+};
+
+/** Nội dung tin khi chỉ gửi đính kèm — câu FE gửi thay user, theo ngôn ngữ giao diện (nơi gọi truyền vào). */
+const DEFAULT_ATTACHMENT_ONLY_TEXT = "[Đính kèm tài liệu]";
 
 /**
  * Dữ liệu chung của workspace: project, user, chat session, gửi tin nhắn/đính kèm.
  * Pipeline (step, gate) nằm ở `useStepRunner`; Spine ở `useSpine`.
  */
-export function useWorkspace(projectId: string) {
+export interface UseWorkspaceOptions {
+  attachmentOnlyText?: string;
+  /**
+   * FLF-332: cổng cứng credit trước khi tải tài liệu đính kèm lên (mỗi tệp một lượt đọc tốn credit). Trả `false` ⇒ không tải,
+   * không gửi; tệp và chữ giữ nguyên trong ô chat.
+   */
+  confirmAttachments?: (files: File[]) => Promise<boolean>;
+  /**
+   * FLF-398: tệp đính kèm có vẻ là bản mới của tài liệu đã có ⇒ hỏi Thay bản cũ / Giữ cả hai / Bỏ qua (thẻ trong khung chat).
+   * Không truyền ⇒ giữ cả hai (như trước FLF-398).
+   */
+  chooseDocumentVersion?: DocumentVersionChooser;
+}
+
+/** Lượt chat gãy vì AI lỗi (FLF-332): giữ lại để "Thử lại ngay" gửi lại đúng tin đó. */
+export interface ChatAiError {
+  code: string;
+  message: string;
+  step: string | null;
+  text: string;
+  knowledge: boolean;
+}
+
+/** Khoá gợi ý file trông như SRS — tăng dần, hai file cùng tên trong một lượt không đụng nhau. */
+let srsSuggestionSeq = 0;
+
+const KEEP_BOTH: DocumentVersionChooser = async () => ({ keepBoth: true });
+
+export function useWorkspace(
+  projectId: string,
+  { attachmentOnlyText = DEFAULT_ATTACHMENT_ONLY_TEXT, confirmAttachments, chooseDocumentVersion = KEEP_BOTH }: UseWorkspaceOptions = {}
+) {
   const [ready, setReady] = useState(false);
   const [project, setProject] = useState<Project | null>(null);
   const [user, setUser] = useState<User | null>(null);
@@ -27,16 +91,34 @@ export function useWorkspace(projectId: string) {
   const [activeSession, setActiveSession] = useState<ChatSession | null>(null);
   const [inputMessage, setInputMessage] = useState("");
   const [sending, setSending] = useState(false);
+  /**
+   * Đang tải tệp đính kèm (BE đọc + tóm tắt từng tệp, có thể vài chục giây). Trang tính vào "AI đang bận": bấm gửi lần nữa lúc
+   * này từng chạy bước song song với lượt đang tải ⇒ lượt đầu tải xong đụng `STEP_NOT_RUNNABLE` "đang chạy ở lượt trước".
+   */
+  const [uploadingAttachments, setUploadingAttachments] = useState(false);
+  const uploadingRef = useRef(false);
+  /** FLF-400: `sending` là state — hai lần bấm trong cùng một khung render đều thấy `false`; ref chặn ngay lần đầu. */
+  const sendingRef = useRef(false);
   const [streamingMessage, setStreamingMessage] = useState<string | null>(null);
+  /** Đang chờ câu trả lời tri thức — luồng đó không stream chữ nên `streamingMessage` không nói được gì. */
+  const [knowledgePending, setKnowledgePending] = useState(false);
+  /** BE trả `409 KNOWLEDGE_DISABLED` ⇒ tính năng tắt ở máy chủ, ẩn chip và đừng thử lại. */
+  const [knowledgeDisabled, setKnowledgeDisabled] = useState(false);
   const [pendingAttachments, setPendingAttachments] = useState<File[]>([]);
+  /** Business-flow §3.6: file vừa đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới (không chặn). */
+  const [srsSuggestions, setSrsSuggestions] = useState<SrsAttachmentSuggestion[]>([]);
   /**
    * Mode 1 (G9, BR-03; v3 — BPMN 3.1): lệnh sửa trong chat bị BE chặn `409 CHANGE_REQUIRES_CR` ⇒ thẻ mời tạo CR, mở form
    * 3.1 điền sẵn (BE không tự tạo CR nữa).
    */
   const [crPrefill, setCrPrefill] = useState<(ChangeRequiresCrMeta["prefill"] & { instruction: string }) | null>(null);
   const didInit = useRef(false);
+  /** Lượt chat đang stream — `stopMessage` huỷ fetch, BE thấy luồng đóng thì ngắt model và không ghi tin AI. */
+  const streamAbortRef = useRef<AbortController | null>(null);
   /** Thông báo lỗi hiện ở pill toast của trang (thay `alert()` — FLF-244). */
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<WorkspaceNotice | null>(null);
+  /** Banner "AI lỗi — Thử lại ngay / Để sau" của chat chính (FLF-332). */
+  const [aiError, setAiError] = useState<ChatAiError | null>(null);
   /** Vai trò trong org đang mở — Viewer chỉ đọc (FLF-244). `null` khi chưa biết: không khoá gì, BE vẫn chặn. */
   const [orgRole, setOrgRole] = useState<OrgRole | null>(null);
 
@@ -61,7 +143,7 @@ export function useWorkspace(projectId: string) {
         const full = await fetchSession(session._id);
         if (full) setActiveSession(full);
       } catch (err) {
-        setNotice(errorMessage(err, "Không thể tải cuộc trò chuyện"));
+        setNotice(errorNotice(err, "loadFailed"));
       }
     },
     [fetchSession]
@@ -84,7 +166,7 @@ export function useWorkspace(projectId: string) {
         }
       } catch (err) {
         if (options.quiet && err instanceof ApiClientError && err.status === 403) return;
-        setNotice(errorMessage(err, "Không thể tạo cuộc trò chuyện mới"));
+        setNotice(errorNotice(err, "createFailed"));
       }
     },
     [projectId, sessions, selectSession]
@@ -133,14 +215,14 @@ export function useWorkspace(projectId: string) {
       } catch (err) {
         console.error("Workspace init failed:", err);
         if ((err as { status?: number }).status === 401) {
-          if (!getStoredAuthToken()) {
+          if (!getAccessToken()) {
             await logoutAndRedirect();
           } else if (isAuthenticated()) {
             // Token còn hạn mà BE vẫn 401 ⇒ phiên thật sự không hợp lệ
             await logoutAndRedirect();
           } else {
             // Token hết hạn nhưng refresh chỉ lỗi mạng / 5xx ⇒ giữ phiên
-            setNotice("Không kết nối được máy chủ. Vui lòng tải lại trang.");
+            setNotice({ key: "offline" });
           }
         }
       } finally {
@@ -167,7 +249,8 @@ export function useWorkspace(projectId: string) {
           }
         }
       } catch (err) {
-        setNotice("Không thể xoá cuộc trò chuyện: " + errorMessage(err, "Lỗi"));
+        const message = userErrorMessage(err, NO_MESSAGE);
+        setNotice({ key: "deleteFailed", ...(message === NO_MESSAGE ? {} : { error: message }) });
       }
     },
     [projectId, sessions, activeSession, selectSession, createSession]
@@ -183,22 +266,39 @@ export function useWorkspace(projectId: string) {
   /**
    * Tải các tệp đang đính kèm lên `/documents` (dùng chung cho chat hỏi đáp và chat khởi động bước — FLF-221). Lỗi ⇒
    * `false`, giữ nguyên danh sách đính kèm để user thử lại; không có tệp nào ⇒ `true`.
+   * FLF-398: tệp trùng hệt tài liệu đã có ⇒ không tải, báo ở toast (không tính là lỗi); có thể là bản mới ⇒ hỏi qua
+   * `chooseDocumentVersion`, Bỏ qua ⇒ tệp đó không tải.
    */
   const uploadPendingAttachments = useCallback(async (): Promise<boolean> => {
     if (pendingAttachments.length === 0) return true;
+    // Lượt tải trước chưa xong ⇒ không tải lần hai, nơi gọi dừng (không gửi / không chạy bước)
+    if (uploadingRef.current) return false;
+    uploadingRef.current = true;
+    setUploadingAttachments(true);
     try {
+      const suggestions: SrsAttachmentSuggestion[] = [];
+      const duplicates: string[] = [];
       for (const file of pendingAttachments) {
-        const formData = new FormData();
-        formData.append("file", file);
-        await apiCall(`/projects/${projectId}/documents`, { method: "POST", body: formData });
+        const result = await uploadReferenceDocument(projectId, file, chooseDocumentVersion);
+        if (result.kind === "duplicate") duplicates.push(result.message);
+        if (result.kind !== "uploaded") continue;
+        const precheck = result.document?.precheck ?? null;
+        if (precheck?.looks_like_srs) suggestions.push({ key: `${file.name}:${++srsSuggestionSeq}`, file, fromThisProject: precheck.stamp?.project_id === projectId });
       }
       setPendingAttachments([]);
+      if (suggestions.length) setSrsSuggestions((prev) => [...prev, ...suggestions]);
+      if (duplicates.length) setNotice({ text: duplicates.join(" ") });
       return true;
     } catch (err) {
-      setNotice(errorMessage(err, "Không thể tải tệp đính kèm lên"));
+      setNotice(errorNotice(err, "uploadFailed"));
       return false;
+    } finally {
+      uploadingRef.current = false;
+      setUploadingAttachments(false);
     }
-  }, [pendingAttachments, projectId]);
+  }, [pendingAttachments, projectId, chooseDocumentVersion]);
+
+  const dismissSrsSuggestion = useCallback((key: string) => setSrsSuggestions((prev) => prev.filter((x) => x.key !== key)), []);
 
   /**
    * Hiện ngay tin user vừa gửi khi tin đó đi thẳng vào lượt chạy bước (BE ghi transcript, FLF-221) — không chờ tải lại
@@ -240,22 +340,33 @@ export function useWorkspace(projectId: string) {
   /**
    * Hỏi đáp tự do trong chat; step hiện tại gửi kèm để BE lưu transcript theo step. Trả `data` của sự kiện `finish`
    * (vd. `kind: "change_preview"` kèm `preview` khi tin bị nhận là lệnh sửa) — `undefined` khi không gửi được.
+   *
+   * `opts.knowledge` ⇒ lượt hỏi tri thức (contract §1.2): BE trả lời từ Knowledge RAG, không stream chữ,
+   * và lượt này không thành câu trả lời của step.
    */
   const sendMessage = useCallback(
-    async (currentStep: string | null, customContent?: string): Promise<unknown> => {
+    async (currentStep: string | null, customContent?: string, opts?: { knowledge?: boolean }): Promise<unknown> => {
       const text = customContent ?? inputMessage;
-      if ((!text.trim() && pendingAttachments.length === 0) || !activeSession || sending) return undefined;
+      if ((!text.trim() && pendingAttachments.length === 0) || !activeSession || sending || sendingRef.current) return undefined;
       let finishData: unknown;
 
+      sendingRef.current = true;
       setSending(true);
       setInputMessage("");
       setCrPrefill(null);
-      const content = text.trim() || "[Đính kèm tài liệu]";
+      setAiError(null);
+      const content = text.trim() || attachmentOnlyText;
       const step = currentStep ?? "chat";
       const optimistic: ChatMessage = { role: "user", content, step, createdAt: new Date().toISOString() };
       setActiveSession((prev) => (prev ? { ...prev, messages: [...prev.messages, optimistic] } : prev));
 
       try {
+        // FLF-332: báo credit đọc tài liệu trước khi tải lên — Huỷ thì không gọi AI, tiến độ giữ nguyên
+        if (pendingAttachments.length > 0 && confirmAttachments && !(await confirmAttachments(pendingAttachments))) {
+          setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+          setInputMessage(text);
+          return undefined;
+        }
         if (!(await uploadPendingAttachments())) {
           // Tệp chưa lên được (đã báo lỗi): gỡ tin tạm, trả chữ về ô chat để user gửi lại
           setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
@@ -264,14 +375,20 @@ export function useWorkspace(projectId: string) {
         }
 
         setStreamingMessage("");
+        setKnowledgePending(Boolean(opts?.knowledge));
+        const abort = new AbortController();
+        streamAbortRef.current = abort;
         await streamChatMessage({
           projectId,
           chatId: activeSession._id,
           content,
           step,
+          knowledge: opts?.knowledge,
+          signal: abort.signal,
           onTextDelta: (delta) => setStreamingMessage((prev) => (prev ?? "") + delta),
           onFinish: ({ session, data }) => {
             finishData = data;
+            setKnowledgePending(false);
             // User đã chuyển/tạo phiên khác giữa chừng ⇒ không kéo khung chat về phiên cũ; chỉ cập nhật xem trước
             setActiveSession((prev) => (prev?._id === session._id ? session : prev));
             setSessions((prev) => prev.map((s) => (s._id === session._id ? { ...s, messages: session.messages.slice(-1) } : s)));
@@ -282,28 +399,123 @@ export function useWorkspace(projectId: string) {
             // Mode 1 chặn lệnh sửa bằng 409 CHANGE_REQUIRES_CR — luồng bình thường, xử lý ở catch bên dưới
             if (!(err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR")) console.error("[Chat] Stream error:", err);
             setStreamingMessage(null);
+            setKnowledgePending(false);
+            // Sự kiện `error` giữa luồng (hết credit, provider lỗi) KHÔNG làm `streamSse` ném, nên
+            // `catch` bên dưới không chạy. Chat thường còn phần chữ đã stream để user hiểu chuyện gì
+            // xảy ra; lượt tri thức không stream chữ nên nếu im lặng thì chỉ còn cái spinner tắt đi.
+            if (opts?.knowledge) {
+              setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+              setInputMessage(text);
+              setNotice(errorNotice(err, "knowledgeFailed"));
+            } else if (err instanceof ChatStreamError && isAiErrorCode(err.code)) {
+              // FLF-332: AI lỗi ⇒ credit đã hoàn, BE không ghi tin — gỡ tin tạm, banner mời Thử lại ngay / Để sau
+              setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+              setAiError({ code: err.code ?? "AI_EXECUTION_FAILED", message: err.message, step: currentStep, text, knowledge: false });
+            }
           },
         });
+        // `streamSse` nuốt AbortError ⇒ về đây không có `finish`. BE đã ghi tin user (giữ tin tạm), bỏ chữ dở
+        // vì BE không lưu nó — tải lại trang vẫn thấy đúng như vậy.
+        if (abort.signal.aborted) {
+          setStreamingMessage(null);
+          setNotice({ key: "stopped" });
+        }
       } catch (err) {
         setStreamingMessage(null);
         setActiveSession((prev) => (prev ? { ...prev, messages: prev.messages.filter((m) => m !== optimistic) } : prev));
+        // Tính năng tắt ở máy chủ: BE không ghi gì vào phiên, nên gỡ tin tạm (ở trên) là sạch. Ẩn chip
+        // thay vì để user bấm lại một thứ chắc chắn không chạy.
+        if (err instanceof ApiClientError && err.code === "KNOWLEDGE_DISABLED") {
+          setKnowledgeDisabled(true);
+          setNotice({ key: "knowledgeDisabled" });
+          setInputMessage(text);
+          return undefined;
+        }
         const meta = err instanceof ApiClientError && err.code === "CHANGE_REQUIRES_CR" ? (err.meta as ChangeRequiresCrMeta | undefined) : undefined;
         if (meta?.prefill) setCrPrefill({ ...meta.prefill, instruction: content });
-        else setNotice(errorMessage(err, "Không thể gửi tin nhắn"));
+        else setNotice(errorNotice(err, "sendFailed"));
       } finally {
+        streamAbortRef.current = null;
+        sendingRef.current = false;
         setSending(false);
+        setKnowledgePending(false);
       }
       return finishData;
     },
-    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments]
+    [activeSession, inputMessage, pendingAttachments, projectId, refreshUser, sending, uploadPendingAttachments, attachmentOnlyText, confirmAttachments]
   );
 
-  const selectAttachment = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-    setPendingAttachments((prev) => [...prev, ...Array.from(files)]);
-    event.target.value = "";
+  /** "Thử lại ngay" của banner AI lỗi: gửi lại đúng tin đó (BE kiểm credit lại từ đầu). */
+  const retryAiError = useCallback(async () => {
+    const failed = aiError;
+    if (!failed) return undefined;
+    setAiError(null);
+    return sendMessage(failed.step, failed.text, failed.knowledge ? { knowledge: true } : undefined);
+  }, [aiError, sendMessage]);
+
+  const dismissAiError = useCallback(() => setAiError(null), []);
+
+  /** Nút dừng / Esc: huỷ lượt chat đang chạy. Không có lượt nào thì không làm gì. */
+  const stopMessage = useCallback(() => {
+    streamAbortRef.current?.abort();
   }, []);
+
+  // Rời trang giữa lượt ⇒ đóng luồng để BE không sinh tiếp
+  useEffect(() => () => streamAbortRef.current?.abort(), []);
+
+  /** FLF-398: dấu nội dung của tệp đang đính kèm (tính một lần mỗi tệp). */
+  const attachmentPrintsRef = useRef(new WeakMap<File, string>());
+
+  /**
+   * Thêm tệp đính kèm. FLF-398: tệp trùng nội dung (kể cả đổi tên) với tệp đang đính kèm, với tệp khác trong cùng lượt chọn,
+   * hoặc với **tài liệu đã có trong dự án** (`contentHash` của `GET /documents`) ⇒ không thêm, báo ngay ở toast. Không đọc được
+   * danh sách tài liệu ⇒ bỏ qua bước so này (BE vẫn chặn lúc gửi).
+   */
+  const selectAttachment = useCallback(
+    async (event: ChangeEvent<HTMLInputElement>) => {
+      const files = event.target.files;
+      if (!files || files.length === 0) return;
+      const picked = Array.from(files);
+      event.target.value = "";
+      const prints = attachmentPrintsRef.current;
+      const known = new Set<string>();
+      for (const file of pendingAttachments) {
+        const print = prints.get(file) ?? (await fileFingerprint(file));
+        prints.set(file, print);
+        known.add(print);
+      }
+      const { kept, duplicates } = await splitDuplicateFiles(picked, known);
+      const inProject = new Map<string, { name: string; code: number | null }>();
+      try {
+        for (const doc of (await listProjectDocuments(projectId)).data ?? []) {
+          if (doc.contentHash) inProject.set(doc.contentHash, { name: doc.originalName, code: doc.docCode ?? null });
+        }
+      } catch {
+        // Không đọc được danh sách ⇒ không so; BE trả DUPLICATE_DOCUMENT lúc gửi
+      }
+      const fresh = kept.filter((k) => !inProject.has(k.fingerprint));
+      const existing = kept.filter((k) => inProject.has(k.fingerprint));
+      fresh.forEach(({ file, fingerprint }) => prints.set(file, fingerprint));
+      if (fresh.length) setPendingAttachments((prev) => [...prev, ...fresh.map((k) => k.file)]);
+      if (duplicates.length || existing.length) {
+        setNotice({
+          key: "attachmentDuplicate",
+          ...(duplicates.length ? { files: duplicates.map((f) => f.name).join(", ") } : {}),
+          ...(existing.length
+            ? {
+                inProject: existing
+                  .map(({ file, fingerprint }) => {
+                    const doc = inProject.get(fingerprint)!;
+                    return `${file.name} → "${doc.name}"${doc.code ? ` (D${doc.code})` : ""}`;
+                  })
+                  .join(", "),
+              }
+            : {}),
+        });
+      }
+    },
+    [pendingAttachments, projectId]
+  );
 
   const removeAttachment = useCallback(
     (fileName: string) => setPendingAttachments((prev) => prev.filter((f) => f.name !== fileName)),
@@ -330,7 +542,10 @@ export function useWorkspace(projectId: string) {
       inputMessage,
       setInputMessage,
       sending,
+      uploadingAttachments,
       streamingMessage,
+      knowledgePending,
+      knowledgeDisabled,
       pendingAttachments,
       createSession,
       selectSession,
@@ -338,8 +553,12 @@ export function useWorkspace(projectId: string) {
       pipelineSession,
       isPipelineActive,
       canEdit,
+      orgRole,
       sendMessage,
+      stopMessage,
       uploadPendingAttachments,
+      srsSuggestions,
+      dismissSrsSuggestion,
       appendLocalMessage,
       dropLocalMessage,
       reloadActiveSession,
@@ -352,6 +571,9 @@ export function useWorkspace(projectId: string) {
       dismissCrPrefill: () => setCrPrefill(null),
       notice,
       clearNotice: () => setNotice(null),
+      aiError,
+      retryAiError,
+      dismissAiError,
     }),
     [
       ready,
@@ -361,7 +583,10 @@ export function useWorkspace(projectId: string) {
       activeSession,
       inputMessage,
       sending,
+      uploadingAttachments,
       streamingMessage,
+      knowledgePending,
+      knowledgeDisabled,
       pendingAttachments,
       createSession,
       selectSession,
@@ -369,8 +594,12 @@ export function useWorkspace(projectId: string) {
       pipelineSession,
       isPipelineActive,
       canEdit,
+      orgRole,
       sendMessage,
+      stopMessage,
       uploadPendingAttachments,
+      srsSuggestions,
+      dismissSrsSuggestion,
       appendLocalMessage,
       dropLocalMessage,
       reloadActiveSession,
@@ -381,6 +610,9 @@ export function useWorkspace(projectId: string) {
       logout,
       crPrefill,
       notice,
+      aiError,
+      retryAiError,
+      dismissAiError,
     ]
   );
 }

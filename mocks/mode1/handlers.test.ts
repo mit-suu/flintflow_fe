@@ -3,7 +3,7 @@
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { API_BASE_URL } from "@/lib/api/client";
 import type { CrDetail } from "@/types/change-request";
-import type { DocBlock, ExtractResponse, FinalizeResponse, GapReport, GetImportResponse, ImportStateResponse, ReuploadDiff } from "@/types/import";
+import type { DocBlock, ExtractResponse, GapReport, GetImportResponse, ImportStateResponse, ReuploadDiff } from "@/types/import";
 import type { CompareResponse, DocVersion, ReleaseResponse } from "@/types/doc-version";
 import type { Project } from "@/types/project";
 import { mockServer } from "../server";
@@ -39,50 +39,45 @@ const upload = (name: string) => {
 
 const state = () => stateModule.mode1State;
 
-/** Poll #4 như FE: tới khi rời `extracting` hoặc bị `paused` (I-4 chạy nền). */
-const pollExtraction = async (): Promise<GetImportResponse> => {
-  for (let i = 0; i < 50; i++) {
+/** Poll #4 như FE (FLF-343, một mạch): tới khi rời extracting / baselining / checking hoặc bị `paused`. */
+const pollImport = async (): Promise<GetImportResponse> => {
+  for (let i = 0; i < 60; i++) {
     const got = (await call<GetImportResponse>("GET", `/projects/${P}/import`)).body.data!;
-    if (got.import?.status !== "extracting" || got.import.paused) return got;
+    if (!["extracting", "baselining", "checking"].includes(got.import!.status) || got.import!.paused) return got;
   }
-  throw new Error("I-4 không kết thúc sau 50 lần poll");
+  throw new Error("lượt import không kết thúc sau 60 lần poll");
 };
 
-/** #8 chạy nền: poll #4 tới khi rời baselining/checking hoặc bị dừng. */
-const pollFinalize = async (): Promise<GetImportResponse> => {
-  for (let i = 0; i < 10; i++) {
-    const got = (await call<GetImportResponse>("GET", `/projects/${P}/import`)).body.data!;
-    if (!["baselining", "checking"].includes(got.import!.status) || got.import!.paused) return got;
-  }
-  throw new Error("finalize không kết thúc sau 10 lần poll");
-};
-
-/** Đi từ upload tới gap_review, trả về import_id. */
+/** Upload ⇒ Bắt đầu (kèm xác nhận bản mới nhất) ⇒ gap_review, trả về import_id. */
 const importToGapReview = async (): Promise<string> => {
   const up = await call<ImportStateResponse>("POST", `/projects/${P}/import`, upload("SRS_Lumen.docx"));
   const id = up.body.data!.import.id;
-  await call("POST", `/projects/${P}/import/confirm-latest`, { import_id: id });
-  await call("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true });
-  await call("POST", `/projects/${P}/import/extract`, { import_id: id });
-  await pollExtraction();
-  await call("PATCH", `/projects/${P}/import/fields`, { import_id: id, confirm_all: true });
-  await call("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion });
-  await pollFinalize();
+  await call("POST", `/projects/${P}/import/extract`, { import_id: id, confirm_latest: true });
+  await pollImport();
   return id;
 };
 
 const createCr = async (title: string, description = "Logging out must sign the user out of all devices.") =>
   (await call<CrDetail>("POST", `/projects/${P}/change-requests`, { title, description, source: { kind: "stakeholder_email" }, requester: "PM Lan" })).body.data!;
 
-/** CR từ draft tới in_review. */
-const crToReview = async (title: string): Promise<CrDetail> => {
+/** CR từ draft tới `ready_to_submit` (đã kiểm, chưa xác nhận). */
+const crToReady = async (title: string): Promise<CrDetail> => {
   const { cr_id } = (await createCr(title)).change_request;
   const base = `/projects/${P}/change-requests/${cr_id}`;
-  for (const step of ["clarify", "impact", "propose", "verify", "submit"]) {
+  for (const step of ["clarify", "impact", "propose", "verify"]) {
     const res = await call<CrDetail>("POST", `${base}/${step}`, {});
     expect(res.status, `${step}: ${JSON.stringify(res.body.error)}`).toBe(200);
   }
   return (await call<CrDetail>("GET", base)).body.data!;
+};
+
+/** CR từ draft tới written (FLF-330: BA xác nhận là ghi ngay). */
+const crToReview = async (title: string): Promise<CrDetail> => {
+  const ready = await crToReady(title);
+  const base = `/projects/${P}/change-requests/${ready.change_request.cr_id}`;
+  const res = await call<CrDetail>("POST", `${base}/submit`, {});
+  expect(res.status, `submit: ${JSON.stringify(res.body.error)}`).toBe(200);
+  return res.body.data!;
 };
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
@@ -94,11 +89,14 @@ afterEach(() => mockServer.resetHandlers());
 afterAll(() => mockServer.close());
 
 describe("mock mode 1 — project theo mode (#1)", () => {
-  it("tạo project import; customer_template ⇒ 501; mode lạ ⇒ 400", async () => {
-    const created = await call<Project>("POST", "/projects", { name: "Lumen", mode: "import" });
+  it("FLF-335: source quyết định mode — có sẵn ⇒ import; mới có mẫu bắt buộc ⇒ import + template_intent fixed; mới không mẫu ⇒ fpt; client cũ gửi mode vẫn chạy, mode lạ ⇒ 400", async () => {
+    const created = await call<Project>("POST", "/projects", { name: "Lumen", source: "existing" });
     expect(created.status).toBe(201);
-    expect(created.body.data).toMatchObject({ mode: "import", import_state: null });
-    expect((await call("POST", "/projects", { name: "X", mode: "customer_template" })).body.error?.code).toBe("NOT_IMPLEMENTED");
+    expect(created.body.data).toMatchObject({ mode: "import", import_state: null, start_kind: "existing", template_intent: null });
+    expect((await call<Project>("POST", "/projects", { name: "X", source: "new", has_required_template: true })).body.data).toMatchObject({ mode: "import", template_intent: "fixed" });
+    expect((await call<Project>("POST", "/projects", { name: "X", source: "new", has_required_template: false })).body.data).toMatchObject({ mode: "fpt", has_required_template: false });
+    expect((await call<Project>("POST", "/projects", { name: "X", mode: "import" })).body.data?.mode).toBe("import");
+    expect((await call("POST", "/projects", { name: "X", source: "later" })).status).toBe(400);
     expect((await call("POST", "/projects", { name: "X", mode: "coaching" })).status).toBe(400);
     expect((await call<Project>("POST", "/projects", { name: "Y" })).body.data?.mode).toBe("fpt");
   });
@@ -147,70 +145,61 @@ describe("mock mode 1 — import (#2–#10)", () => {
     expect((await call("POST", `/projects/${P}/import`, upload("other-project.docx"))).body.error?.code).toBe("IMPORT_STAMP_FOREIGN_PROJECT");
   });
 
-  it("đi trọn upload → xác nhận → mapping → trích → field → finalize → gap report", async () => {
+  it("FLF-343 đi trọn một mạch: upload ⇒ tách file + ước tính (I-4 + kiểm tra) ⇒ Bắt đầu kèm xác nhận ⇒ gap_review; field độ tin thấp ⇒ cờ Cần xem", async () => {
     const up = await call<ImportStateResponse>("POST", `/projects/${P}/import`, upload("SRS_Lumen.docx"));
     expect(up.status).toBe(201);
     const id = up.body.data!.import.id;
-    expect(up.body.data!.import.status).toBe("awaiting_latest_confirm");
-
-    expect((await call("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true })).body.error?.code).toBe("IMPORT_NEEDS_LATEST_CONFIRM");
-    expect((await call<ImportStateResponse>("POST", `/projects/${P}/import/confirm-latest`, { import_id: id })).body.data!.import.status).toBe("mapping_review");
+    expect(up.body.data!.import).toMatchObject({ status: "extracting", confirmed_latest_at: null, extract_cursor: null });
 
     const got = (await call<GetImportResponse>("GET", `/projects/${P}/import`)).body.data!;
     expect(got.blocks_count).toBe(12);
-    expect(got.profile!.heading_map.some((h) => h.confidence < 0.8)).toBe(true);
-    expect(got.profile!.heading_map.some((h) => h.section_id === "unmapped")).toBe(true);
-    // ước tính credit trước khi trích (BE §4.15): mỗi section một lượt, số dư của ví
-    expect(got.credit_estimate).toMatchObject({ diagram_images: 0, available_credits: state().credits });
-    expect(got.credit_estimate!.credits).toBe(got.credit_estimate!.ai_calls * 2);
+    // mapping độ tin thấp tự nhận, giữ độ tin
+    const low = got.profile!.heading_map.filter((h) => h.confidence < 0.8);
+    expect(low.length).toBeGreaterThan(0);
+    expect(low.every((h) => h.confirmed && h.auto_confirmed)).toBe(true);
+    // ước tính một lần: mỗi section một lượt (2) + một lượt kiểm tra (3), số dư của ví
+    expect(got.credit_estimate).toMatchObject({ diagram_images: 0, check_calls: 1, available_credits: state().credits });
+    expect(got.credit_estimate!.credits).toBe((got.credit_estimate!.ai_calls - 1) * 2 + 3);
 
-    expect((await call<ImportStateResponse>("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true })).body.data!.import.status).toBe("extracting");
-    const extracted = await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id });
+    // không xác nhận bản mới nhất ⇒ không chạy
+    expect((await call("POST", `/projects/${P}/import/extract`, { import_id: id })).body.error?.code).toBe("IMPORT_NEEDS_LATEST_CONFIRM");
+    const extracted = await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id, confirm_latest: true });
     // #6 trả ngay: vẫn extracting, chưa section nào xong — tiến độ xem qua poll #4
     expect(extracted.body.data!.import).toMatchObject({ status: "extracting", paused: null });
     expect(extracted.body.data!.sections.every((s) => s.status === "pending")).toBe(true);
-    const polled = await pollExtraction();
-    expect(polled.import!.status).toBe("fields_review");
-    expect(polled.extraction.review_fields).toHaveLength(1);
-
-    expect((await call<ImportStateResponse>("PATCH", `/projects/${P}/import/fields`, { import_id: id, confirm_all: true })).body.data!.import.status).toBe("baselining");
-    expect((await call("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: 99 })).body.error?.code).toBe("SPINE_VERSION_CONFLICT");
-
-    const fin = await call<FinalizeResponse>("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion });
-    // chạy nền (§4.16): trả ngay baselining, baseline/flags null; gọi lại khi đang chạy = không làm gì
-    expect(fin.body.data).toMatchObject({ doc_version: "0.0", baseline: null, flags: null, import: { status: "baselining", paused: null } });
-    expect((await call<FinalizeResponse>("POST", `/projects/${P}/import/finalize`, { import_id: id, base_version: state().spineVersion })).body.data?.import.status).toBe("baselining");
-    expect((await pollFinalize()).import).toMatchObject({ status: "gap_review", paused: null });
+    const done = await pollImport();
+    expect(done.import).toMatchObject({ status: "gap_review", paused: null });
     expect(state().baselines.filter((b) => b.type === "imported")).toHaveLength(1);
     expect((await call<Project>("GET", `/projects/${P}`)).body.data?.import_state).toBe("gap_review");
+    expect(state().credits).toBe(100 - got.credit_estimate!.credits);
+    const flags = (await call<{ rule_id: string; target_id: string | null }[]>("GET", `/projects/${P}/flags`)).body.data!;
+    expect(flags.filter((f) => f.rule_id === "import_needs_review").map((f) => f.target_id)).toEqual(["actors[id=A02].kind"]);
 
     const report = (await call<GapReport>("GET", `/projects/${P}/gap-report`)).body.data!;
     expect(report.totals.red).toBe(1);
-    expect(report.missing_sections[0].section_id).toBe("fixed:5.3");
+    expect(report).not.toHaveProperty("missing_fpt_sections");
     const docx = await call("GET", `/projects/${P}/gap-report?format=docx`);
     expect(docx.headers.get("content-type")).toContain("wordprocessingml");
   });
 
-  it("hết credit giữa lúc trích ⇒ paused + cursor; resume không trích lại section đã xong", async () => {
+  it("hết credit giữa lúc trích ⇒ paused + cursor; resume không trích lại section đã xong, chạy tiếp tới gap_review", async () => {
     const up = await call<ImportStateResponse>("POST", `/projects/${P}/import`, upload("SRS.docx"));
     const id = up.body.data!.import.id;
-    await call("POST", `/projects/${P}/import/confirm-latest`, { import_id: id });
-    await call("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true });
     state().credits = 4; // đủ 2 section
-    expect((await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id })).body.data!.import.paused).toBeNull();
-    const paused = await pollExtraction();
+    expect((await call<ExtractResponse>("POST", `/projects/${P}/import/extract`, { import_id: id, confirm_latest: true })).body.data!.import.paused).toBeNull();
+    const paused = await pollImport();
     expect(paused.import!.paused?.reason).toBe("credits");
     const sections = paused.extraction.sections;
     expect(paused.import!.extract_cursor).toBe(sections[2].section_id);
     expect(sections.filter((s) => s.status === "done")).toHaveLength(2);
-    // dừng ⇒ ước tính phần còn lại, số dư không đủ
-    expect(paused.credit_estimate).toMatchObject({ ai_calls: sections.length - 2, credits: 2 * (sections.length - 2), available_credits: 0 });
+    // dừng ⇒ ước tính phần còn lại (+ kiểm tra), số dư không đủ
+    expect(paused.credit_estimate).toMatchObject({ ai_calls: sections.length - 2 + 1, credits: 2 * (sections.length - 2) + 3, available_credits: 0 });
 
     state().credits = 100;
     const resumed = (await call<ExtractResponse>("POST", `/projects/${P}/import/resume`, { import_id: id })).body.data!;
     expect(resumed.import).toMatchObject({ status: "extracting", paused: null });
-    const done = await pollExtraction();
-    expect(done.import!.paused).toBeNull();
+    const done = await pollImport();
+    expect(done.import).toMatchObject({ status: "gap_review", paused: null });
     expect(done.extraction.sections.every((s) => s.status === "done")).toBe(true);
     expect(state().credits).toBe(100 - paused.credit_estimate!.credits);
     expect(done.credit_estimate).toBeNull();
@@ -219,13 +208,11 @@ describe("mock mode 1 — import (#2–#10)", () => {
   it("gọi #6 hai lần khi job đang chạy không bật job thứ hai, không trích lại", async () => {
     const up = await call<ImportStateResponse>("POST", `/projects/${P}/import`, upload("SRS.docx"));
     const id = up.body.data!.import.id;
-    await call("POST", `/projects/${P}/import/confirm-latest`, { import_id: id });
-    await call("PATCH", `/projects/${P}/import/mapping`, { import_id: id, confirm_all: true });
-    await call("POST", `/projects/${P}/import/extract`, { import_id: id });
+    await call("POST", `/projects/${P}/import/extract`, { import_id: id, confirm_latest: true });
     await call("GET", `/projects/${P}/import`);
     await call("POST", `/projects/${P}/import/extract`, { import_id: id });
-    const done = await pollExtraction();
-    expect(state().credits).toBe(100 - 2 * done.extraction.sections.length);
+    const done = await pollImport();
+    expect(state().credits).toBe(100 - 2 * done.extraction.sections.length - 3);
   });
 
   it("đã có baseline thì /import từ chối, /reupload trả diff và không tạo version", async () => {
@@ -233,7 +220,7 @@ describe("mock mode 1 — import (#2–#10)", () => {
     expect((await call("POST", `/projects/${P}/import`, upload("SRS_v2.docx"))).body.error?.code).toBe("IMPORT_INVALID_STATE");
     const diff = await call<ReuploadDiff>("POST", `/projects/${P}/reupload`, upload("SRS_v0.0_sua.docx"));
     expect(diff.status).toBe(201);
-    expect(diff.body.data).toMatchObject({ against_version: "0.0", summary: { added: 1, modified: 1 } });
+    expect(diff.body.data).toMatchObject({ against_version: "0.1", summary: { added: 1, modified: 1 } });
     expect((await call<DocVersion[]>("GET", `/projects/${P}/versions`)).body.data).toHaveLength(1);
   });
 });
@@ -262,9 +249,31 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(clear.change_request.clarifications[0].answers).toHaveLength(2);
   });
 
-  it("đi trọn CR (FLF-186): khoá phần tử Spine, CR thứ hai chạm cùng phần tử ⇒ PATH_LOCKED; duyệt ⇒ phần tử đổi, 0.1, mở khoá", async () => {
+  // FLF-279 phần B (§4.17): ứng viên vector THAY nguồn `keyword`; tắt (mặc định, `EMBEDDING_PROVIDER=off`)
+  // thì vị trí phải y như trước.
+  it("vector tắt ⇒ vị trí vẫn tìm bằng từ khoá, không có vector_score", async () => {
     const detail = await crToReview("Log out of all devices");
-    expect(detail.change_request.status).toBe("in_review");
+
+    expect(detail.locations.length).toBeGreaterThan(0);
+    expect(detail.locations.every((l) => l.found_by.includes("keyword"))).toBe(true);
+    expect(detail.locations.some((l) => l.found_by.includes("vector"))).toBe(false);
+    expect(detail.locations.every((l) => l.vector_score === null)).toBe(true);
+  });
+
+  it("vector bật ⇒ vector thay keyword, có vector_score, và vị trí đầu vừa spine_link vừa vector", async () => {
+    state().vectorEnabled = true;
+    const detail = await crToReview("Log out of all devices");
+
+    expect(detail.locations.every((l) => l.found_by.includes("keyword"))).toBe(false);
+    expect(detail.locations.every((l) => l.found_by.includes("vector"))).toBe(true);
+    expect(detail.locations.every((l) => typeof l.vector_score === "number")).toBe(true);
+    expect(detail.locations[0].found_by).toEqual(["spine_link", "vector"]);
+    expect(detail.locations[0].vector_score).toBeCloseTo(0.91);
+  });
+
+  it("đi trọn CR (FLF-186): khoá phần tử Spine, CR thứ hai chạm cùng phần tử ⇒ PATH_LOCKED; BA xác nhận ⇒ phần tử đổi, 0.2, mở khoá (FLF-330)", async () => {
+    const detail = await crToReady("Log out of all devices");
+    expect(detail.change_request.status).toBe("ready_to_submit");
     const locked = detail.locations.map((l) => l.path);
     expect(locked.length).toBeGreaterThan(0);
     expect(locked.every((p) => state().locks.get(p) === detail.change_request.cr_id)).toBe(true);
@@ -278,18 +287,20 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(conflict.body.meta?.locked).toEqual(expect.arrayContaining([expect.objectContaining({ cr_id: detail.change_request.cr_id })]));
 
     const base = `/projects/${P}/change-requests/${detail.change_request.cr_id}`;
-    expect((await call("POST", `${base}/groups/G01/decision`, { decision: "rejected", reason: "ngắn", base_version: state().spineVersion })).status).toBe(400);
-    const written = (await call<CrDetail>("POST", `${base}/groups/G01/decision`, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: state().spineVersion })).body.data!;
-    expect(written.change_request).toMatchObject({ status: "written", result_doc_version: "0.1" });
+    // FLF-330 C-6: xác nhận là ghi ngay — không còn duyệt từng group
+    const written = (await call<CrDetail>("POST", `${base}/submit`, {})).body.data!;
+    expect(written.change_request).toMatchObject({ status: "written", result_doc_version: "0.2" });
+    expect(written.groups.every((g) => g.decision === "approved")).toBe(true);
+    expect((await call("POST", `${base}/groups/G01/decision`, { decision: "approved", reason: "Đúng yêu cầu của khách", base_version: state().spineVersion })).status).toBe(409);
 
     // giá trị phần tử đã đổi theo đề xuất; khoá của CR mở hết
     const edited = written.locations.find((l) => l.conclusion === "edit")!;
     expect(written.locations.find((l) => l.location_id === edited.location_id)?.current_text).toBe(edited.proposal?.new_text);
     expect([...state().locks.values()]).not.toContain(detail.change_request.cr_id);
-    expect((await call<DocBlock[]>("GET", `/projects/${P}/versions/0.1/blocks`)).status).toBe(200);
-    expect((await call<CompareResponse>("GET", `/projects/${P}/versions/compare?from=0.0&to=0.1`)).status).toBe(200);
-    const dl = await call("GET", `/projects/${P}/versions/0.1/download`);
-    expect(dl.headers.get("content-disposition")).toContain("_v0.1_DRAFT.docx");
+    expect((await call<DocBlock[]>("GET", `/projects/${P}/versions/0.2/blocks`)).status).toBe(200);
+    expect((await call<CompareResponse>("GET", `/projects/${P}/versions/compare?from=0.1&to=0.2`)).status).toBe(200);
+    const dl = await call("GET", `/projects/${P}/versions/0.2/download`);
+    expect(dl.headers.get("content-disposition")).toContain("_v0.2_DRAFT.docx");
   });
 
   it("nộp khi còn vị trí chưa kết luận ⇒ CR_LOCATION_UNCONCLUDED", async () => {
@@ -318,8 +329,9 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect((await call<CrDetail>("POST", `${base}/verify`, {})).body.data!.change_request.status).toBe("ready_to_submit");
   });
 
-  it("mọi group bị từ chối ⇒ đóng (rejected) và mở khoá; huỷ CR khác cũng mở khoá", async () => {
-    const detail = await crToReview("Log out of all devices");
+  it("luồng cũ (CR in_review trước FLF-330): mọi group bị từ chối ⇒ đóng (rejected) và mở khoá; huỷ CR khác cũng mở khoá", async () => {
+    const detail = await crToReady("Log out of all devices");
+    state().crs.get(detail.change_request.cr_id)!.change_request.status = "in_review";
     const base = `/projects/${P}/change-requests/${detail.change_request.cr_id}`;
     const groupPaths = detail.locations.filter((l) => l.group_id === "G01").map((l) => l.path);
     await call("POST", `${base}/groups/G01/decision`, { decision: "rejected", reason: "Ngoài phạm vi bản 1.0", base_version: state().spineVersion });
@@ -329,7 +341,7 @@ describe("mock mode 1 — change request (#16–#30)", () => {
     expect(closed.change_request.status).toBe("rejected");
     expect(state().locks.size).toBe(0);
 
-    const second = await crToReview("Log out of all devices v2");
+    const second = await crToReady("Log out of all devices v2");
     const cancelled = (await call<CrDetail>("POST", `/projects/${P}/change-requests/${second.change_request.cr_id}/cancel`, { reason: "Tạo nhầm change request" })).body.data!;
     expect(cancelled.change_request.status).toBe("cancelled");
     expect(state().locks.size).toBe(0);
@@ -374,12 +386,12 @@ describe("mock mode 1 — release (#31)", () => {
 
     state().redFlags = 0;
     const rel = (await call<ReleaseResponse>("POST", `/projects/${P}/release`, { base_version: state().spineVersion })).body.data!;
-    expect(rel.version).toMatchObject({ version: "1.0", kind: "release", has_clean_file: true, based_on: "0.1" });
+    expect(rel.version).toMatchObject({ version: "1.0", kind: "release", has_clean_file: true, based_on: "0.2" });
     expect(rel.baseline.type).toBe("release");
     expect(rel.cr_ids).toEqual([detail.change_request.cr_id]);
 
     const versions = (await call<DocVersion[]>("GET", `/projects/${P}/versions`)).body.data!.map((v) => v.version);
-    expect(versions).toEqual(["1.0", "0.1", "0.0"]);
+    expect(versions).toEqual(["1.0", "0.2", "0.1"]);
     expect((await call("GET", `/projects/${P}/versions/1.0/download`)).headers.get("content-disposition")).toContain("_v1.0.docx");
     expect((await call("GET", `/projects/${P}/versions/9.9/blocks`)).body.error?.code).toBe("DOC_VERSION_NOT_FOUND");
   });

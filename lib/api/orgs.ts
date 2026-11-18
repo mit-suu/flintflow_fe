@@ -5,6 +5,7 @@
  * xem `switchOrganization` / `acceptInvitation`.
  */
 import { apiCall } from "./client";
+import { clearDocumentImageCache } from "./document-image-cache";
 import { saveAuthToken } from "./token-store";
 import type {
   AcceptInvitationResult,
@@ -32,8 +33,26 @@ export const createOrganization = async (name: string): Promise<Organization> =>
 export const fetchOrganization = async (orgId: string): Promise<OrganizationDetail> =>
   unwrap(await apiCall<OrganizationDetail>(`/orgs/${orgId}`));
 
-export const renameOrganization = async (orgId: string, name: string): Promise<Organization> =>
-  unwrap(await apiCall<Organization>(`/orgs/${orgId}`, { method: "PATCH", body: JSON.stringify({ name }) }));
+// Thanh bên (OrgSwitcher qua `useActiveOrganization`) lắng nghe để hiện tên mới mà không phải tải lại trang
+const ORG_CHANGED_EVENT = "flintflow:organization-changed";
+
+export const emitOrganizationChanged = () => {
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(new Event(ORG_CHANGED_EVENT));
+  }
+};
+
+export const onOrganizationChanged = (handler: () => void) => {
+  window.addEventListener(ORG_CHANGED_EVENT, handler);
+  return () => window.removeEventListener(ORG_CHANGED_EVENT, handler);
+};
+
+/** UC-80 — chỉ Lead. BE cắt khoảng trắng, từ chối tên rỗng hoặc quá dài (`VALIDATION_ERROR`). */
+export const renameOrganization = async (orgId: string, name: string): Promise<Organization> => {
+  const org = unwrap(await apiCall<Organization>(`/orgs/${orgId}`, { method: "PATCH", body: JSON.stringify({ name }) }));
+  emitOrganizationChanged();
+  return org;
+};
 
 /**
  * Xoá tổ chức — chỉ khi Lead là thành viên duy nhất. Xoá cả dự án, thư mục, ví và gói; không khôi phục được.
@@ -55,9 +74,17 @@ export const deleteOrganization = async (
  * UC-10 — chọn org để làm việc. BE trả access token mới mang `orgId`; **phải lưu ngay**, nếu không
  * request kế tiếp vẫn đi với org cũ.
  */
-export const switchOrganization = async (orgId: string): Promise<SwitchOrgResult> => {
-  const result = unwrap(await apiCall<SwitchOrgResult>(`/orgs/${orgId}/switch`, { method: "POST" }));
+export const switchOrganization = async (
+  orgId: string,
+  options?: { rememberAsDefault?: boolean }
+): Promise<SwitchOrgResult> => {
+  const init: RequestInit = { method: "POST" };
+  if (options?.rememberAsDefault !== undefined) {
+    init.body = JSON.stringify({ rememberAsDefault: options.rememberAsDefault });
+  }
+  const result = unwrap(await apiCall<SwitchOrgResult>(`/orgs/${orgId}/switch`, init));
   saveAuthToken(result.accessToken);
+  clearDocumentImageCache();
   return result;
 };
 
@@ -66,14 +93,17 @@ export const switchOrganization = async (orgId: string): Promise<SwitchOrgResult
 export const fetchMembers = async (orgId: string): Promise<OrgMember[]> =>
   unwrap(await apiCall<OrgMember[]>(`/orgs/${orgId}/members`));
 
-/** UC-73. Hạ Lead cuối cùng ⇒ `ApiClientError` code `LAST_LEAD` (409). */
-export const changeMemberRole = async (orgId: string, userId: string, role: OrgRole): Promise<OrgMember> =>
-  unwrap(
+/** UC-73 / UC-14. Hạ Lead cuối cùng ⇒ `ApiClientError` code `LAST_LEAD` (409). */
+export const changeMemberRole = async (orgId: string, userId: string, role: OrgRole): Promise<OrgMember> => {
+  const member = unwrap(
     await apiCall<OrgMember>(`/orgs/${orgId}/members/${userId}/role`, {
       method: "PATCH",
       body: JSON.stringify({ role }),
     })
   );
+  emitOrganizationChanged();
+  return member;
+};
 
 /** UC-74. Xoá Lead cuối cùng ⇒ `LAST_LEAD`. */
 export const removeMember = async (orgId: string, userId: string): Promise<void> => {
@@ -90,7 +120,9 @@ export const leaveOrganization = async (orgId: string): Promise<void> => {
 export const fetchInvitations = async (orgId: string): Promise<Invitation[]> =>
   unwrap(await apiCall<Invitation[]>(`/orgs/${orgId}/invitations`));
 
-/** UC-08 — chỉ Lead. Email bắt buộc: BE gửi mã tới đó. `code` trong kết quả là lần duy nhất thấy mã thô. */
+/**
+ * UC-08. Chỉ Lead tạo mã mời. Email bắt buộc: BE gửi mã tới đó và trả `code` — lần duy nhất thấy mã thô.
+ */
 export const createInvitation = async (
   orgId: string,
   role: InvitableRole,
@@ -103,6 +135,7 @@ export const createInvitation = async (
     })
   );
 
+/** UC-08. Chỉ Lead thu hồi mã mời đang chờ. */
 export const revokeInvitation = async (orgId: string, invitationId: string): Promise<Invitation> =>
   unwrap(await apiCall<Invitation>(`/orgs/${orgId}/invitations/${invitationId}`, { method: "DELETE" }));
 
@@ -116,5 +149,6 @@ export const acceptInvitation = async (code: string): Promise<AcceptInvitationRe
     await apiCall<AcceptInvitationResult>(`/invitations/${encodeURIComponent(code)}/accept`, { method: "POST" })
   );
   saveAuthToken(result.accessToken);
+  clearDocumentImageCache();
   return result;
 };

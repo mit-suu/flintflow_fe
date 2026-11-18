@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import Button from "@/components/ui/Button";
+import TopBar from "@/components/layout/TopBar";
+import { Badge, Button, EmptyState, Icon, LINK_PRIMARY, LINK_SECONDARY, PageSkeleton } from "@/components/ui";
 import { fetchMyOrganizations, switchOrganization } from "@/lib/api/orgs";
+import { updateMyPreferredOrganization } from "@/lib/api/users";
 import { getActiveOrgId } from "@/lib/api/token-store";
+import { ACCOUNT_PAGE_SCROLL_CLASS, OrganizationsHeader } from "@/components/page-shells/AccountPagesShell";
 import type { Organization } from "@/types/organization";
 import { ONBOARDING_PATH } from "@/components/OrgGuard";
 import { userErrorMessage } from "@/lib/api/error-messages";
@@ -17,10 +20,15 @@ import { userErrorMessage } from "@/lib/api/error-messages";
 export default function OrganizationsPage() {
   const t = useTranslations("app.org.switcher");
   const tRoles = useTranslations("app.org.roles");
+  const tc = useTranslations("app.common");
   const [orgs, setOrgs] = useState<Organization[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [switching, setSwitching] = useState<string | null>(null);
+  const [rememberChoice, setRememberChoice] = useState(false);
+  const [savingDefault, setSavingDefault] = useState(false);
   const activeOrgId = getActiveOrgId();
+  // Cùng mẫu với OnboardingPage: khung tối giản (không AppShell / TopBar) khi chưa có orgId lúc mount.
+  const [hasOrg] = useState(() => Boolean(activeOrgId));
 
   useEffect(() => {
     let mounted = true;
@@ -36,7 +44,11 @@ export default function OrganizationsPage() {
     setSwitching(orgId);
     setError(null);
     try {
-      await switchOrganization(orgId);
+      if (rememberChoice) {
+        await switchOrganization(orgId, { rememberAsDefault: true });
+      } else {
+        await switchOrganization(orgId);
+      }
       // Tải lại hẳn: danh sách dự án, số dư ví ở sidebar đang giữ dữ liệu của org cũ trong bộ nhớ.
       window.location.assign("/home");
     } catch (err) {
@@ -45,68 +57,162 @@ export default function OrganizationsPage() {
     }
   };
 
-  return (
-    <section className="w-full max-w-[720px] mx-auto flex flex-col gap-6 pt-8 pb-12 px-4 sm:px-6">
-      <div className="flex flex-col gap-2">
-        <h1 className="text-title font-bold text-on-surface tracking-tight">{t("title")}</h1>
-        <p className="text-body text-on-surface-muted leading-[1.6]">{t("subtitle")}</p>
-      </div>
+  /**
+   * Đặt (`orgId`) hoặc bỏ (`null`) tổ chức mặc định khi đăng nhập. Tổ chức đang mở không có nút "Mở tổ chức này"
+   * nên checkbox ghi nhớ không áp được cho nó — nút "Ghi nhớ khi đăng nhập" lấp chỗ đó (FLF-427).
+   */
+  const handleSetDefault = async (orgId: string | null) => {
+    setSavingDefault(true);
+    setError(null);
+    try {
+      await updateMyPreferredOrganization(orgId);
+      setOrgs((prev) => (prev ? prev.map((o) => ({ ...o, isDefault: orgId !== null && o.id === orgId })) : null));
+    } catch (err) {
+      setError(userErrorMessage(err));
+    } finally {
+      setSavingDefault(false);
+    }
+  };
+
+  // Ba trạng thái khác nhau, không gộp: `null` là đang tải, `[]` là chưa thuộc tổ chức nào. Trước đây cả hai
+  // ra cùng một danh sách rỗng, nên trong lúc chờ API trang nói sai rằng user không có tổ chức.
+  const loadingOrgs = orgs === null;
+  const noOrgs = orgs !== null && orgs.length === 0;
+
+  const content = (
+    <>
+      <OrganizationsHeader showAdd={!noOrgs} />
 
       {error ? (
-        <p role="alert" className="rounded-lg bg-error-container px-3 py-2 text-body text-on-error-container">
+        <p role="alert" className="rounded-control bg-error-container px-3 py-2 text-body text-on-error-container">
           {error}
         </p>
       ) : null}
 
-      <ul className="flex flex-col gap-2">
-        {(orgs ?? []).map((org) => {
-          const isCurrent = org.id === activeOrgId;
-          return (
-            <li
-              key={org.id}
-              className="flex items-center justify-between gap-4 rounded-xl border border-outline bg-surface-container-lowest px-4 py-3"
-            >
-              <div className="min-w-0">
-                <p className="text-heading font-semibold text-on-surface truncate">{org.name}</p>
-                <p className="text-body text-on-surface-muted">{t("roleLine", { role: tRoles(org.role) })}</p>
-              </div>
-              {isCurrent ? (
-                // Trước đây chỉ là chữ màu tím, trông như nút mà bấm không được. Giờ là huy hiệu trạng thái (không
-                // tương tác) + một link thật để vào làm việc ở org này.
-                <div className="flex items-center gap-2">
-                  <span className="rounded-full bg-primary-fixed px-2.5 py-1 text-body font-semibold text-primary">
-                    {t("current")}
-                  </span>
-                  <Link
-                    href="/home"
-                    className="inline-flex h-8 items-center rounded-control border border-outline bg-surface-container-lowest px-3.5 text-body font-bold text-on-surface-medium hover:bg-surface-container-low"
-                  >
-                    {t("goToProjects")}
-                  </Link>
-                </div>
-              ) : (
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  loading={switching === org.id}
-                  disabled={switching !== null}
-                  onClick={() => void handleSwitch(org.id)}
-                >
-                  {t("switch")}
-                </Button>
-              )}
-            </li>
-          );
-        })}
-      </ul>
+      {(orgs?.length ?? 0) >= 2 && (
+        <label className="min-h-[44px] inline-flex items-center gap-2.5 cursor-pointer select-none text-body text-on-surface">
+          <input
+            type="checkbox"
+            checked={rememberChoice}
+            onChange={(e) => setRememberChoice(e.target.checked)}
+            className="size-[1.125em] accent-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-50"
+          />
+          <span>{t("rememberChoice")}</span>
+        </label>
+      )}
 
-      <div className="flex flex-col gap-2 rounded-xl border border-dashed border-outline px-4 py-4">
-        <p className="text-heading font-semibold text-on-surface">{t("addTitle")}</p>
-        <p className="text-body text-on-surface-muted">{t("addBody")}</p>
-        <Link href={ONBOARDING_PATH} className="self-start text-body font-semibold text-primary hover:underline">
-          {t("addCta")}
-        </Link>
+      {loadingOrgs ? (
+        <PageSkeleton variant="list" label={t("loading")} />
+      ) : noOrgs ? (
+        <EmptyState
+          icon="building"
+          title={t("emptyTitle")}
+          description={t("emptyBody")}
+          action={
+            <Link href={ONBOARDING_PATH} className={LINK_PRIMARY}>
+              {t("addCta")}
+            </Link>
+          }
+        />
+      ) : (
+        // Mảng nền mờ gom cả danh sách, mỗi dòng nổi lên khi rê chuột — không viền, không kẻ ngang.
+        // Nhiều tổ chức thì cuộn trong khung thay vì kéo dài trang.
+        <div
+          role="list"
+          className="flex flex-col gap-0.5 rounded-card bg-surface-container-low p-1.5 max-h-[60dvh] overflow-y-auto"
+        >
+          {(orgs ?? []).map((org) => {
+            const isCurrent = org.id === activeOrgId;
+            return (
+              <div
+                key={org.id}
+                role="listitem"
+                className="flex flex-wrap items-center justify-between gap-3 rounded-control px-3 py-2.5 transition-colors hover:bg-surface-container-lowest"
+              >
+                <div className="min-w-0 flex flex-1 items-center gap-3">
+                  <span
+                    aria-hidden
+                    className="shrink-0 grid size-10 place-items-center rounded-full bg-primary-fixed text-primary"
+                  >
+                    <Icon name="building" size={18} />
+                  </span>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-heading font-semibold text-on-surface truncate">{org.name}</p>
+                      {org.isDefault ? (
+                        <Badge tone="neutral" size="sm">
+                          {t("defaultBadge")}
+                        </Badge>
+                      ) : null}
+                    </div>
+                    <p className="text-body text-on-surface-muted">{t("roleLine", { role: tRoles(org.role) })}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {org.isDefault ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={savingDefault}
+                      disabled={savingDefault}
+                      onClick={() => void handleSetDefault(null)}
+                    >
+                      {t("clearDefault")}
+                    </Button>
+                  ) : isCurrent && (orgs?.length ?? 0) >= 2 ? (
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      loading={savingDefault}
+                      disabled={savingDefault}
+                      onClick={() => void handleSetDefault(org.id)}
+                    >
+                      {t("setDefault")}
+                    </Button>
+                  ) : null}
+                  {isCurrent ? (
+                    // Trước đây chỉ là chữ màu tím, trông như nút mà bấm không được. Giờ là huy hiệu trạng thái (không
+                    // tương tác) + một link thật để vào làm việc ở org này.
+                    <div className="flex items-center gap-2">
+                      <Badge tone="primary" size="md">
+                        {t("current")}
+                      </Badge>
+                      <Link href="/home" className={LINK_SECONDARY}>
+                        {t("goToProjects")}
+                      </Link>
+                    </div>
+                  ) : (
+                    <Button
+                      size="sm"
+                      variant="secondary"
+                      loading={switching === org.id}
+                      disabled={switching !== null}
+                      onClick={() => void handleSwitch(org.id)}
+                    >
+                      {t("switch")}
+                    </Button>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </>
+  );
+
+  // Chưa có tổ chức đang mở (`HomeFrame` dựng khung tối giản, không có `AppShell`) ⇒ không gọi `TopBar`.
+  if (!hasOrg) {
+    return <section className="w-full max-w-[720px] mx-auto flex flex-col gap-6 pt-10 pb-12">{content}</section>;
+  }
+
+  return (
+    <>
+      <TopBar trail={[tc("account"), t("title")]} />
+
+      <div className={ACCOUNT_PAGE_SCROLL_CLASS}>
+        <div className="w-full max-w-[720px] mx-auto flex flex-col gap-6">{content}</div>
       </div>
-    </section>
+    </>
   );
 }

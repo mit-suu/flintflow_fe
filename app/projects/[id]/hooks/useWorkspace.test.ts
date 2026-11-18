@@ -19,7 +19,7 @@ const loaded = async () => {
   return hook;
 };
 
-describe("useWorkspace — tin hiện tạm của lượt chốt cổng", () => {
+describe("useWorkspace - tin hiện tạm của lượt chốt cổng", () => {
   it("giữ đúng thứ tự tin cổng của AI rồi tới thao tác của user", async () => {
     const { result } = await loaded();
     const before = result.current.activeSession!.messages.length;
@@ -36,7 +36,7 @@ describe("useWorkspace — tin hiện tạm của lượt chốt cổng", () => 
     ]);
   });
 
-  it("gỡ được tin AI, không chỉ tin user — lượt chốt hỏng thì không còn tin cổng treo lại", async () => {
+  it("gỡ được tin AI, không chỉ tin user - lượt chốt hỏng thì không còn tin cổng treo lại", async () => {
     const { result } = await loaded();
     const before = result.current.activeSession!.messages.length;
 

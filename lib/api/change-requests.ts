@@ -5,10 +5,12 @@ import type {
   CreateCrRequest,
   Cr,
   CrDetail,
+  CrMessageOutcome,
   CrStatus,
   GroupDecisionRequest,
   OwnerStepDraftRequest,
   PatchLocationRequest,
+  PendingSection,
 } from "@/types/change-request";
 import { apiCall } from "./client";
 
@@ -25,6 +27,9 @@ export const listCrs = (projectId: string, status?: CrStatus) =>
 
 export const getCr = (projectId: string, crId: string) => apiCall<CrDetail>(cr(projectId, crId));
 
+/** BF §3.2: mục đang có bản sửa chưa xác nhận của CR chưa đóng, ai giữ. */
+export const getPendingSections = (projectId: string) => apiCall<PendingSection[]>(`${crs(projectId)}/pending-sections`);
+
 /** Các bước không có body: làm rõ (C-2), tìm vị trí + khoá (C-3), đề xuất (C-4), kiểm (C-5), nộp, sửa lại, resume. */
 export type CrAction = "clarify" | "impact" | "propose" | "verify" | "submit" | "revise" | "resume";
 
@@ -38,6 +43,13 @@ export const answerClarifications = (projectId: string, crId: string, answers: s
 /** Phase 8 (chat): gộp thêm một lệnh sửa vào CR chưa nộp — sau `draft` BE chạy lại làm rõ ngay. */
 export const amendCr = (projectId: string, crId: string, instruction: string) =>
   apiCall<CrDetail>(`${cr(projectId, crId)}/amend`, post({ instruction }));
+
+/**
+ * FLF-375 (BF nguyên tắc 9): tin nhắn trong lúc CR mở — lệnh sửa ⇒ BE gộp vào CR (như `amendCr`), câu hỏi ⇒ AI trả lời
+ * từ SRS + trạng thái CR, không thành yêu cầu bổ sung.
+ */
+export const sendCrMessage = (projectId: string, crId: string, text: string, language?: "vi" | "en") =>
+  apiCall<CrDetail & { message: CrMessageOutcome }>(`${cr(projectId, crId)}/messages`, post({ text, ...(language ? { language } : {}) }));
 
 /** Phase 7: đính kèm đoạn văn bản nguồn (chỉ khi CR ở `draft` / `awaiting_answers`). */
 export const addCrMaterialText = (projectId: string, crId: string, body: { name: string; text: string }) =>

@@ -11,12 +11,23 @@ import type {
   StepAnswerRequest,
   StepEvent,
   StepsResponse,
+  RunEstimate,
+  VersionResponse,
 } from "@/types/pipeline";
 import { streamSse, type SseHandlers } from "../ai-stream";
 import { apiCall } from "./client";
+import { rememberProgress } from "../progress-cache";
 
+/** Mỗi lần đọc tiến độ đều nhớ lại cho thẻ dự án ở trang chủ (`lib/progress-cache.ts`). */
 export const getProgress = (projectId: string) =>
-  apiCall<ProgressResponse>(`/projects/${projectId}/progress`);
+  apiCall<ProgressResponse>(`/projects/${projectId}/progress`).then((res) => {
+    rememberProgress(projectId, res.data ?? null);
+    return res;
+  });
+
+/** Nhịp hỏi nhẹ để biết tài liệu / Spine đã đổi ở nơi khác chưa (`useDocumentFollow`). Mọi vai trò kể cả Viewer gọi được. */
+export const getProjectVersion = (projectId: string) =>
+  apiCall<VersionResponse>(`/projects/${projectId}/version`);
 
 export const listSteps = (projectId: string) =>
   apiCall<StepsResponse>(`/projects/${projectId}/steps`);
@@ -59,6 +70,18 @@ export const submitGate = (projectId: string, stepId: string, request: GateReque
  */
 export const getRunState = (projectId: string, stepId: string) =>
   apiCall<RunState | null>(`/projects/${projectId}/steps/${stepId}/run-state`);
+
+/**
+ * Ước tính credit cho lượt chạy liền sắp tới (FLF-332): `scope: "all"` từ bước `from` tới hết pipeline (sau Approve Brief),
+ * `"unit"` chỉ đơn vị giai đoạn của bước đó. Không giữ credit, không gọi AI.
+ */
+export const getRunEstimate = (projectId: string, query: { scope?: "unit" | "all"; from?: string } = {}) => {
+  const params = new URLSearchParams();
+  if (query.scope) params.set("scope", query.scope);
+  if (query.from) params.set("from", query.from);
+  const qs = params.toString();
+  return apiCall<RunEstimate>(`/projects/${projectId}/run-estimate${qs ? `?${qs}` : ""}`);
+};
 
 /** Lượt chạy còn sống của dự án — khôi phục pill "đang chạy nền" khi mở lại trang. */
 export const getActiveRunState = (projectId: string) => apiCall<RunState | null>(`/projects/${projectId}/run-state/active`);

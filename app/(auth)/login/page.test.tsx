@@ -29,7 +29,7 @@ const submit = (email: string, password: string) => {
   fireEvent.click(screen.getByRole("button", { name: /^Đăng nhập$/ }));
 };
 
-describe("LoginPage — Ghi nhớ đăng nhập", () => {
+describe("LoginPage - Ghi nhớ đăng nhập", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
     vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
@@ -82,7 +82,7 @@ describe("LoginPage — Ghi nhớ đăng nhập", () => {
   });
 });
 
-describe("LoginPage — ngôn ngữ của tài khoản (FLF-259)", () => {
+describe("LoginPage - ngôn ngữ của tài khoản (FLF-259)", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
     vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
@@ -116,7 +116,7 @@ describe("LoginPage — ngôn ngữ của tài khoản (FLF-259)", () => {
   });
 });
 
-describe("LoginPage — câu lỗi của BE theo ngôn ngữ đang hiển thị", () => {
+describe("LoginPage - câu lỗi của BE theo ngôn ngữ đang hiển thị", () => {
   beforeEach(() => {
     vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
     vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
@@ -159,5 +159,124 @@ describe("LoginPage — câu lỗi của BE theo ngôn ngữ đang hiển thị"
     submit("hiep@flintflow.vn", "sai-mat-khau");
 
     expect(await screen.findByText("email không hợp lệ")).toBeInTheDocument();
+  });
+});
+
+describe("LoginPage - tài khoản bị khoá hiện lý do (UC-03, FLF-345)", () => {
+  beforeEach(() => {
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
+    vi.mocked(saveAuthToken).mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { href: "", pathname: "/login" });
+    sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("BE trả lý do ⇒ hiện tiêu đề khoá, lý do, ngày khoá và hướng dẫn liên hệ", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(403, {
+        data: null,
+        error: { code: "ACCOUNT_SUSPENDED", message: "Tài khoản đã bị khoá" },
+        meta: { reason: "Vi phạm điều khoản sử dụng", suspended_at: "2026-10-30T08:00:00.000Z" },
+      }),
+    );
+    await renderPage();
+    submit("hiep@flintflow.vn", "password-123");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Tài khoản của bạn đã bị khoá.");
+    expect(alert).toHaveTextContent("Lý do: Vi phạm điều khoản sử dụng");
+    expect(alert).toHaveTextContent(/Khoá từ ngày .*2026/);
+    expect(alert).toHaveTextContent("liên hệ quản trị viên FlintFlow");
+    expect(saveAuthToken).not.toHaveBeenCalled();
+  });
+
+  it("BE không có lý do ⇒ chỉ câu khoá chung, không có dòng Lý do", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(403, { data: null, error: { code: "ACCOUNT_SUSPENDED", message: "Tài khoản đã bị khoá" }, meta: { reason: null, suspended_at: null } }),
+    );
+    await renderPage();
+    submit("hiep@flintflow.vn", "password-123");
+
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Tài khoản của bạn đã bị khoá.");
+    expect(alert).not.toHaveTextContent("Lý do:");
+    expect(alert).not.toHaveTextContent("Khoá từ ngày");
+  });
+
+  it("bị khoá giữa phiên ⇒ /login đọc lý do client.ts để lại, đọc một lần rồi xoá", async () => {
+    sessionStorage.setItem("flintflow:account-suspended", JSON.stringify({ reason: "Spam tạo dự án", suspendedAt: null }));
+    await renderPage();
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Lý do: Spam tạo dự án");
+    expect(sessionStorage.getItem("flintflow:account-suspended")).toBeNull();
+  });
+});
+
+describe("LoginPage - điều hướng sau xác thực (resolvePostAuthDestination)", () => {
+  beforeEach(() => {
+    vi.mocked(useRouter).mockReturnValue({ push: vi.fn() } as unknown as ReturnType<typeof useRouter>);
+    vi.mocked(getRememberedEmail).mockReset().mockReturnValue(null);
+    vi.mocked(saveAuthToken).mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubGlobal("location", { href: "", pathname: "/login" });
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it("admin ⇒ về /admin/metrics", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(200, {
+        data: {
+          accessToken: "at-admin",
+          user: { role: "admin" },
+        },
+      })
+    );
+    await renderPage();
+    submit("admin@flintflow.vn", "password-123");
+
+    await waitFor(() => expect(window.location.href).toBe("/admin/metrics"));
+  });
+
+  it("tài khoản chưa onboarding (needsOnboarding: true) ⇒ về /home/onboarding", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(200, {
+        data: {
+          accessToken: "at-user",
+          user: { role: "user" },
+          needsOnboarding: true,
+          organizations: [],
+        },
+      })
+    );
+    await renderPage();
+    submit("user@flintflow.vn", "password-123");
+
+    await waitFor(() => expect(window.location.href).toBe("/home/onboarding"));
+  });
+
+  it("tài khoản có nhiều tổ chức và chưa có tổ chức mặc định ⇒ về /home/organizations", async () => {
+    fetchMock.mockReset().mockResolvedValue(
+      jsonResponse(200, {
+        data: {
+          accessToken: "at-user",
+          user: { role: "user" },
+          needsOnboarding: false,
+          activeOrgId: null,
+          organizations: [{ id: "o1" }, { id: "o2" }],
+        },
+      })
+    );
+    await renderPage();
+    submit("user@flintflow.vn", "password-123");
+
+    await waitFor(() => expect(window.location.href).toBe("/home/organizations"));
   });
 });

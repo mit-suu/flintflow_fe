@@ -2,7 +2,12 @@ import { waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { updateMyLocale } from "@/lib/api/users";
 import { renderHookWithIntl } from "@/test/intl";
-import { markAccountLocaleSettled, resetAccountLocaleSync, useAccountLocaleSync } from "./use-account-locale";
+import {
+  isAccountLocaleSettled,
+  markAccountLocaleSettled,
+  resetAccountLocaleSync,
+  useAccountLocaleSync,
+} from "./use-account-locale";
 
 const router = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router }));
@@ -59,7 +64,7 @@ describe("useAccountLocaleSync", () => {
     consoleError.mockRestore();
   });
 
-  it("chỉ chạy một lần mỗi lần tải trang — rerender hay remount không refresh / lưu lại", () => {
+  it("chỉ chạy một lần mỗi lần tải trang - rerender hay remount không refresh / lưu lại", () => {
     const first = renderHookWithIntl(({ account }) => useAccountLocaleSync(account), "vi", {
       initialProps: { account: { locale: "en" as const } },
     });
@@ -76,5 +81,23 @@ describe("useAccountLocaleSync", () => {
     expect(document.cookie).not.toContain("NEXT_LOCALE");
     expect(router.refresh).not.toHaveBeenCalled();
     expect(updateMyLocale).not.toHaveBeenCalled();
+  });
+});
+
+describe("isAccountLocaleSettled", () => {
+  it("trả về false sau resetAccountLocaleSync", () => {
+    resetAccountLocaleSync();
+    expect(isAccountLocaleSettled()).toBe(false);
+  });
+
+  it("trả về true sau markAccountLocaleSettled", () => {
+    markAccountLocaleSettled();
+    expect(isAccountLocaleSettled()).toBe(true);
+  });
+
+  it("trả về true sau khi useAccountLocaleSync đồng bộ thành công", () => {
+    expect(isAccountLocaleSettled()).toBe(false);
+    renderHookWithIntl(() => useAccountLocaleSync({ locale: "en" }), "vi");
+    expect(isAccountLocaleSettled()).toBe(true);
   });
 });

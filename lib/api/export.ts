@@ -1,8 +1,9 @@
 /**
- * Dựng tài liệu, export Word và baseline — theo danh sách endpoint T08; chốt payload ở T16.
+ * Dựng tài liệu, export Word / PDF và baseline — theo danh sách endpoint T08; chốt payload ở T16.
  */
 import type { DocumentSource, RenderedDocument } from "@/types/document";
-import type { Baseline } from "@/types/spine";
+import type { DocumentLanguage } from "@/types/project";
+import type { Baseline, BaselineSubmission } from "@/types/spine";
 import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
 
 /**
@@ -29,17 +30,29 @@ const readErrorHint = async (res: Response): Promise<string | undefined> => {
   }
 };
 
-/** Dựng `ApiClientError` với đúng `code`/`message` từ envelope lỗi (không hard-code một mã chung). */
+/** `meta` của envelope lỗi (vd `TRANSLATION_INCOMPLETE { locale, missing, total }` — FLF-334 B). */
+const readErrorMeta = async (res: Response): Promise<Record<string, unknown> | undefined> => {
+  try {
+    const json: { meta?: unknown } = await res.json();
+    return json.meta && typeof json.meta === "object" ? (json.meta as Record<string, unknown>) : undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+/** Dựng `ApiClientError` với đúng `code`/`message`/`meta` từ envelope lỗi (không hard-code một mã chung). */
 const readErrorAsApiClientError = async (res: Response, fallbackMessage: string): Promise<ApiClientError> => {
   const forMessage = res.clone();
   const forHint = res.clone();
-  const [message, code, hint] = await Promise.all([
+  const forMeta = res.clone();
+  const [message, code, hint, meta] = await Promise.all([
     readRawErrorMessage(forMessage, fallbackMessage),
     readErrorCode(res, "EXPORT_FAILED"),
     readErrorHint(forHint),
+    readErrorMeta(forMeta),
   ]);
   const finalMessage = hint && !message.includes(hint) ? `${message} (${hint})` : message;
-  return new ApiClientError(res.status, code, finalMessage);
+  return new ApiClientError(res.status, code, finalMessage, meta);
 };
 
 /** `Content-Disposition: attachment; filename="..."` hoặc `filename*=UTF-8''...` — ưu tiên tên từ BE. */
@@ -85,24 +98,79 @@ export interface WordExportResult {
   filename: string | null;
 }
 
-/**
- * Tải file `.docx`; lỗi (vd `NO_WORKING_DRAFT`) ném `ApiClientError` với đúng `code`/`message` đọc
- * từ envelope lỗi (không hard-code `EXPORT_FAILED` cho mọi lỗi). `baselineId` tuỳ chọn khi
- * `source === "baseline"` — chọn đúng bản baseline muốn xuất.
- */
-export const downloadWordExport = async (
+/** File PDF (FLF-316) tải cùng cách với Word — chỉ khác định dạng. */
+export type PdfExportResult = WordExportResult;
+
+/** Định dạng file xuất: `word` (#18) hoặc `pdf` (#34, chính file Word chuyển sang PDF ở BE). */
+export type ExportFormat = "word" | "pdf";
+
+const exportQuery = (source: DocumentSource, baselineId?: string, lang?: DocumentLanguage) =>
+  `source=${source}${baselineId ? `&baseline_id=${baselineId}` : ""}${lang ? `&lang=${lang}` : ""}`;
+
+const downloadExport = async (
+  format: ExportFormat,
   projectId: string,
-  source: DocumentSource = "draft",
-  baselineId?: string
+  source: DocumentSource,
+  baselineId?: string,
+  lang?: DocumentLanguage
 ): Promise<WordExportResult> => {
-  const query = `source=${source}${baselineId ? `&baseline_id=${baselineId}` : ""}`;
-  const res = await authFetch(`/projects/${projectId}/export/word?${query}`);
+  const res = await authFetch(`/projects/${projectId}/export/${format}?${exportQuery(source, baselineId, lang)}`);
   if (!res.ok) {
     throw await readErrorAsApiClientError(res, `HTTP ${res.status}`);
   }
   const blob = await res.blob();
   const filename = parseFilename(res.headers.get("Content-Disposition"));
   return { blob, filename };
+};
+
+/**
+ * Tải file `.docx`; lỗi (vd `NO_WORKING_DRAFT`) ném `ApiClientError` với đúng `code`/`message` đọc
+ * từ envelope lỗi (không hard-code `EXPORT_FAILED` cho mọi lỗi). `baselineId` tuỳ chọn khi
+ * `source === "baseline"` — chọn đúng bản baseline muốn xuất. `lang` (FLF-334 B) tuỳ chọn: bỏ trống ⇒ ngôn ngữ tài liệu;
+ * khác ⇒ file theo ngôn ngữ đó, còn mục chưa dịch ⇒ `409 TRANSLATION_INCOMPLETE` (`meta { locale, missing, total }`),
+ * chỗ chưa hỗ trợ ⇒ `409 DOCUMENT_LANGUAGE_UNAVAILABLE`.
+ */
+export const downloadWordExport = (projectId: string, source: DocumentSource = "draft", baselineId?: string, lang?: DocumentLanguage) =>
+  downloadExport("word", projectId, source, baselineId, lang);
+
+/**
+ * Tải file `.pdf` (FLF-316) — cùng query, lỗi và header với `downloadWordExport`. Thêm một lỗi riêng:
+ * `503 PDF_EXPORT_UNAVAILABLE` khi bộ chuyển PDF của BE không sẵn sàng; tải Word vẫn được.
+ */
+export const downloadPdfExport = (
+  projectId: string,
+  source: DocumentSource = "draft",
+  baselineId?: string,
+  lang?: DocumentLanguage
+): Promise<PdfExportResult> => downloadExport("pdf", projectId, source, baselineId, lang);
+
+export type GoogleDocsExportMode = "new" | "update";
+
+export interface GoogleDocsExportResult {
+  fileId: string;
+  webViewLink: string;
+  title: string;
+  /** Việc BE đã làm thật: `update` chỉ khi ghi đè được file cũ. */
+  mode: GoogleDocsExportMode;
+  /** File cũ đã bị xoá / vào thùng rác ⇒ BE tạo file mới. */
+  recreated: boolean;
+}
+
+/**
+ * Xuất sang Google Docs (contract #44) — cùng query, quyền và lỗi với `downloadWordExport`, thêm lỗi Google
+ * (`GOOGLE_RECONNECT_REQUIRED`, `GOOGLE_DRIVE_QUOTA_EXCEEDED`…). `update` ghi đè Google Doc đã xuất gần nhất cùng
+ * nguồn + ngôn ngữ; chưa có thì BE tạo mới.
+ */
+export const exportToGoogleDocs = async (
+  projectId: string,
+  query: { source: DocumentSource; baselineId?: string; lang?: DocumentLanguage },
+  mode: GoogleDocsExportMode
+): Promise<GoogleDocsExportResult> => {
+  const res = await apiCall<GoogleDocsExportResult>(
+    `/projects/${projectId}/export/google-docs?${exportQuery(query.source, query.baselineId, query.lang)}`,
+    { method: "POST", body: JSON.stringify({ mode }) }
+  );
+  return res.data as GoogleDocsExportResult;
 };
 
 export const listBaselines = (projectId: string) =>
@@ -119,4 +187,26 @@ export const createBaseline = (projectId: string, baseVersion: number) =>
   apiCall<Baseline>(`/projects/${projectId}/baseline`, {
     method: "POST",
     body: JSON.stringify({ base_version: baseVersion }),
+  });
+
+/**
+ * UC-45 — Analyst gửi Lead duyệt. Chưa khoá baseline, chỉ đặt `spine.baseline_submission` sang `pending`.
+ * Lỗi riêng cần xử ở nơi gọi: `422 BASELINE_BLOCKED` (`meta.flags[]`), `422 REJECTION_COMMENTS_OPEN`
+ * (`meta.comment_ids[]` — lượt từ chối trước còn góp ý chưa xử lý), `409 BASELINE_ALREADY_SUBMITTED`.
+ */
+export const submitBaseline = (projectId: string, baseVersion: number) =>
+  apiCall<BaselineSubmission>(`/projects/${projectId}/baseline/submit`, {
+    method: "POST",
+    body: JSON.stringify({ base_version: baseVersion }),
+  });
+
+/**
+ * UC-46 luồng thay thế — Lead từ chối. `business-flow.md §3.5` đòi **cả** lý do **và** comment ghim, nên
+ * `commentIds` là mảng không rỗng ngay ở kiểu: từ chối bằng mỗi câu lý do thì Analyst không biết sửa chỗ
+ * nào và không bước nào được mở lại.
+ */
+export const rejectBaseline = (projectId: string, baseVersion: number, reason: string, commentIds: readonly [string, ...string[]]) =>
+  apiCall<BaselineSubmission>(`/projects/${projectId}/baseline/reject`, {
+    method: "POST",
+    body: JSON.stringify({ base_version: baseVersion, reason, comment_ids: commentIds }),
   });

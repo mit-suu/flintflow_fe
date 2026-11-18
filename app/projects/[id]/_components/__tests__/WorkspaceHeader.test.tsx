@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from "vitest";
 import WorkspaceHeader from "../WorkspaceHeader";
 import type { Project } from "@/types/project";
 
+// Header có nút đổi ngôn ngữ (LocaleSwitcher) - dùng router để làm mới trang sau khi đổi
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
+
 vi.mock("next/link", () => ({
   default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
     <a href={href} {...rest}>
@@ -15,12 +18,29 @@ vi.mock("next/link", () => ({
 const PROJECT = { _id: "p1", name: "FlintFlow", domain: "SaaS", status: "active" } as Project;
 
 describe("WorkspaceHeader", () => {
-  it("badge baseline lấy từ phiên bản baseline của Spine", () => {
-    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} baselineVersion="v1.0-conditional" onLogout={() => {}} />);
-    expect(screen.getByText("Baseline v1.0-conditional")).toBeInTheDocument();
+  it("chip trạng thái chốt bản hiện nhãn nơi gọi dựng", () => {
+    renderWithIntl(
+      <WorkspaceHeader project={PROJECT} user={null} baselineStatus={{ label: "Baseline v1.0", tone: "success" }} onLogout={() => {}} />
+    );
+    expect(screen.getByText("Baseline v1.0")).toBeInTheDocument();
   });
 
-  it("chưa ký baseline thì không hiện badge", () => {
+  it("chip bấm được thì mở panel Kiểm & chốt", () => {
+    const onVerifyClick = vi.fn();
+    renderWithIntl(
+      <WorkspaceHeader
+        project={PROJECT}
+        user={null}
+        baselineStatus={{ label: "1 bản chờ bạn duyệt", tone: "warning" }}
+        onVerifyClick={onVerifyClick}
+        onLogout={() => {}}
+      />
+    );
+    fireEvent.click(screen.getByText("1 bản chờ bạn duyệt"));
+    expect(onVerifyClick).toHaveBeenCalled();
+  });
+
+  it("chưa nộp và chưa ký baseline thì không hiện chip", () => {
     renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} onLogout={() => {}} />);
     expect(screen.queryByText(/^Baseline/)).not.toBeInTheDocument();
   });
@@ -52,16 +72,16 @@ describe("WorkspaceHeader", () => {
 
   // FLF-221: gõ chat là chạy — header không còn nút chạy bước nào
   it("không có nút chạy bước", () => {
-    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onLogout={() => {}} />);
+    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="Danh sách màn hình" onLogout={() => {}} />);
     expect(screen.queryByRole("button", { name: /Chạy/ })).not.toBeInTheDocument();
   });
 
   it("đang xem bước khác bước hiện tại ⇒ có nút quay về (L9)", () => {
     const onBack = vi.fn();
-    const { rerender } = renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onLogout={() => {}} />);
+    const { rerender } = renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} currentStep="Danh sách màn hình" onLogout={() => {}} />);
     expect(screen.queryByRole("button", { name: /Về bước/ })).not.toBeInTheDocument();
-    rerender(<WorkspaceHeader project={PROJECT} user={null} currentStep="S-4.2" onBackToCurrent={onBack} onLogout={() => {}} />);
-    fireEvent.click(screen.getByRole("button", { name: "Về bước S-4.2" }));
+    rerender(<WorkspaceHeader project={PROJECT} user={null} currentStep="Danh sách màn hình" onBackToCurrent={onBack} onLogout={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Về bước Danh sách màn hình" }));
     expect(onBack).toHaveBeenCalledTimes(1);
   });
 

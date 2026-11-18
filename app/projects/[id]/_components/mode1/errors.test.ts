@@ -4,14 +4,17 @@
  */
 import { describe, expect, it } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
-import { errorCode, errorText } from "./errors";
+import { errorCode } from "./errors";
+import { labelsFor } from "./test-labels";
+
+const { errorText } = labelsFor();
 
 const apiError = (code: string, message = "thông điệp BE", meta?: Record<string, unknown>) =>
   new ApiClientError(409, code, message, meta);
 
 describe("errorText", () => {
   it("mã có trong bảng ⇒ câu tiếng Việt của FE, không phải chữ BE", () => {
-    expect(errorText(apiError("BASELINE_BLOCKED"))).toBe("Còn cờ đỏ chưa xử lý — chưa ký baseline v1 được.");
+    expect(errorText(apiError("BASELINE_BLOCKED"))).toBe("Còn cờ đỏ chưa xử lý - chưa ký baseline v1 được.");
     expect(errorText(apiError("INSUFFICIENT_CREDIT"))).toContain("nạp thêm");
     expect(errorText(apiError("RATE_LIMIT_EXCEEDED")), "L8: phải nói tới tài khoản nhà cung cấp").toContain("nhà cung cấp AI");
   });

@@ -3,6 +3,7 @@
  * và `docs/api/import-change-contract.md` (FLF-171). Đổi ở BE thì đổi ở đây trong cùng PR.
  */
 import type { RocRow } from "./document";
+import type { TemplateIntent } from "./project";
 import type { Baseline, Flag, IsoDateTime } from "./spine";
 
 /** Máy trạng thái import (`import.state.ts` BE). */
@@ -15,6 +16,10 @@ export const IMPORT_STATUSES = [
   "extracting",
   "fields_review",
   "baselining",
+  /** FLF-336 I-5: file thiếu mục của cấu trúc đích ⇒ dừng ở "Kết quả đọc file", không có v0. */
+  "incomplete",
+  /** FLF-278 trên FLF-336: chế độ 3 đi tiếp Luồng 2 — dự án sang pipeline tạo mới viết phần còn thiếu. */
+  "drafting",
   "checking",
   "gap_review",
   "delivered",
@@ -22,8 +27,8 @@ export const IMPORT_STATUSES = [
 ] as const;
 export type ImportStatus = (typeof IMPORT_STATUSES)[number];
 
-/** `paused` chỉ đặt ở hai bước gọi AI. */
-export type ImportPauseReason = "credits" | "resume_later";
+/** `paused` chỉ đặt ở hai bước gọi AI. `user`: người dùng bấm Dừng lúc đang đọc nội dung (`POST /import/pause`). */
+export type ImportPauseReason = "credits" | "resume_later" | "user";
 export interface Paused<R extends string = ImportPauseReason> {
   reason: R;
   at: IsoDateTime;
@@ -37,7 +42,19 @@ export type PreflightIssueCode =
   | "FILE_TOO_LARGE"
   | "EMPTY_DOCUMENT"
   | "FOREIGN_TRACK_CHANGE"
-  | "FOREIGN_COMMENT";
+  | "FOREIGN_COMMENT"
+  /** FLF-331: Code không thấy dấu hiệu SRS / mẫu SRS (CV, hoá đơn, test plan…). */
+  | "NOT_SRS"
+  /** FLF-343: qua preflight nhưng tách file / khớp mẫu lỗi — không treo ở `parsing`. */
+  | "PARSE_FAILED";
+
+/** FLF-331: loại tài liệu Code nhận ra ở I-1 (0 credit); `unknown` ⇒ vẫn nhận nhưng cảnh báo ở bước xác nhận. */
+export interface DocumentKind {
+  kind: "srs" | "srs_template" | "not_srs" | "unknown";
+  confidence: number;
+  signals: string[];
+  reasons: string[];
+}
 
 export interface PreflightIssue {
   code: PreflightIssueCode;
@@ -49,6 +66,10 @@ export interface DocStamp {
   project_id: string;
   version: string | null;
   source: string | null;
+  /** FLF-334: release gốc (`2.0`, `0`), CR mới nhất, loại bản — stamp cũ ⇒ `null`. */
+  base_version: string | null;
+  latest_cr: string | null;
+  kind: "release" | "draft" | null;
 }
 
 export interface ImportedDocument {
@@ -58,12 +79,21 @@ export interface ImportedDocument {
   size: number;
   sha256: string;
   status: ImportStatus;
-  preflight: { status: "accepted" | "rejected"; issues: PreflightIssue[] };
+  preflight: { status: "accepted" | "rejected"; issues: PreflightIssue[]; document_kind?: DocumentKind | null };
   stamp: DocStamp | null;
   confirmed_latest_at: IsoDateTime | null;
   paused: Paused | null;
   /** Section đang/sắp trích (I-4); resume chạy tiếp từ đây. */
   extract_cursor: string | null;
+  /**
+   * FLF-360: đang đọc lại vì AI quá tải — `images`: ảnh sơ đồ chưa đọc được (`done`/`total` ảnh), `text`: một lô chữ của
+   * `section_id` (`done`/`total` lượt). `null` / thiếu = không đọc lại.
+   */
+  reread?: { kind: "images" | "text"; done: number; total: number; section_id: string } | null;
+  /** FLF-335: ý định lúc upload — file theo mẫu cố định hay cấu trúc tự do; bản ghi cũ `null` / thiếu (coi như `free`). */
+  intent?: TemplateIntent | null;
+  /** Mục mà kết quả đọc cuối khác màn đọc khung (rỗng ⇒ khớp; `null` ⇒ chưa đọc xong / import cũ). */
+  structure_changes?: StructureChange[] | null;
   created_at: IsoDateTime;
   updated_at: IsoDateTime;
 }
@@ -98,7 +128,8 @@ export interface DocBlock {
   revisions?: { kind: "ins" | "del"; text: string; author: string }[];
 }
 
-export type HeadingDetector = "style" | "outline_level" | "numbering_pattern" | "user";
+/** FLF-343 thêm `toc` (trùng mục lục), `numbering` (đánh số tự động), `format` (chữ to / style tiêu đề riêng). */
+export type HeadingDetector = "style" | "outline_level" | "numbering_pattern" | "user" | "toc" | "numbering" | "format";
 
 export interface HeadingMapEntry {
   block_id: string;
@@ -108,15 +139,26 @@ export interface HeadingMapEntry {
   confidence: number;
   detected_by: HeadingDetector;
   confirmed: boolean;
+  /** FLF-343: độ tin thấp, tự nhận lúc tách file — có cờ vàng "Cần xem" sau baseline 0.1. */
+  auto_confirmed?: boolean;
   /**
-   * FLF-252: heading khớp một mục của mẫu không phải FPT (IEEE). Mã nội bộ — FE không hiện, chỉ dùng để biết
+   * FLF-363: phần của ngân hàng phần chung FPT + IEEE khớp theo tên. Mã nội bộ — FE không hiện, chỉ dùng để biết
    * `unmapped` này là mục riêng của mẫu (giữ nguyên văn), không phải heading lạ.
    */
   template_section?: string | null;
+  /** FLF-363: mục theo tên (`by_title`) khác mục theo nội dung (`by_content`) — heading đã đổi theo nội dung. */
+  content_mismatch?: { by_title: string; by_content: string };
+  /** FLF-278 trên FLF-336 (business-flow 1.5): chữ hướng dẫn của mẫu dưới heading — chỉ để xem, không phải nội dung. */
+  guidance?: string;
+  /** FLF-364: nguồn của `guidance` — chữ trong `[ ]` / `{ }`, có / không kèm kiểu chữ hướng dẫn; block chứa nó. */
+  guidance_by?: "brackets" | "brackets+format";
+  guidance_blocks?: string[];
+  /** FLF-362: nhãn số Word tự đánh của heading ("2.1.", "II.") — không nằm trong `heading_text`; hiển thị = nhãn + tiêu đề. */
+  number_label?: string;
 }
 
-/** Họ mẫu của tài liệu upload (FLF-252). */
-export type TemplateFamily = "fpt" | "ieee830" | "ieee_features";
+/** Nhãn họ mẫu của tài liệu upload (FLF-363) — tính sau khi khớp, chỉ để báo cáo. */
+export type TemplateFamily = "fpt" | "ieee29148" | "mixed";
 
 /** Vai trò cột theo dữ liệu dưới tiêu đề (FLF-252). */
 export type TableColumnRole = "row_no" | "code" | "date" | "version" | "change_type" | "mark" | "text" | "name";
@@ -128,10 +170,14 @@ export interface TableMapEntry {
   field_path: string | null;
   confidence: number;
   confirmed: boolean;
+  /** FLF-343: như `HeadingMapEntry.auto_confirmed`. */
+  auto_confirmed?: boolean;
   /** FLF-252: vai trò cột theo dữ liệu; không có khi bảng chỉ có hàng tiêu đề. */
   role?: TableColumnRole;
   /** FLF-252: tối đa 3 giá trị đầu của cột. */
   samples?: string[];
+  /** FLF-364: chữ hướng dẫn trong các ô của cột (`[Tên tác nhân]`), bỏ ngoặc. */
+  guidance?: string;
 }
 
 /** Mục của layout tài liệu người dùng (FLF-182): `section_id` = section FPT hoặc `custom:<id>`. */
@@ -140,13 +186,14 @@ export interface LayoutEntry {
   heading_text: string;
   level: number;
   section_id: string;
+  /** FLF-362: như `HeadingMapEntry.number_label`. */
+  number_label?: string;
 }
 
 export interface TemplateProfile {
   doc_version: string;
   heading_map: HeadingMapEntry[];
   table_map: TableMapEntry[];
-  required_sections: string[];
   language: string;
   /** FLF-182 — rỗng với import trước mode 1 v2. */
   layout: LayoutEntry[];
@@ -163,8 +210,6 @@ export type StepPlanState = "applied" | "hidden" | "enabled";
 export interface StepPlanEntry {
   step_id: string;
   state: StepPlanState;
-  /** Đầu mục mẫu FPT mà file không có (hoặc chỉ có heading) ⇒ "Thiếu" + cờ đỏ `section_empty` (FLF-183). Giữ nguyên sau khi step chạy xong — "Thiếu" chỉ hiện khi step chưa accepted. */
-  missing: boolean;
   section_ids: string[];
   reason: string;
 }
@@ -200,7 +245,7 @@ export interface ExtractionSection {
   error: string | null;
 }
 
-/** Ngưỡng độ tin (BE `import.constants.ts`): mapping < 0.8 ⇒ xác nhận mapping; field < 0.7 ⇒ xác nhận field. */
+/** Ngưỡng độ tin (BE `import.constants.ts`): mapping < 0.9 ⇒ xác nhận mapping; field < 0.8 ⇒ xác nhận field. */
 export const MAPPING_CONFIDENCE_THRESHOLD = 0.8;
 export const FIELD_CONFIDENCE_THRESHOLD = 0.7;
 export const UNMAPPED_SECTION = "unmapped";
@@ -233,6 +278,8 @@ export interface FinalizeRequest {
   base_version: number;
   /** FLF-252: dòng Record of Changes người dùng đã xem/sửa ở wizard — không gửi ⇒ BE đọc lại từ file. */
   record_of_changes?: RocRow[];
+  /** FLF-336: từ "Kết quả đọc file" bấm Hoàn thiện ⇒ đi tiếp dù còn mục thiếu. */
+  complete?: boolean;
 }
 
 // ─── response ────────────────────────────────────────────────────
@@ -242,12 +289,15 @@ export interface ImportStateResponse {
 }
 
 /**
- * Ước tính I-4 còn phải chạy (`GET /import` → `credit_estimate`, BE import-change-contract §4.15): chỉ có ở `mapping_review`
- * hoặc `extracting` khi job chưa chạy / đang dừng. `available_credits` = credit khả dụng của ví org; `null` với Viewer.
+ * Ước tính cả lượt import một mạch (FLF-343, `GET /import` → `credit_estimate`, BE import-change-contract §4.15): I-4 còn phải
+ * chạy + kiểm tra AI sau baseline 0.1 — chỉ có ở `extracting` (bản ghi cũ: `mapping_review`) khi job chưa chạy / đang dừng.
+ * `available_credits` = credit khả dụng của ví org; `null` với Viewer.
  */
 export interface CreditEstimate {
   text_batches: number;
   diagram_images: number;
+  /** FLF-343: lượt AI của bước kiểm tra — đã gộp vào `ai_calls` / `credits`. */
+  check_calls?: number;
   ai_calls: number;
   credits: number;
   available_credits: number | null;
@@ -259,6 +309,59 @@ export interface GetImportResponse {
   extraction: { sections: ExtractionSection[]; review_fields: ReviewField[] };
   blocks_count: number;
   credit_estimate?: CreditEstimate | null;
+  /** FLF-336 I-5: có sau lần finalize đầu (kể cả khi dừng ở `incomplete`). */
+  target_structure?: TargetStructure | null;
+  /** Màn đọc khung: cấu trúc đích sơ bộ tính bằng Code lúc upload (trước Bắt đầu, không tốn credit). */
+  structure_preview?: StructurePreview | null;
+  /** FLF-412: mục có chữ của file + lựa chọn Bỏ chữ — chỉ có trước Bắt đầu; khác ⇒ null. */
+  text_sections?: TextSection[] | null;
+}
+
+/** FLF-412: vùng heading có chữ ở màn đọc khung (khoá = `block_id` của heading). */
+export interface TextSection {
+  key: string;
+  title: string;
+  level: number;
+  dropped: boolean;
+}
+
+/**
+ * Màn đọc khung (business-flow §3.1.2) — BE `structurePreviewSchema`. `sections` theo thứ tự heading trong file; `kind = template`
+ * khi phần lớn mục chưa có nội dung (khung mẫu để FlintFlow soạn).
+ */
+export interface StructurePreview {
+  summary: { present: number; missing: number; out_of_scope: number; kind: "written" | "template" };
+  /** `excerpt` (P09 #15): trích đoạn chữ khách viết dưới mục (≤ 200 ký tự) — mục còn trống / import cũ ⇒ không có. */
+  sections: { section_id: string; title: string; status: TargetSectionStatus; order: number; excerpt?: string }[];
+  resolved_mode: 1 | 3 | 4;
+  intent: "fixed" | "free";
+  computed_at: string;
+}
+
+/** Mục mà kết quả đọc cuối khác bản sơ bộ — `absent` = không có ở một bên. */
+export interface StructureChange {
+  section_id: string;
+  title: string;
+  from: TargetSectionStatus | "absent";
+  to: TargetSectionStatus | "absent";
+}
+
+/** FLF-336 I-5 — bản đồ mục của file ⇒ cấu trúc đích (BE `targetStructureSchema`). */
+export type TargetSectionStatus = "present" | "missing" | "out_of_scope";
+export interface TargetSection {
+  section_id: string;
+  title: string;
+  status: TargetSectionStatus;
+  owner_steps: string[];
+}
+export interface TargetStructure {
+  target: "fpt" | "template";
+  intent: "fixed" | "free";
+  /** Chế độ thật: 1 đủ · 3 mẫu cố định còn thiếu · 4 tự do còn thiếu. */
+  resolved_mode: 1 | 3 | 4;
+  sections: TargetSection[];
+  missing: string[];
+  compared_at: IsoDateTime;
 }
 
 export interface ExtractResponse {
@@ -272,10 +375,18 @@ export interface ExtractResponse {
  */
 export interface FinalizeResponse {
   import: ImportedDocument;
-  doc_version: "0.0";
+  doc_version: string;
   baseline: Baseline | null;
   spine_version: number;
   flags: { red: number; yellow: number } | null;
+}
+
+/** #8b `POST /import/continue` — chế độ 3 sang Luồng 2 (dự án thành `mode = fpt`). */
+export interface ContinueFlow2Response {
+  project_mode: "fpt";
+  import_state: "drafting";
+  current_step: string | null;
+  spine_version: number;
 }
 
 export interface GapLayoutRow {
@@ -295,22 +406,15 @@ export interface GapReport {
   totals: {
     red: number;
     yellow: number;
-    missing_sections: number;
-    unmapped_headings: number;
     low_confidence_fields: number;
-    missing_fpt_sections: number;
     unrendered_diagrams: number;
   };
-  /** Mode 1 v2 (FLF-184, D6): đầu mục mẫu FPT file không có / chỉ có heading — cờ đỏ, chặn ký v1 tới khi chạy `step_id`. */
-  missing_fpt_sections: { section_id: string; title: string; step_id: string; in_layout: boolean }[];
   /** Mode 1 v2 (nợ T4): hình dựng được từ Spine nhưng chưa có bản vẽ (import lúc thiếu PlantUML) hoặc vẽ lỗi — không chặn ký v1. */
   unrendered_diagrams: { diagram_id: string; kind: string; section_id: string; title: string; reason: "not_rendered" | "error" }[];
   /** Mục theo thứ tự file upload (FLF-184). */
   layout: GapLayoutRow[];
   /** Cờ theo section — theo thứ tự layout. */
   sections: { section_id: string; title: string; flags: Flag[] }[];
-  missing_sections: { section_id: string; title: string }[];
-  unmapped_headings: { block_id: string; text: string }[];
   low_confidence_fields: ReviewField[];
 }
 

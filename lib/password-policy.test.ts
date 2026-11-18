@@ -5,7 +5,7 @@ import { checkPassword, passwordLevel, PASSWORD_MAX_LENGTH } from "./password-po
  * Bộ ca này cố tình TRÙNG với `flintflow_be/src/shared/utils/password-policy.test.ts`: hai bản sao lệch
  * nhau là kiểu lỗi FE cho qua rồi BE mới từ chối. Sửa một bên thì chạy lại cả hai.
  */
-describe("password-policy — luật cứng", () => {
+describe("password-policy - luật cứng", () => {
   it("mật khẩu đạt chuẩn ⇒ không lỗi", () => {
     expect(checkPassword("Mua2Roi!")).toBeNull(); // 8 ký tự, đủ 4 nhóm
     expect(checkPassword("bien-xanh-2026")).toBeNull(); // 14 ký tự, 3 nhóm
@@ -34,7 +34,7 @@ describe("password-policy — luật cứng", () => {
     expect(checkPassword("matkhau2026")).toBe("not_complex");
   });
 
-  it("mật khẩu kiểu 'đúng khuôn mẫu' vẫn được nhận — không còn danh sách chặn", () => {
+  it("mật khẩu kiểu 'đúng khuôn mẫu' vẫn được nhận - không còn danh sách chặn", () => {
     expect(checkPassword("Password1!")).toBeNull();
     expect(checkPassword("Flintflow2026")).toBeNull();
 
@@ -45,7 +45,7 @@ describe("password-policy — luật cứng", () => {
   });
 });
 
-describe("password-policy — ngưỡng 'Khá' trở lên mới được dùng", () => {
+describe("password-policy - ngưỡng 'Khá' trở lên mới được dùng", () => {
   it("qua hết luật cứng nhưng mới mức 1 ⇒ not_strong_enough", () => {
     expect(passwordLevel("muaroi2!")).toBe(1); // 8 ký tự, đúng 3 nhóm
     expect(checkPassword("muaroi2!")).toBe("not_strong_enough");
@@ -59,8 +59,8 @@ describe("password-policy — ngưỡng 'Khá' trở lên mới được dùng",
   });
 
   it("mức 3 (Mạnh) ⇒ từ 12 ký tự VÀ đủ 4 nhóm", () => {
-    expect(passwordLevel("Binh1211!xyz")).toBe(3); // 12 ký tự — ngay mốc
-    expect(passwordLevel("Binh1211!xy")).toBe(2); // 11 ký tự — chưa tới
+    expect(passwordLevel("Binh1211!xyz")).toBe(3); // 12 ký tự - ngay mốc
+    expect(passwordLevel("Binh1211!xy")).toBe(2); // 11 ký tự - chưa tới
   });
 
   it("vi phạm luật cứng ⇒ mức 0 dù dài bao nhiêu", () => {
@@ -68,7 +68,7 @@ describe("password-policy — ngưỡng 'Khá' trở lên mới được dùng",
   });
 });
 
-describe("password-policy — KHÔNG còn đối chiếu với tên / email", () => {
+describe("password-policy - KHÔNG còn đối chiếu với tên / email", () => {
   it("mật khẩu trùng tên hay phần email vẫn được chấp nhận", () => {
     expect(checkPassword("Minhhoang2026")).toBeNull();
     expect(checkPassword("Quangvinh!9")).toBeNull();

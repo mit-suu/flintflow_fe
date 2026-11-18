@@ -30,6 +30,13 @@ export interface MockState {
   counters: Map<string, MockStepCounters>;
   /** Step đang chờ `POST /answer` — luồng SSE đợi promise này. */
   waiting: Map<string, (answers: StepAnswer[]) => void>;
+  /** `KNOWLEDGE_ENABLED=false` ở server ⇒ lượt `knowledge: true` trả `409 KNOWLEDGE_DISABLED`. */
+  knowledgeDisabled: boolean;
+  /**
+   * Câu hỏi chứa chuỗi này ⇒ mock trả lời `grounded: false` (không đủ căn cứ trong kho tri thức), để
+   * test đi được nhánh từ chối mà không cần kho tri thức thật.
+   */
+  knowledgeUngroundedHint: string;
 }
 
 const now = () => new Date().toISOString();
@@ -64,6 +71,8 @@ export const createMockState = (): MockState => ({
   spine: initialSpine(),
   counters: new Map(),
   waiting: new Map(),
+  knowledgeDisabled: false,
+  knowledgeUngroundedHint: "ngoài kho",
 });
 
 export let mockState: MockState = createMockState();

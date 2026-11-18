@@ -11,7 +11,7 @@ import { importToGapReview } from "@/mocks/mode1/flows";
 import { useWorkspace } from "../hooks/useWorkspace";
 import ChatPane from "./ChatPane";
 import CrPrefillCard from "./mode1/CrPrefillCard";
-import { readCrPrefill } from "./mode1/prefill";
+import { readChatCrDraft } from "./mode1/prefill";
 import type { ChatSession } from "@/types/chat";
 
 vi.mock("@/lib/api/chat", () => ({
@@ -42,7 +42,18 @@ const renderPane = (
   session: ChatSession,
   onEditInstruction = vi.fn(),
   onSendMessage = vi.fn(),
-  extra: { editMode?: boolean; onGoToPipeline?: () => void; onToggleEditMode?: () => void; readOnlyNotice?: string } = {}
+  extra: {
+    editMode?: boolean;
+    onGoToPipeline?: () => void;
+    onToggleEditMode?: () => void;
+    readOnlyNotice?: string;
+    knowledgePending?: boolean;
+    streamingMessage?: string | null;
+    isStreaming?: boolean;
+    questionCard?: React.ReactNode;
+    questionCardVisible?: boolean;
+    inputPlaceholder?: string;
+  } = {}
 ) => {
   renderWithIntl(
     <ChatPane
@@ -61,7 +72,43 @@ const renderPane = (
   return { onEditInstruction, onSendMessage };
 };
 
-describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip (FLF-244)", () => {
+// FLF-279: lượt tri thức không stream chữ, nên nếu không vẽ gì thì khung chat im lặng hoàn toàn trong
+// lúc chờ — đúng cái acceptance criteria muốn tránh.
+describe("ChatPane - chữ gợi ý ô nhập khi đang có câu hỏi chờ (FLF-393)", () => {
+  it("có thẻ lựa chọn ⇒ \"Hoặc trả lời trực tiếp…\"", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { questionCard: <div>thẻ</div>, questionCardVisible: true })
+    expect(screen.getByPlaceholderText("Hoặc trả lời trực tiếp…")).toBeInTheDocument()
+  })
+
+  it("mọi câu chờ đều là câu mở (thẻ không vẽ gì) ⇒ không nói \"Hoặc trả lời trực tiếp…\", dùng chữ trang truyền vào", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { questionCard: <div />, questionCardVisible: false, inputPlaceholder: "Trả lời các câu hỏi ở trên…" })
+    expect(screen.queryByPlaceholderText("Hoặc trả lời trực tiếp…")).not.toBeInTheDocument()
+    expect(screen.getByPlaceholderText("Trả lời các câu hỏi ở trên…")).toBeInTheDocument()
+  })
+})
+
+describe("ChatPane - chờ câu trả lời tri thức", () => {
+  it("hiện dòng chờ có role=status khi knowledgePending", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Đang tra kho tri thức…");
+  });
+
+  it("không chờ tri thức ⇒ không có dòng đó", () => {
+    renderPane(withPipelineFlag(true));
+
+    expect(screen.queryByText("Đang tra kho tri thức…")).not.toBeInTheDocument();
+  });
+
+  it("dòng chờ thắng bong bóng chữ chạy - lượt tri thức không có chữ nên bong bóng đó sẽ rỗng", () => {
+    renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true, isStreaming: true, streamingMessage: "" });
+
+    expect(screen.getByRole("status")).toHaveTextContent("Đang tra kho tri thức…");
+    expect(screen.queryByText("", { selector: ".animate-ping" })).not.toBeInTheDocument();
+  });
+});
+
+describe("ChatPane - phiên phụ hỏi đáp được, lệnh sửa qua chip (FLF-244)", () => {
   beforeEach(() => {
     vi.mocked(estimateActionCost).mockClear();
   });
@@ -94,7 +141,7 @@ describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip 
     expect(onGoToPipeline).toHaveBeenCalledTimes(1);
   });
 
-  it("readOnlyNotice (Viewer): không có ô nhập, nút gửi hay chip sửa — chỉ dòng thông báo", () => {
+  it("readOnlyNotice (Viewer): không có ô nhập, nút gửi hay chip sửa - chỉ dòng thông báo", () => {
     renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { readOnlyNotice: "Bạn đang xem với vai trò Viewer" });
 
     expect(screen.getByRole("note")).toHaveTextContent("Bạn đang xem với vai trò Viewer");
@@ -123,7 +170,7 @@ describe("ChatPane — phiên phụ hỏi đáp được, lệnh sửa qua chip 
   });
 });
 
-describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change request (G9, BR-03)", () => {
+describe("ChatPane - mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change request (G9, BR-03)", () => {
   beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
   beforeEach(async () => {
     resetMockState();
@@ -162,7 +209,7 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     fireEvent.click(screen.getByRole("button", { name: "Gửi tin nhắn" }));
   };
 
-  it("mode 1 v3 (BPMN 3.1): lệnh sửa ⇒ thẻ mời tạo CR, form 3.1 điền sẵn (yêu cầu miệng, ref chat) — BE không tự tạo CR; không alert, tin nhắn tạm được gỡ", async () => {
+  it("mode 1 v3 (BPMN 3.1): lệnh sửa ⇒ thẻ mời tạo CR, form 3.1 điền sẵn (yêu cầu miệng, ref chat) - BE không tự tạo CR; không alert, tin nhắn tạm được gỡ", async () => {
     const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
     const error = vi.spyOn(console, "error");
     renderWithIntl(<Mode1Chat />);
@@ -173,10 +220,10 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     expect(within(card).getByText("Đổi tên actor Student thành Learner").tagName).toBe("BLOCKQUOTE");
     const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
-    const prefill = readCrPrefill(new URL(href, "http://x").searchParams);
-    expect(prefill).toMatchObject({ title: "Đổi tên actor Student thành Learner", description: "Đổi tên actor Student thành Learner", source: "verbal" });
+    const prefill = readChatCrDraft(new URL(href, "http://x").searchParams);
+    expect(prefill, "câu trùng giữa tiêu đề và mô tả chỉ đặt một lần vào ô chat").toMatchObject({ text: "Đổi tên actor Student thành Learner", source: "verbal" });
     expect(prefill?.ref).toMatch(/^chat:/);
-    expect(mode1State.crs.size, "3.1 là việc của BA — không tự tạo CR").toBe(0);
+    expect(mode1State.crs.size, "3.1 là việc của BA - không tự tạo CR").toBe(0);
 
     // tin nhắn tạm (optimistic) bị gỡ, ô nhập đã xoá, không alert / console.error cho luồng bình thường này
     await waitFor(() => expect(screen.getByRole("button", { name: "Gửi tin nhắn" })).toBeInTheDocument());
@@ -205,12 +252,12 @@ describe("ChatPane — mode 1: 409 CHANGE_REQUIRES_CR ⇒ thẻ tạo change req
     const card = screen.getByRole("status");
     expect(within(card).getByText("Muốn sửa tài liệu? Hãy tạo change request")).toBeInTheDocument();
     const href = within(card).getByRole("link", { name: "Tạo change request" }).getAttribute("href")!;
-    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}?panel=cr&`)).toBe(true);
-    expect(readCrPrefill(new URL(href, "http://x").searchParams)).toEqual({ title: "Đổi tên actor", description: "Đổi tên actor Student", source: "verbal", ref: undefined });
+    expect(href.startsWith(`/projects/${MODE1_PROJECT_ID}?crdraft=1&`)).toBe(true);
+    expect(readChatCrDraft(new URL(href, "http://x").searchParams)).toEqual({ text: "Đổi tên actor\nĐổi tên actor Student", source: "verbal" });
   });
 });
 
-describe("ChatPane — nhãn đời thường, credit chỉ ở header", () => {
+describe("ChatPane - nhãn đời thường, credit chỉ ở header", () => {
   it("nhãn bước ở đầu khung và dòng chia bước không lộ mã B-x.y / S-x.y (mã nằm trong tooltip)", () => {
     const session: ChatSession = {
       ...baseSession,
@@ -237,5 +284,57 @@ describe("ChatPane — nhãn đời thường, credit chỉ ở header", () => {
     expect(screen.getAllByTitle("B-0.1")).toHaveLength(2); // nhãn đầu khung + dòng chia bước
     expect(container.textContent).not.toMatch(/[BS]-\d+\.\d+/);
     expect(container.textContent).not.toMatch(/credit/i);
+  });
+});
+
+describe("ChatPane - thẻ chọn của câu hỏi làm rõ lệnh sửa (FLF-311)", () => {
+  const withLastAi = (content: string): ChatSession =>
+    ({
+      ...baseSession,
+      is_pipeline: true,
+      messages: [
+        { role: "user", content: "Thêm use case Request Grade Review", step: "chat", createdAt: "2026-10-21T00:00:00.000Z" },
+        { role: "ai", content, step: "chat", createdAt: "2026-10-21T00:00:01.000Z" },
+      ],
+    }) as ChatSession;
+  const choose = async (label: RegExp) => {
+    fireEvent.click(await screen.findByRole("radio", { name: label }));
+    const send = screen.queryByRole("button", { name: "Gửi câu trả lời" });
+    if (send) fireEvent.click(send);
+  };
+
+  it("câu hỏi màn riêng / popup của lệnh sửa ⇒ lựa chọn đi tiếp lệnh sửa (onEditInstruction), không thành chat thường", async () => {
+    const clarification = JSON.stringify({
+      kind: "change_clarification",
+      reply: "Màn hình riêng hay popup mở từ My Grades?",
+      questions: [{ question: "Chọn giao diện", options: [{ label: "Màn hình riêng" }, { label: "Popup mở từ My Grades" }] }],
+    });
+    const { onEditInstruction, onSendMessage } = renderPane(withLastAi(clarification));
+
+    await choose(/Popup mở từ My Grades/);
+
+    await waitFor(() => expect(onEditInstruction).toHaveBeenCalledTimes(1));
+    expect(onEditInstruction.mock.calls[0][0]).toContain("Popup mở từ My Grades");
+    expect(onSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("FLF-318: gõ trả lời ở ô chat (chip sửa đang tắt) cho câu hỏi làm rõ của lệnh sửa ⇒ đi tiếp lệnh sửa, không thành chat thường", async () => {
+    const clarification = JSON.stringify({ kind: "change_clarification", reply: "Bạn muốn xoá những use case nào trong luồng phúc khảo điểm?" });
+    const { onEditInstruction, onSendMessage } = renderPane(withLastAi(clarification), vi.fn(), vi.fn(), { editMode: false });
+
+    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Enter" });
+
+    await waitFor(() => expect(onEditInstruction).toHaveBeenCalledTimes(1));
+    expect(onSendMessage).not.toHaveBeenCalled();
+  });
+
+  it("câu hỏi của bước (không phải lệnh sửa) ⇒ vẫn gửi như tin chat (onSendMessage)", async () => {
+    const stepQuestion = JSON.stringify({ reply: "Chọn mô hình", questions: [{ question: "Mô hình", options: [{ label: "B2B" }, { label: "B2C" }] }] });
+    const { onEditInstruction, onSendMessage } = renderPane(withLastAi(stepQuestion));
+
+    await choose(/B2C/);
+
+    await waitFor(() => expect(onSendMessage).toHaveBeenCalledTimes(1));
+    expect(onEditInstruction).not.toHaveBeenCalled();
   });
 });

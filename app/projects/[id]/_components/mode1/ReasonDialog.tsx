@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import Modal from "@/components/ui/Modal";
 import { DECISION_REASON_MIN_LENGTH } from "@/types/change-request";
 
@@ -16,6 +17,7 @@ interface ReasonDialogProps {
 
 /** Hỏi lý do (≥ 10 ký tự như BE) cho huỷ / đóng change request. */
 export default function ReasonDialog({ open, title, description, confirmLabel, onConfirm, onClose, busy = false }: ReasonDialogProps) {
+  const t = useTranslations("mode1.reasonDialog");
   const [reason, setReason] = useState("");
   const tooShort = reason.trim().length < DECISION_REASON_MIN_LENGTH;
   return (
@@ -23,16 +25,16 @@ export default function ReasonDialog({ open, title, description, confirmLabel, o
       <div className="flex flex-col gap-3 text-body text-[#4B4842]">
         <p>{description}</p>
         <textarea
-          aria-label="Lý do"
+          aria-label={t("reasonAria")}
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          placeholder={`Lý do (ít nhất ${DECISION_REASON_MIN_LENGTH} ký tự)`}
+          placeholder={t("placeholder", { min: DECISION_REASON_MIN_LENGTH })}
           className="w-full px-3 py-2 rounded-[10px] border-[1.5px] border-[#E4E1DC] bg-[#FAF9F7] text-body"
         />
         <div className="flex gap-2 justify-end">
           <button type="button" onClick={onClose} className="px-4 py-2 rounded-[8px] border-[1.5px] border-[#E4E1DC] bg-white text-body font-semibold">
-            Quay lại
+            {t("back")}
           </button>
           <button
             type="button"
@@ -40,7 +42,7 @@ export default function ReasonDialog({ open, title, description, confirmLabel, o
             onClick={() => onConfirm(reason.trim())}
             className="px-4 py-2 rounded-[8px] bg-[#B03030] text-white text-body font-bold disabled:opacity-50"
           >
-            {busy ? "Đang xử lý…" : confirmLabel}
+            {busy ? t("busy") : confirmLabel}
           </button>
         </div>
       </div>
