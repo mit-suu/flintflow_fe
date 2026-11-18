@@ -4,7 +4,8 @@ import { useEffect, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { ApiClientError } from "@/lib/api/client";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { getGoogleAccessToken, getGoogleDocLinks } from "@/lib/api/google";
+import { exportToGoogleDocs } from "@/lib/api/export";
+import { getGoogleAccessToken, getGoogleDocLinks, linkGoogleDoc, unlinkGoogleDoc, type GoogleDocLink } from "@/lib/api/google";
 import { googleDocUrl } from "@/lib/api/google-docs-agent";
 import { GOOGLE_DOC_MIME, isGooglePickerConfigured, pickGoogleFile } from "@/lib/google-picker";
 import { GoogleConsentCancelledError, useGoogleConnect } from "@/lib/hooks/use-google-connect";
@@ -19,11 +20,21 @@ interface DocsAssistantPanelProps {
 interface DocOption {
   id: string;
   title: string;
+  linked: boolean;
 }
 
+/** Doc trợ lý dùng được: thuộc dự án và do chính mình xuất / liên kết (`drive.file` gắn theo tài khoản Google). Bỏ trùng. */
+const toOptions = (links: GoogleDocLink[]): DocOption[] => {
+  const seen = new Set<string>();
+  return links
+    .filter((l) => l.isMine && !seen.has(l.fileId) && seen.add(l.fileId))
+    .map((l) => ({ id: l.fileId, title: l.title, linked: l.kind === "linked" }));
+};
+
 /**
- * Panel "Trợ lý Google Docs": chọn một Google Doc (đã xuất từ dự án, hoặc chọn trên Drive), rồi chat. Trợ lý chỉ đọc và
- * tạo đề xuất; Google Doc đổi khi người dùng bấm Áp dụng trên từng thẻ đề xuất.
+ * Panel "Trợ lý Google Docs": chọn một Google Doc **của dự án** (đã xuất, hoặc đã liên kết vào dự án), rồi chat. Trợ lý chỉ
+ * đọc và tạo đề xuất; Google Doc đổi khi người dùng bấm Áp dụng trên từng thẻ đề xuất. BE cũng chặn Doc ngoài dự án
+ * (`GOOGLE_DOC_NOT_IN_PROJECT`).
  *
  * Chỉ mount khi FE có client id Google (`useGoogleConnect` cần `GoogleOAuthProvider`) — `page.tsx` kiểm điều đó.
  */
@@ -32,18 +43,26 @@ export default function DocsAssistantPanel({ projectId, onClose }: DocsAssistant
   const locale = useLocale();
   const google = useGoogleConnect();
   const [options, setOptions] = useState<DocOption[]>([]);
+  const [othersCount, setOthersCount] = useState(0);
   const [documentId, setDocumentId] = useState<string | null>(null);
-  const [pickError, setPickError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState<string | null>(null);
+
+  const applyLinks = (links: GoogleDocLink[], select?: string) => {
+    const docs = toOptions(links);
+    setOptions(docs);
+    setOthersCount(new Set(links.filter((l) => !l.isMine).map((l) => l.fileId)).size);
+    setDocumentId((current) => {
+      const wanted = select ?? current;
+      return wanted && docs.some((d) => d.id === wanted) ? wanted : (docs[0]?.id ?? null);
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
     getGoogleDocLinks(projectId)
       .then((links) => {
-        if (cancelled) return;
-        const seen = new Set<string>();
-        const docs = links.filter((l) => !seen.has(l.fileId) && seen.add(l.fileId)).map((l) => ({ id: l.fileId, title: l.title }));
-        setOptions(docs);
-        setDocumentId((current) => current ?? docs[0]?.id ?? null);
+        if (!cancelled) applyLinks(links);
       })
       .catch(() => {});
     return () => {
@@ -51,20 +70,54 @@ export default function DocsAssistantPanel({ projectId, onClose }: DocsAssistant
     };
   }, [projectId]);
 
-  const pickOther = async () => {
-    setPickError(null);
+  /** Chạy một thao tác cần Google (popup nối mở ngay trong cú click), rồi tải lại danh sách Doc của dự án. */
+  const runGoogleAction = async (action: () => Promise<string | null | undefined>, fallbackError: string) => {
+    setActionError(null);
+    setBusy(true);
     try {
       await google.ensureConnected();
-      const { accessToken } = await getGoogleAccessToken();
-      const file = await pickGoogleFile({ accessToken, locale, mimeTypes: [GOOGLE_DOC_MIME] });
-      if (!file) return;
-      setOptions((prev) => (prev.some((o) => o.id === file.id) ? prev : [{ id: file.id, title: file.name }, ...prev]));
-      setDocumentId(file.id);
+      const select = await action();
+      if (select === undefined) return;
+      applyLinks(await getGoogleDocLinks(projectId), select ?? undefined);
     } catch (err) {
-      if (err instanceof GoogleConsentCancelledError) setPickError(t("cancelled"));
-      else setPickError(err instanceof ApiClientError ? userErrorMessage(err) : t("pickerFailed"));
+      if (err instanceof GoogleConsentCancelledError) setActionError(t("cancelled"));
+      else {
+        if (err instanceof ApiClientError && err.code === "GOOGLE_RECONNECT_REQUIRED") google.markReconnectRequired();
+        setActionError(err instanceof ApiClientError ? userErrorMessage(err, fallbackError) : fallbackError);
+      }
+    } finally {
+      setBusy(false);
     }
   };
+
+  /** Liên kết một Google Doc có sẵn (chọn trong Picker, chỉ Google Docs) vào dự án — lưu ở BE, ai trong dự án cũng thấy. */
+  const linkDocument = () =>
+    runGoogleAction(async () => {
+      const { accessToken } = await getGoogleAccessToken();
+      const file = await pickGoogleFile({ accessToken, locale, mimeTypes: [GOOGLE_DOC_MIME] });
+      if (!file) return undefined;
+      return (await linkGoogleDoc(projectId, file.id)).fileId;
+    }, t("pickerFailed"));
+
+  /** Dự án chưa có Doc ⇒ xuất bản nháp SRS sang Google Docs ngay tại đây. */
+  const exportDraft = () =>
+    runGoogleAction(async () => (await exportToGoogleDocs(projectId, { source: "draft" }, "new")).fileId, t("exportFailed"));
+
+  const unlinkSelected = async () => {
+    if (!documentId) return;
+    setActionError(null);
+    setBusy(true);
+    try {
+      await unlinkGoogleDoc(projectId, documentId);
+      applyLinks(await getGoogleDocLinks(projectId));
+    } catch (err) {
+      setActionError(userErrorMessage(err, t("unlinkFailed")));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const selected = options.find((o) => o.id === documentId);
 
   return (
     <aside
@@ -95,7 +148,7 @@ export default function DocsAssistantPanel({ projectId, onClose }: DocsAssistant
               {!documentId && <option value="">{t("noDocument")}</option>}
               {options.map((o) => (
                 <option key={o.id} value={o.id}>
-                  {o.title}
+                  {o.linked ? t("linkedOption", { title: o.title }) : o.title}
                 </option>
               ))}
             </select>
@@ -104,18 +157,37 @@ export default function DocsAssistantPanel({ projectId, onClose }: DocsAssistant
                 {t("open")} ↗
               </a>
             )}
-            {isGooglePickerConfigured && (
-              <button type="button" onClick={() => void pickOther()} className="font-bold text-[#6A62C4] hover:underline cursor-pointer">
-                {t("pickOther")}
+            {selected?.linked && (
+              <button type="button" disabled={busy} onClick={() => void unlinkSelected()} className="font-bold text-[#8A867E] hover:underline cursor-pointer disabled:opacity-50">
+                {t("unlink")}
               </button>
             )}
-            {pickError && <p className="basis-full text-caption text-[#B03030]">{pickError}</p>}
+            {isGooglePickerConfigured && (
+              <button type="button" disabled={busy} onClick={() => void linkDocument()} className="font-bold text-[#6A62C4] hover:underline cursor-pointer disabled:opacity-50">
+                {t("linkDoc")}
+              </button>
+            )}
+            <p className="basis-full text-caption text-[#8A867E]">
+              {t("scopeNote")}
+              {othersCount > 0 && ` ${t("othersNote", { count: othersCount })}`}
+            </p>
+            {actionError && <p className="basis-full text-caption text-[#B03030]">{actionError}</p>}
           </div>
 
           {documentId ? (
             <Conversation key={documentId} projectId={projectId} documentId={documentId} google={google} />
           ) : (
-            <p className="p-4 text-body text-[#6B6862] leading-relaxed">{t("empty")}</p>
+            <div className="p-4 flex flex-col items-start gap-3">
+              <p className="text-body text-[#6B6862] leading-relaxed">{t("empty")}</p>
+              <button
+                type="button"
+                disabled={busy}
+                onClick={() => void exportDraft()}
+                className="px-3 py-2 rounded-[10px] bg-[#191817] text-white text-body font-bold cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {busy ? t("working") : t("exportDraft")}
+              </button>
+            </div>
           )}
         </>
       )}

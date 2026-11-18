@@ -40,19 +40,47 @@ export const disconnectGoogle = async (): Promise<GoogleConnectionStatus> => {
 };
 
 /** Một Google Doc đã xuất từ dự án (contract #45) — của chính user đang đăng nhập. */
+export interface GoogleDriveFolder {
+  id: string;
+  /** Ví dụ `FlintFlow / Hệ thống đặt lịch`. */
+  path: string;
+  url: string;
+}
+
+/**
+ * Một Google Doc của dự án (contract #45) — của mọi thành viên. `export`: FlintFlow tạo khi xuất; `linked`: Google Doc có
+ * sẵn được liên kết (xuất không bao giờ ghi đè). Chỉ chủ file (`isMine`) cập nhật được và dùng trợ lý được.
+ */
 export interface GoogleDocLink {
   fileId: string;
   title: string;
   webViewLink: string;
-  source: "draft" | "baseline";
-  lang: string;
+  kind: "export" | "linked";
+  source: "draft" | "baseline" | null;
+  lang: string | null;
   baselineId: string | null;
   exportedAt: string;
+  owner: { id: string; name: string | null; email: string | null };
+  isMine: boolean;
+  folder: GoogleDriveFolder | null;
+  /** Bản nháp đã xuất nhưng dữ liệu dự án đã đổi sau đó. */
+  stale: boolean;
 }
 
 export const getGoogleDocLinks = async (projectId: string): Promise<GoogleDocLink[]> => {
   const res = await apiCall<GoogleDocLink[]>(`/projects/${projectId}/google-docs/links`);
   return res.data ?? [];
+};
+
+/** Liên kết Google Doc chọn từ Picker vào dự án (contract #45a). File không phải Google Docs ⇒ `GOOGLE_DOC_UNSUPPORTED`. */
+export const linkGoogleDoc = async (projectId: string, fileId: string): Promise<GoogleDocLink> => {
+  const res = await apiCall<GoogleDocLink>(`/projects/${projectId}/google-docs/links`, { method: "POST", body: JSON.stringify({ fileId }) });
+  return res.data as GoogleDocLink;
+};
+
+/** Bỏ Google Doc khỏi dự án (contract #45b) — file trên Drive giữ nguyên. */
+export const unlinkGoogleDoc = async (projectId: string, fileId: string): Promise<void> => {
+  await apiCall(`/projects/${projectId}/google-docs/links/${encodeURIComponent(fileId)}`, { method: "DELETE" });
 };
 
 /** Access token ngắn hạn cho Google Picker. */

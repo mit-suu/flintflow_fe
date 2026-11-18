@@ -5,6 +5,7 @@ import type { DocumentSource, RenderedDocument } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import type { Baseline, BaselineSubmission } from "@/types/spine";
 import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
+import type { GoogleDriveFolder } from "./google";
 
 /**
  * Đọc `error.code` từ envelope lỗi — cùng mục đích với `readRawErrorMessage` (client.ts) nhưng đặt
@@ -154,21 +155,25 @@ export interface GoogleDocsExportResult {
   mode: GoogleDocsExportMode;
   /** File cũ đã bị xoá / vào thùng rác ⇒ BE tạo file mới. */
   recreated: boolean;
+  /** Thư mục `FlintFlow / <dự án>` chứa file; `null` khi file cũ nằm chỗ khác và Drive không cho chuyển. */
+  folder: GoogleDriveFolder | null;
 }
 
 /**
  * Xuất sang Google Docs (contract #44) — cùng query, quyền và lỗi với `downloadWordExport`, thêm lỗi Google
  * (`GOOGLE_RECONNECT_REQUIRED`, `GOOGLE_DRIVE_QUOTA_EXCEEDED`…). `update` ghi đè Google Doc đã xuất gần nhất cùng
- * nguồn + ngôn ngữ; chưa có thì BE tạo mới.
+ * nguồn + ngôn ngữ; chưa có thì BE tạo mới. Doc đã bị sửa trong Google Docs sau lần xuất ⇒ `409 GOOGLE_DOC_MODIFIED`;
+ * người dùng xác nhận thì gọi lại với `force`.
  */
 export const exportToGoogleDocs = async (
   projectId: string,
   query: { source: DocumentSource; baselineId?: string; lang?: DocumentLanguage },
-  mode: GoogleDocsExportMode
+  mode: GoogleDocsExportMode,
+  force = false
 ): Promise<GoogleDocsExportResult> => {
   const res = await apiCall<GoogleDocsExportResult>(
     `/projects/${projectId}/export/google-docs?${exportQuery(query.source, query.baselineId, query.lang)}`,
-    { method: "POST", body: JSON.stringify({ mode }) }
+    { method: "POST", body: JSON.stringify(force ? { mode, force } : { mode }) }
   );
   return res.data as GoogleDocsExportResult;
 };
