@@ -1259,7 +1259,7 @@
       "logoutAllFailed": "Không đăng xuất được mọi thiết bị. Vui lòng thử lại."
     },
     "integrations": {
-      "title": "Tích hợp",
+      "title": "MCP",
       "googleDocs": "Google Docs",
       "googleDocsBody": "Xuất tài liệu, nhập Google Doc, trợ lý AI",
       "loading": "Đang kiểm tra kết nối…",

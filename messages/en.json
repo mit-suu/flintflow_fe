@@ -1259,7 +1259,7 @@
       "logoutAllFailed": "Could not sign out of all devices. Please try again."
     },
     "integrations": {
-      "title": "Integrations",
+      "title": "MCP",
       "googleDocs": "Google Docs",
       "googleDocsBody": "Export documents, import Google Docs, AI assistant",
       "loading": "Checking connection…",
