@@ -2161,7 +2161,7 @@
       "languageUnavailable": "Bản này chưa tải được bằng ngôn ngữ khác - hãy tải theo ngôn ngữ tài liệu.",
       "googleDocs": {
         "officialNote": "Bản Word là bản chính thức. Google Docs dùng để xem và cộng tác, định dạng có thể lệch một chút.",
-        "lastExport": "Đã xuất lúc {time}: {title}",
+        "lastExport": "Đã xuất lúc {time}",
         "open": "Mở",
         "modeLabel": "Cách xuất",
         "modeUpdate": "Cập nhật file này",
