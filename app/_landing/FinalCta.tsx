@@ -1,16 +1,15 @@
 import { useTranslations } from "next-intl";
 import Logo from "@/components/Logo";
 import { FREE_PLAN_CREDITS } from "@/lib/constants/plans";
-import { NAV_LINKS } from "./content";
+import { CONTACT_EMAIL, LEGAL_LINKS, NAV_LINKS } from "./content";
 import * as motion from "motion/react-client";
 import { fadeUp, inView } from "./motion";
 import { ArrowRight, ButtonLink, Diamond, Texture } from "./ui";
 
-const CONTACT_EMAIL = "hello@flintflow.app";
-
 /* CTA cuối trang trong một thẻ thư mục lớn màu `primary` (cùng hình thẻ thư mục dashboard), rồi footer. */
 export default function FinalCta() {
   const t = useTranslations("landing");
+  const tLegal = useTranslations("legal");
 
   return (
     <>
@@ -49,6 +48,11 @@ export default function FinalCta() {
             {NAV_LINKS.slice(1).map((link) => (
               <a key={link.href} href={link.href} className="transition-colors hover:text-on-surface">
                 {t(`nav.${link.key}`)}
+              </a>
+            ))}
+            {LEGAL_LINKS.map((link) => (
+              <a key={link.href} href={link.href} className="transition-colors hover:text-on-surface">
+                {tLegal(link.key)}
               </a>
             ))}
             <a href={`mailto:${CONTACT_EMAIL}`} className="transition-colors hover:text-on-surface">
