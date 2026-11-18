@@ -8,8 +8,11 @@ import { WAIVE_REASON_MIN_LENGTH } from "../flag-rules";
 
 export { WAIVE_REASON_MIN_LENGTH };
 
-/** Loại lời gọi AI tốn credit - dùng cho `estimateActionCost` (`ChatActionType`). */
-export type ChoiceCreditAction = "translate" | "change_instruction";
+/**
+ * Loại lời gọi AI tốn credit - dùng cho `estimateActionCost` (`ChatActionType`). `change_request` (chế độ 1, FLF-445) là
+ * cả một CR: làm rõ + đề xuất theo lô + kiểm nhất quán, hook cộng ba giá.
+ */
+export type ChoiceCreditAction = "translate" | "change_instruction" | "change_request";
 
 export interface ChoiceDef {
   /** Khoá lựa chọn, cũng là phần cuối của key i18n `choice.<kind>.<id>` và `result.<kind>.<id>`. */
@@ -22,6 +25,8 @@ export interface ChoiceDef {
   confirm?: boolean;
   /** Chỉ điền sẵn ô chat, việc quyết xong ở chat chứ không ở thẻ. */
   handoff?: boolean;
+  /** Chế độ 1: tạo một change request từ các cờ đang chọn (khoá khi đã có CR chạy / gói chờ Lead). */
+  createsCr?: boolean;
 }
 
 const choice = (id: string, extra: Partial<Omit<ChoiceDef, "id">> = {}): ChoiceDef => ({
@@ -40,6 +45,29 @@ export const CHOICES: Record<PendingKind, ChoiceDef[]> = {
   flag_yellow_group: [choice("chat", { credit: "change_instruction", handoff: true }), choice("waive", { input: "reason" })],
 };
 
+/**
+ * Chế độ 1 (FLF-445): cờ đi qua change request, không bỏ qua được (BE `MODE1_NO_WAIVE`). Cả cờ đỏ lẫn nhóm cờ vàng: AI
+ * đề xuất cách sửa (một CR), giữ nguyên + lý do, hoặc gõ hướng sửa khác (cũng một CR).
+ */
+const MODE1_FLAG_CHOICES: ChoiceDef[] = [
+  choice("cr", { credit: "change_request", createsCr: true }),
+  choice("keep", { input: "reason" }),
+  choice("other", { input: "text", credit: "change_request", createsCr: true }),
+];
+
+/** Lựa chọn theo loại việc và chế độ dự án. */
+export const choicesFor = (kind: PendingKind, mode1: boolean): ChoiceDef[] =>
+  mode1 && (kind === "flag_red" || kind === "flag_yellow_group") ? MODE1_FLAG_CHOICES : CHOICES[kind];
+
+/** Thân CR tạo từ nhóm cờ: nguồn Gap report, người yêu cầu do thẻ điền sẵn. */
+export interface FlagGroupCrRequest {
+  title: string;
+  description: string;
+  source: { kind: "gap_report"; ref: null; note: string };
+  requester: string;
+  flag_ids: string[];
+}
+
 /** Handler có sẵn của trang - thẻ không tự gọi API ghi nào khác. */
 export interface ResolveQueueHandlers {
   /** `POST /changes` qua hàng ghi; `false` = ghi lỗi (trang đã báo lỗi). */
@@ -55,6 +83,8 @@ export interface ResolveQueueHandlers {
   /** Một dòng gọn vào khung chat sau mỗi quyết định thành công. */
   postChatLine: (text: string) => void;
   showSection: (sectionId: string) => void;
+  /** Chế độ 1: tạo CR từ nhóm cờ và chạy tiếp ở khung chat; trả mã CR, lỗi BE thì ném. */
+  createCrFromFlags?: (req: FlagGroupCrRequest) => Promise<string>;
   /** AI vừa bắt đầu chạy giữa chuỗi ghi ⇒ dừng (ghi Spine lúc bước đang soạn làm bước 409). Hook gắn vào, trang không cần truyền. */
   isLocked?: () => boolean;
 }
@@ -67,10 +97,20 @@ export interface ChoiceTarget {
   /** Cờ còn mở của việc (cờ đỏ: một cờ; nhóm vàng: cả nhóm). */
   flagIds: string[];
   prefill: string;
+  /** Chế độ 1: tên nhóm (tiêu đề CR), câu từng cờ (mô tả CR), người yêu cầu ghi trên CR. */
+  title?: string;
+  flagMessages?: Readonly<Record<string, string>>;
+  requester?: string;
 }
 
+/** Câu hỏi + cờ của nhóm thành mô tả CR: chữ người dùng gõ (nếu có) rồi danh sách cờ đang chọn. */
+export const crDescription = (target: Pick<ChoiceTarget, "flagIds" | "flagMessages">, text: string): string => {
+  const lines = target.flagIds.map((id) => `- ${target.flagMessages?.[id] ?? id}`).join("\n");
+  return text ? `${text}\n\n${lines}` : lines;
+};
+
 export type ChoiceOutcome =
-  | { status: "done"; markSeen?: boolean; done?: number; total?: number }
+  | { status: "done"; markSeen?: boolean; done?: number; total?: number; crId?: string }
   | { status: "handoff" }
   | { status: "failed"; message?: string }
   | { status: "partial"; done: number; total: number; message?: string; stoppedByAi?: boolean };
@@ -79,13 +119,13 @@ const fromBoolean = (ok: boolean): ChoiceOutcome => (ok ? { status: "done" } : {
 
 const errorMessageOf = (err: unknown): string => userErrorMessage(err);
 
-/** Cờ vàng bỏ qua tuần tự: dừng ở lỗi đầu tiên, trả số đã bỏ qua được. */
-const waiveSequentially = async (ids: string[], reason: string, handlers: ResolveQueueHandlers): Promise<ChoiceOutcome> => {
+/** Bỏ qua / giữ nguyên từng cờ tuần tự: dừng ở lỗi đầu tiên, trả số đã ghi được. */
+const writeSequentially = async (ids: string[], reason: string, handlers: ResolveQueueHandlers, write: "waiveFlag" | "keepFlag"): Promise<ChoiceOutcome> => {
   let done = 0;
   for (const id of ids) {
     if (handlers.isLocked?.()) return { status: "partial", done, total: ids.length, stoppedByAi: true };
     try {
-      await handlers.waiveFlag(id, reason);
+      await handlers[write](id, reason);
       done += 1;
     } catch (err) {
       return { status: "partial", done, total: ids.length, message: errorMessageOf(err) };
@@ -108,6 +148,18 @@ export async function executeChoice(
   const text = input.trim();
   const { kind, entityId } = target;
   try {
+    // Chế độ 1: một nhóm cờ (cờ đang chọn) thành một change request
+    const isFlag = kind === "flag_red" || kind === "flag_yellow_group";
+    if (isFlag && (choiceId === "cr" || (choiceId === "other" && text)) && handlers.createCrFromFlags && target.flagIds.length > 0) {
+      const crId = await handlers.createCrFromFlags({
+        title: target.title || target.prefill,
+        description: crDescription(target, choiceId === "other" ? text : ""),
+        source: { kind: "gap_report", ref: null, note: "Tạo từ hàng việc chờ quyết" },
+        requester: target.requester ?? "",
+        flag_ids: target.flagIds,
+      });
+      return { status: "done", crId, total: target.flagIds.length };
+    }
     switch (kind) {
       case "assumption":
         if (choiceId === "right") return fromBoolean(await handlers.submitOps(buildDecisionOps(entityId, "confirmed", now())));
@@ -142,7 +194,10 @@ export async function executeChoice(
       case "flag_yellow_group":
         if (choiceId === "chat") return handlers.startEditing(target.prefill) ? { status: "handoff" } : { status: "failed" };
         if (choiceId === "waive" && target.flagIds.length > 0 && text.length >= WAIVE_REASON_MIN_LENGTH)
-          return waiveSequentially(target.flagIds, text, handlers);
+          return writeSequentially(target.flagIds, text, handlers, "waiveFlag");
+        // Chế độ 1 không bỏ qua cờ: giữ nguyên từng cờ đang chọn, kèm cùng một lý do
+        if (choiceId === "keep" && target.flagIds.length > 0 && text.length >= WAIVE_REASON_MIN_LENGTH)
+          return writeSequentially(target.flagIds, text, handlers, "keepFlag");
         break;
     }
   } catch (err) {

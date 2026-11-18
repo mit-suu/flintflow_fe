@@ -14,7 +14,9 @@ import {
   type ResolveQueueHandlers,
 } from "./resolve-queue-actions";
 import { pruneKeys, readQueueMemory, writeQueueMemory } from "./resolve-queue-storage";
-import { buildItemView, shortText, type ItemView, type ResolveQueueT } from "./resolve-queue-view";
+import { addSplit, applySplits, buildItemView, pruneSplits, shortText, type ItemView, type ResolveQueueT } from "./resolve-queue-view";
+import { flagGroupTitle } from "../flag-rules";
+import { CR_MAX_FLAG_IDS, CR_PROPOSE_BATCH, type CrCostActionType } from "@/types/change-request";
 
 /** `closed`: chỉ có dải; `queue`: đi lần lượt; `single`: một việc lẻ mở từ tab; `afterSingle`: hỏi tiếp lần lượt hay để sau. */
 export type QueuePhase = "closed" | "queue" | "single" | "afterSingle";
@@ -36,6 +38,12 @@ export interface UseResolveQueueArgs {
   excludeIds?: ReadonlySet<string>;
   sectionName: (sectionId: string) => string | undefined;
   handlers: ResolveQueueHandlers;
+  /** Chế độ 1 (FLF-445): cờ thành thẻ nhóm cờ, sửa qua change request, không bỏ qua cờ. */
+  mode1?: boolean;
+  /** Chế độ 1: lý do chưa tạo được CR - gói chờ Lead duyệt, hoặc CR của mình chưa xong (`crId`). "Giữ nguyên" vẫn dùng được. */
+  crLock?: { reason: "package" } | { reason: "running"; crId: string | null } | null;
+  /** Chế độ 1: người yêu cầu điền sẵn trên CR (người đang thao tác), sửa được trên thẻ. */
+  requester?: string;
 }
 
 export interface AlsoDone {
@@ -69,8 +77,26 @@ export interface ResolveQueueController {
   later: () => void;
   reviewLater: () => void;
   continueQueue: () => void;
-  choose: (choiceId: string, input?: string) => Promise<void>;
+  /** `extra` (chế độ 1): cờ đang chọn trên thẻ và người yêu cầu đã sửa. */
+  choose: (choiceId: string, input?: string, extra?: ChooseExtra) => Promise<void>;
+  mode1: boolean;
+  /** Tổng số cờ trong các việc còn chờ (dải chế độ 1 nói theo cờ). */
+  flagCount: number;
+  /** Chế độ 1: vì sao lựa chọn tạo CR đang khoá; `null` = dùng được. */
+  crLockReason: string | null;
+  requester: string;
+  /** Chế độ 1: credit ước tính của một CR cho các cờ này; `null` = chưa biết giá. */
+  crCredit: (flagIds: readonly string[]) => number | null;
+  /** Chế độ 1: tách các cờ này khỏi nhóm của thẻ hiện tại thành một việc riêng (chỉ trước khi tạo CR). */
+  split: (flagIds: readonly string[]) => void;
 }
+
+export interface ChooseExtra {
+  flagIds?: string[];
+  requester?: string;
+}
+
+const CR_COST_ACTIONS: readonly CrCostActionType[] = ["cr_clarify", "cr_propose", "cr_consistency"];
 
 const isExcluded = (item: PendingItem, exclude: ReadonlySet<string> | undefined): boolean =>
   exclude !== undefined &&
@@ -81,12 +107,16 @@ const withKey = (set: ReadonlySet<string>, key: string): Set<string> => new Set(
 
 export function useResolveQueue(args: UseResolveQueueArgs): ResolveQueueController {
   const { projectId, queue, loading, reloadQueue, spine, flags, enabled, locked, yielded, excludeIds, sectionName, handlers } = args;
+  const mode1 = args.mode1 ?? false;
+  const requester = args.requester ?? "";
   const tRaw = useTranslations("workspace.resolveQueue");
   const t = tRaw as unknown as ResolveQueueT;
+  const tRules = useTranslations("workspace.flagRules") as unknown as (key: string) => string;
   const locale = useLocale() as Locale;
 
   const [seen, setSeen] = useState<ReadonlySet<string>>(() => readQueueMemory("seen", projectId));
   const [deferred, setDeferred] = useState<ReadonlySet<string>>(() => readQueueMemory("later", projectId));
+  const [splits, setSplits] = useState<ReadonlySet<string>>(() => readQueueMemory("split", projectId));
   const [editedGroups, setEditedGroups] = useState<ReadonlySet<string>>(new Set());
   const [phase, setPhase] = useState<QueuePhase>("closed");
   const [singleKey, setSingleKey] = useState<string | null>(null);
@@ -94,25 +124,32 @@ export function useResolveQueue(args: UseResolveQueueArgs): ResolveQueueControll
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<{ key: string; message: string } | null>(null);
   const [alsoDone, setAlsoDone] = useState<AlsoDone | null>(null);
-  const [costs, setCosts] = useState<Partial<Record<ChoiceCreditAction, number>>>({});
+  const [costs, setCosts] = useState<Partial<Record<ChoiceCreditAction | CrCostActionType, number>>>({});
   const [prunedFor, setPrunedFor] = useState<PendingQueue | null>(null);
+
+  // Chế độ 1: nhóm cờ đã tách thành việc riêng (chế độ khác không tách)
+  const items = queue === null ? [] : mode1 ? applySplits(queue.items, splits) : queue.items;
 
   // Dọn key không còn trong hàng mỗi lần hàng mới về (ghi chú đã bỏ, cờ đã đóng...) - tính ngay lúc render như `page.tsx`
   if (queue !== null && prunedFor !== queue) {
     setPrunedFor(queue);
-    const alive = new Set(queue.items.map((item) => item.key));
+    const liveSplits = pruneSplits(splits, queue.items);
+    setSplits(liveSplits);
+    const alive = new Set((mode1 ? applySplits(queue.items, liveSplits) : queue.items).map((item) => item.key));
     setSeen((prev) => pruneKeys(prev, alive));
     setDeferred((prev) => pruneKeys(prev, alive));
   }
   useEffect(() => writeQueueMemory("seen", projectId, seen), [projectId, seen]);
   useEffect(() => writeQueueMemory("later", projectId, deferred), [projectId, deferred]);
+  useEffect(() => writeQueueMemory("split", projectId, splits), [projectId, splits]);
 
   const ready = enabled && queue !== null && spine !== null;
+  const ruleTitle = (ruleId: string): string | null => flagGroupTitle(ruleId, tRules);
   const views: ItemView[] =
     ready && spine
-      ? queue.items.flatMap((item) => {
+      ? items.flatMap((item) => {
           if (seen.has(item.key) || isExcluded(item, excludeIds)) return [];
-          const view = buildItemView(item, { spine, flags, locale, t, sectionName, editedGroups });
+          const view = buildItemView(item, { spine, flags, locale, t, sectionName, editedGroups, mode1, ruleTitle });
           return view ? [view] : [];
         })
       : [];
@@ -129,17 +166,42 @@ export function useResolveQueue(args: UseResolveQueueArgs): ResolveQueueControll
   }
 
   const creditAction = current?.choices.find((c) => c.credit !== null)?.credit ?? null;
-  const requestedCosts = useRef(new Set<ChoiceCreditAction>());
+  const requestedCosts = useRef(new Set<ChoiceCreditAction | CrCostActionType>());
   useEffect(() => {
-    if (!creditAction || requestedCosts.current.has(creditAction)) return;
-    requestedCosts.current.add(creditAction);
-    estimateActionCost(creditAction)
-      .then((res) => {
-        const cost = res.data?.cost;
-        if (typeof cost === "number") setCosts((prev) => ({ ...prev, [creditAction]: cost }));
-      })
-      .catch(() => requestedCosts.current.delete(creditAction));
+    if (!creditAction) return;
+    // Một CR = làm rõ + đề xuất theo lô + kiểm nhất quán ⇒ cần cả ba giá
+    const types = creditAction === "change_request" ? CR_COST_ACTIONS : [creditAction];
+    for (const type of types) {
+      if (requestedCosts.current.has(type)) continue;
+      requestedCosts.current.add(type);
+      estimateActionCost(type)
+        .then((res) => {
+          const cost = res.data?.cost;
+          if (typeof cost === "number") setCosts((prev) => ({ ...prev, [type]: cost }));
+        })
+        .catch(() => requestedCosts.current.delete(type));
+    }
   }, [creditAction]);
+
+  /** Ước tính một CR: làm rõ + đề xuất × ⌈số mục / 4⌉ + kiểm nhất quán (BE đề xuất theo lô 4 chỗ). */
+  const crCredit = (flagIds: readonly string[]): number | null => {
+    const clarify = costs.cr_clarify;
+    const propose = costs.cr_propose;
+    const consistency = costs.cr_consistency;
+    if (clarify === undefined || propose === undefined || consistency === undefined) return null;
+    const sections = new Set(flags.filter((f) => flagIds.includes(f.id)).map((f) => f.section_id)).size;
+    return clarify + propose * Math.max(1, Math.ceil(sections / CR_PROPOSE_BATCH)) + consistency;
+  };
+
+  const crLock = args.crLock ?? null;
+  const crLockReason =
+    !mode1 || !crLock
+      ? null
+      : crLock.reason === "package"
+        ? t("mode1.lock.package")
+        : crLock.crId
+          ? t("mode1.lock.running", { crId: crLock.crId })
+          : t("mode1.lock.busy");
 
   // Cổng chặn thật sự nằm ở đây, không chỉ ở UI: ref luôn là giá trị mới nhất kể cả khi sự kiện bấm đến giữa hai lần render
   const guard = useRef({ locked, yielded });
@@ -171,12 +233,13 @@ export function useResolveQueue(args: UseResolveQueueArgs): ResolveQueueControll
     setPhase("closed");
   }, []);
 
-  const later = useCallback(() => {
+  // Không bọc useCallback: `current` dựng lại mỗi lần render (như `openItem`)
+  const later = () => {
     if (guard.current.locked || busyRef.current || !current) return;
     setAlsoDone(null);
     setDeferred((prev) => withKey(prev, current.key));
     if (phase === "single") setPhase("closed");
-  }, [current, phase]);
+  };
 
   const reviewLater = useCallback(() => {
     if (guard.current.locked) return;
@@ -190,14 +253,34 @@ export function useResolveQueue(args: UseResolveQueueArgs): ResolveQueueControll
     setPhase("queue");
   }, []);
 
-  const choose = async (choiceId: string, input = ""): Promise<void> => {
-    const view = current;
-    if (!view || guard.current.locked || guard.current.yielded || busyRef.current) return;
-    const choice = view.choices.find((c) => c.id === choiceId);
+  /** Chế độ 1: tách cờ khỏi nhóm của thẻ hiện tại (giữ ít nhất một cờ ở lại). */
+  const split = (flagIds: readonly string[]) => {
+    if (!mode1 || !current || busyRef.current) return;
+    const moving = flagIds.filter((id) => current.flagIds.includes(id));
+    if (moving.length === 0 || moving.length === current.flagIds.length) return;
+    setFailure(null);
+    setSplits((prev) => addSplit(prev, moving));
+  };
+
+  const choose = async (choiceId: string, input = "", extra: ChooseExtra = {}): Promise<void> => {
+    const current0 = current;
+    if (!current0 || guard.current.locked || guard.current.yielded || busyRef.current) return;
+    const choice = current0.choices.find((c) => c.id === choiceId);
     if (!choice) return;
+    // Thẻ nhóm cờ: chỉ các cờ đang chọn, người yêu cầu theo ô trên thẻ
+    const selected = extra.flagIds ? extra.flagIds.filter((id) => current0.flagIds.includes(id)) : current0.flagIds;
+    const view: ItemView = { ...current0, flagIds: selected, requester: (extra.requester ?? requester).trim() };
+    if (current0.flagList.length > 0 && selected.length === 0) return;
+    if (choice.createsCr) {
+      const blocked = crLockReason ?? (selected.length > CR_MAX_FLAG_IDS ? t("mode1.tooMany", { max: CR_MAX_FLAG_IDS }) : !view.requester ? t("mode1.requesterMissing") : null);
+      if (blocked) {
+        setFailure({ key: current0.key, message: blocked });
+        return;
+      }
+    }
     if (choice.input === "text" && !input.trim()) return;
     if (choice.input === "reason" && input.trim().length < WAIVE_REASON_MIN_LENGTH) {
-      setFailure({ key: view.key, message: t("errors.reasonShort", { min: WAIVE_REASON_MIN_LENGTH }) });
+      setFailure({ key: current0.key, message: t("errors.reasonShort", { min: WAIVE_REASON_MIN_LENGTH }) });
       return;
     }
     busyRef.current = true;
@@ -220,19 +303,28 @@ export function useResolveQueue(args: UseResolveQueueArgs): ResolveQueueControll
         return;
       }
       if (outcome.status === "partial") {
-        handlers.postChatLine(t("partialLine", { done: outcome.done, total: outcome.total }));
-        setFailure({ key: view.key, message: t("errors.partial", { done: outcome.done, total: outcome.total, message: outcome.stoppedByAi ? t("errors.pausedByAi") : (outcome.message ?? t("errors.write")) }) });
+        const keeping = mode1 && choiceId === "keep";
+        handlers.postChatLine(t(keeping ? "mode1.partialLine" : "partialLine", { done: outcome.done, total: outcome.total }));
+        const message = outcome.stoppedByAi ? t("errors.pausedByAi") : (outcome.message ?? t("errors.write"));
+        setFailure({ key: view.key, message: t(keeping ? "mode1.errors.partial" : "errors.partial", { done: outcome.done, total: outcome.total, message }) });
         void reloadQueue();
         return;
       }
 
       if (outcome.markSeen) setSeen((prev) => withKey(prev, view.key));
       handlers.postChatLine(
-        t("chatLine", {
-          kind: view.kindLabel,
-          text: shortText(view.subject),
-          choice: t(`result.${view.kind}.${choiceId}`, { done: outcome.done ?? 0, total: outcome.total ?? 0 }),
-        })
+        view.flagList.length > 0
+          ? // Chế độ 1: ✓ Nhóm "<tên nhóm>" (N cờ) → CR-xxx / Giữ nguyên
+            t("mode1.chatLine", {
+              text: shortText(view.subject),
+              count: view.flagIds.length,
+              result: outcome.crId ? outcome.crId : t(`mode1.result.${choiceId}`),
+            })
+          : t("chatLine", {
+              kind: view.kindLabel,
+              text: shortText(view.subject),
+              choice: t(`result.${view.kind}.${choiceId}`, { done: outcome.done ?? 0, total: outcome.total ?? 0 }),
+            })
       );
       setResolved((n) => n + 1);
       const next = await reloadQueue();
@@ -257,7 +349,7 @@ export function useResolveQueue(args: UseResolveQueueArgs): ResolveQueueControll
     activeCount: active.length,
     resolved,
     current,
-    credit: creditAction ? (costs[creditAction] ?? null) : null,
+    credit: creditAction === "change_request" ? crCredit(current?.flagIds ?? []) : creditAction ? (costs[creditAction] ?? null) : null,
     busy,
     error: failure && failure.key === current?.key ? failure.message : null,
     alsoDone,
@@ -268,5 +360,11 @@ export function useResolveQueue(args: UseResolveQueueArgs): ResolveQueueControll
     reviewLater,
     continueQueue,
     choose,
+    mode1,
+    flagCount: views.reduce((n, view) => n + view.flagIds.length, 0),
+    crLockReason,
+    requester,
+    crCredit,
+    split,
   };
 }

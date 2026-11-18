@@ -21,11 +21,13 @@ export default function ResolveQueueDock({ controller: c, onShowSection }: Resol
   if (!c.visible) return null;
 
   const cardOpen = (c.phase === "queue" || c.phase === "single") && c.current !== null;
+  // Chế độ 1 (FLF-445): dải nói theo số cờ ("N cờ nên xem"), thẻ là một nhóm cờ
+  const pendingText = c.mode1 ? t("mode1.dock.pending", { count: c.flagCount }) : t("dock.pending", { count: c.total });
 
   if (c.locked) {
     return (
       <p role="status" className={BAR}>
-        <span className="font-bold">{t("dock.pending", { count: c.total })}</span>
+        <span className="font-bold">{pendingText}</span>
         <span className="text-on-surface-variant">{t("dock.locked")}</span>
       </p>
     );
@@ -51,7 +53,7 @@ export default function ResolveQueueDock({ controller: c, onShowSection }: Resol
   const allDeferred = c.activeCount === 0;
   return (
     <div className={BAR}>
-      <span className="font-bold flex-1 min-w-0">{t(allDeferred ? "dock.deferred" : "dock.pending", { count: c.total })}</span>
+      <span className="font-bold flex-1 min-w-0">{allDeferred ? t("dock.deferred", { count: c.total }) : pendingText}</span>
       <Button size="sm" onClick={allDeferred ? c.reviewLater : c.open}>
         {t(allDeferred ? "dock.review" : "dock.start")}
       </Button>

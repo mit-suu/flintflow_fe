@@ -122,6 +122,7 @@ import { canShowContinueCard } from "./_components/continue-card";
 import { canShowRerunCard } from "./_components/rerun-card";
 import { contentChangeCount } from "./_components/change-count";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
+import { listFlags } from "@/lib/api/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
@@ -328,7 +329,22 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // `onSpineChanged` khai báo phía dưới (cần hook Spine) ⇒ ref giữ bản mới nhất cho callback của chat CR
   const onSpineChangedRef = useRef<(spineVersion?: number) => void>(() => undefined);
   // CR vừa ghi bản nháp (1.1, 1.2…) ⇒ khung phải tải lại tài liệu, version và gói thay đổi
-  const crChat = useCrChat(projectId, mode1, () => onSpineChangedRef.current(), ws.user?.id ?? null);
+  const crChat = useCrChat(
+    projectId,
+    mode1,
+    (crId, flagIds) => {
+      onSpineChangedRef.current();
+      // FLF-445: CR tạo từ nhóm cờ đã ghi ⇒ báo trong chat còn mấy cờ của nhóm chưa xong (chúng quay lại hàng việc chờ quyết)
+      if (flagIds.length === 0) return;
+      void listFlags(projectId)
+        .then((res) => {
+          const left = (res.data ?? []).filter((f) => flagIds.includes(f.id) && isOpenFlag(f)).length;
+          ws.appendLocalMessage(t("resolveQueue.mode1.writtenLine", { crId, count: left }), null, "ai");
+        })
+        .catch(() => undefined);
+    },
+    ws.user?.id ?? null
+  );
   // FLF-411 U2-4: dự án mode 1 (import) không có step ⇒ BE từ chối `POST /resume` (409); chỉ đọc Spine, không gọi resume
   const spineState = useSpine(projectId, ws.ready, ws.canEdit && !mode1);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
@@ -1431,8 +1447,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   useFollowRunningElsewhere({ active: stepRunningElsewhere, projectId, restore: restoreRunner, onSettled: onSpineChanged });
 
   // ─── Hàng việc chờ quyết (FLF-443): dải + thẻ giải quyết lần lượt ở vùng ô nhập. Chỉ nối handler có sẵn, không logic. ───
-  // Chế độ 1 ẩn tới khi có luồng change request riêng cho cờ; Viewer / phiên phụ không có.
-  const pendingQueueEnabled = !mode1 && ws.ready && ws.canEdit && ws.isPipelineActive;
+  // Chế độ 1 (FLF-445): thẻ là một nhóm cờ, sửa qua change request; Viewer / phiên phụ không có.
+  const pendingQueueEnabled = ws.ready && ws.canEdit && ws.isPipelineActive;
   const pendingQueue = usePendingQueue(projectId, spineState.version, pendingQueueEnabled);
   const gateAssumptionIds = new Set(
     (runner.state.phaseGate ? runner.state.phaseGate.new_assumptions : runner.state.gate?.payload?.new_assumptions)?.map((a) => a.id) ?? []
@@ -1458,7 +1474,19 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     spine,
     flags,
     enabled: pendingQueueEnabled,
-    locked: aiWorking,
+    // Chế độ 1: AI đang chạy bước của change request (làm rõ, đề xuất, kiểm) cũng khoá thẻ
+    locked: aiWorking || (mode1 && crChat.busy !== null),
+    mode1,
+    // Một CR chạy một lúc: CR của mình chưa xong (kể cả đang chờ chọn nguồn) hoặc gói chờ Lead ⇒ chưa tạo CR mới
+    crLock: !mode1
+      ? null
+      : crChat.draftLocked
+        ? { reason: "package" }
+        : // Còn đang tải CR mở của mình thì chưa biết có CR chạy không ⇒ khoá tới khi biết
+          crChat.loading || crChat.detail || crChat.pending !== null
+          ? { reason: "running", crId: crChat.detail?.change_request.cr_id ?? null }
+          : null,
+    requester: ws.user?.name?.trim() || ws.user?.email || "",
     yielded: runner.state.status === "needs_input" || runner.state.status === "gate_ready",
     excludeIds: gateAssumptionIds,
     sectionName: panelSectionName,
@@ -1478,6 +1506,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       },
       postChatLine: (text) => ws.appendLocalMessage(text, viewedStep ?? null, "ai"),
       showSection,
+      createCrFromFlags: mode1 ? crChat.startFromFlags : undefined,
     },
   });
 

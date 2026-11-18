@@ -7,7 +7,7 @@ import { renderHookWithIntl } from "@/test/intl";
 import type { CrDetail } from "@/types/change-request";
 import { useCrChat } from "./useCrChat";
 
-const api = vi.hoisted(() => ({ listCrs: vi.fn(), getCr: vi.fn(), sendCrMessage: vi.fn(), answerClarifications: vi.fn(), cancelCr: vi.fn(), runCrAction: vi.fn() }));
+const api = vi.hoisted(() => ({ listCrs: vi.fn(), getCr: vi.fn(), sendCrMessage: vi.fn(), answerClarifications: vi.fn(), cancelCr: vi.fn(), runCrAction: vi.fn(), createCr: vi.fn() }));
 
 vi.mock("@/lib/api/change-requests", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -17,6 +17,7 @@ vi.mock("@/lib/api/change-requests", async (importOriginal) => ({
   answerClarifications: api.answerClarifications,
   cancelCr: api.cancelCr,
   runCrAction: api.runCrAction,
+  createCr: api.createCr,
 }));
 
 const detail = {
@@ -111,5 +112,35 @@ describe("useCrChat - trả lời làm rõ là lời rút lại (FLF-439)", () =
     await waitFor(() => expect(api.answerClarifications).toHaveBeenLastCalledWith("p1", "CR-001", ["không đổi"]));
     expect(result.current.withdrawAsk).toBeNull();
     expect(api.cancelCr).not.toHaveBeenCalled();
+  });
+});
+
+describe("useCrChat - tạo CR từ nhóm cờ (FLF-445)", () => {
+  it("startFromFlags tạo thẳng CR mang flag_ids, nhận CR làm CR đang mở và chạy tiếp làm rõ; trả mã CR", async () => {
+    api.listCrs.mockResolvedValue({ data: [] });
+    api.createCr.mockReset().mockResolvedValue({ data: { ...detail, change_request: { ...detail.change_request, cr_id: "CR-009", flag_ids: ["FY1"] } } });
+    api.runCrAction.mockReset().mockResolvedValue({ data: null });
+    const { result } = renderHookWithIntl(() => useCrChat("p1", true, undefined, "u1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    let crId = "";
+    await act(async () => {
+      crId = await result.current.startFromFlags({ title: "Nhóm cờ", description: "- a", source: { kind: "gap_report", ref: null, note: "n" }, requester: " BA ", flag_ids: ["FY1"] });
+    });
+    expect(crId).toBe("CR-009");
+    expect(api.createCr).toHaveBeenCalledWith("p1", expect.objectContaining({ flag_ids: ["FY1"], requester: "BA", source: expect.objectContaining({ kind: "gap_report" }) }));
+    expect(result.current.detail?.change_request.cr_id).toBe("CR-009");
+    await waitFor(() => expect(api.runCrAction).toHaveBeenCalledWith("p1", "CR-009", "clarify"));
+  });
+
+  it("BE từ chối ⇒ ném lỗi cho thẻ, không nhận CR nào", async () => {
+    api.listCrs.mockResolvedValue({ data: [] });
+    api.createCr.mockReset().mockRejectedValue(new Error("Có cờ trong nhóm vừa được xử lý."));
+    const { result } = renderHookWithIntl(() => useCrChat("p1", true, undefined, "u1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    await act(async () => {
+      await expect(result.current.startFromFlags({ title: "t", description: "d", source: { kind: "gap_report", ref: null, note: "n" }, requester: "BA", flag_ids: ["FY1"] })).rejects.toThrow("vừa được xử lý");
+    });
+    expect(result.current.detail).toBeNull();
+    expect(result.current.busy).toBeNull();
   });
 });

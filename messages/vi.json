@@ -2465,6 +2465,53 @@
         "chatBlocked": "Lúc này chưa sửa trong chat được.",
         "partial": "Mới bỏ qua {done}/{total} lưu ý. {message}",
         "pausedByAi": "AI vừa bắt đầu chạy, phần còn lại để lúc AI xong."
+      },
+      "mode1": {
+        "dock": {
+          "pending": "{count} cờ nên xem"
+        },
+        "kind": {
+          "flag_red": "Cờ đỏ",
+          "flag_yellow_group": "Nhóm cờ"
+        },
+        "left": "· còn {count} nhóm",
+        "question": "{count, plural, =1 {Cờ này nên sửa thế nào?} other {Nhóm # cờ này nên sửa thế nào?}}",
+        "groupTitle": "{rule} · {section}",
+        "listAria": "Các cờ trong nhóm",
+        "choice": {
+          "cr": "Để AI đề xuất cách sửa cả nhóm",
+          "keep": "Giữ nguyên, kèm lý do",
+          "other": "Muốn khác"
+        },
+        "choiceHint": {
+          "cr": "AI soạn một change request cho các cờ đang chọn, bạn xem và xác nhận từng chỗ",
+          "keep": "Ghi lý do giữ nguyên cho từng cờ đang chọn, không tạo change request",
+          "other": "Gõ hướng sửa của bạn, AI soạn change request theo đó"
+        },
+        "textPlaceholder": "Bạn muốn sửa các cờ này thế nào?",
+        "footer": "{count, plural, =0 {Chưa chọn cờ nào} other {Thành 1 change request · Nguồn: Gap report}}",
+        "requester": "Người yêu cầu: {name}",
+        "requesterLabel": "Người yêu cầu:",
+        "requesterEdit": "Sửa",
+        "requesterEmpty": "chưa có",
+        "requesterMissing": "Điền người yêu cầu trước khi tạo change request.",
+        "split": "Tách {count} cờ bỏ chọn thành nhóm riêng",
+        "splitHint": "Bỏ chọn cờ để tách nhóm",
+        "tooMany": "Một change request nhận tối đa {max} cờ. Bỏ chọn bớt rồi tách thành nhóm riêng.",
+        "lock": {
+          "package": "Gói đang chờ Lead duyệt, chưa tạo change request mới được. Giữ nguyên vẫn dùng được.",
+          "running": "Bạn đang có {crId} chưa xong. Xác nhận hoặc huỷ nó trong khung chat rồi tạo change request mới. Giữ nguyên vẫn dùng được.",
+          "busy": "Đang có một change request trong khung chat chưa xong. Xong rồi mới tạo change request mới được. Giữ nguyên vẫn dùng được."
+        },
+        "chatLine": "✓ Nhóm \"{text}\" ({count} cờ) → {result}",
+        "result": {
+          "keep": "Giữ nguyên"
+        },
+        "writtenLine": "{crId} đã ghi vào bản nháp{count, plural, =0 {, các cờ của nhóm đã xong} other {, còn # cờ chưa xong}}",
+        "partialLine": "{done}/{total} cờ đã giữ nguyên",
+        "errors": {
+          "partial": "Mới giữ nguyên {done}/{total} cờ. {message}"
+        }
       }
     },
     "names": {
@@ -3638,7 +3685,9 @@
     "SKELETON_CONFLICT": "Mẫu khung vừa được người khác duyệt. Tải lại để xem.",
     "SKELETON_NOT_FOUND": "Dự án chưa có mẫu khung tự lưu.",
     "SKELETON_SUGGEST_FAILED": "Không gợi ý được tên chung. Thử lại sau.",
-    "IMPORT_FILE_REJECTED": "Không đọc được file này."
+    "IMPORT_FILE_REJECTED": "Không đọc được file này.",
+    "FLAG_NOT_OPEN": "Có cờ trong nhóm vừa được xử lý. Tải lại danh sách rồi thử lại.",
+    "CR_TOO_MANY_LOCATIONS": "Nhóm cờ này chạm quá nhiều chỗ cho một change request. Tách thành nhóm nhỏ hơn."
   },
   "maintenance": {
     "metaTitle": "Đang bảo trì · FlintFlow",
