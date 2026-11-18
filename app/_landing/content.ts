@@ -15,7 +15,7 @@ import type { PhaseId } from "@/lib/constants/step-registry";
 export type GroupTone = "blue" | "purple" | "green" | "amber";
 
 /** Email liên hệ công khai — footer landing và trang pháp lý (`/privacy`, `/terms`). */
-export const CONTACT_EMAIL = "hello@flintflow.app";
+export const CONTACT_EMAIL = "trantuanhiep28122003@gmail.com";
 
 /** Trang pháp lý công khai; Google OAuth consent screen trỏ tới đúng hai đường dẫn này. */
 export const LEGAL_LINKS = [
