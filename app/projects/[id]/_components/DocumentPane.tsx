@@ -12,6 +12,7 @@ import { hookErrorText } from "@/lib/hook-errors";
 import { shownDocumentLanguage } from "@/lib/document-language";
 import { blockHasRealText, isGuidanceOnly } from "@/lib/instruction-text";
 import { useDocument, type DocumentUpdate, type UseDocumentResult } from "../hooks/useDocument";
+import AnchoredPopover from "./AnchoredPopover";
 import DocumentLanguageChip from "./DocumentLanguageChip";
 import DocumentUpdatePill from "./DocumentUpdatePill";
 import { blockRegionKey, sectionRegionKey } from "./document-diff";
@@ -81,6 +82,13 @@ interface DocumentPaneProps {
   rewriteError?: string | null;
   /** Báo danh sách mục đang hiển thị — panel kiểm tra dùng để gọi tên mục (`§2.2.2 Actors`). */
   onSectionsLoaded?: (sections: readonly RenderedSection[]) => void;
+  /**
+   * Danh sách version mở từ chip version (mode 1: version, tải về, file gốc, so sánh) — `close` đóng popup sau một hành
+   * động. Bỏ trống ⇒ chip chỉ hiển thị.
+   */
+  versionMenu?: (close: () => void) => ReactNode;
+  /** Pill trạng thái chốt bản cạnh chip version (baseline / gói thay đổi) — nơi gọi dựng vì chữ phụ thuộc vai trò. */
+  statusPill?: ReactNode;
   /** Nút thêm ở cuối header (vd. thoát mở rộng trang). */
   headerEnd?: ReactNode;
   /**
@@ -888,6 +896,8 @@ function DocumentPaneView({
   rewriteError = null,
   onSectionsLoaded,
   headerEnd,
+  versionMenu,
+  statusPill,
   footerStatus,
   onRedrawSection,
   onRedrawDiagram,
@@ -973,15 +983,37 @@ function DocumentPaneView({
           <h3 className="font-bold text-body text-on-surface truncate min-w-0 max-w-full" title={t("heading", { name })}>
             {t("heading", { name })}
           </h3>
-          {document && (
-            <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
-          )}
+          {document &&
+            (versionMenu ? (
+              // Chip version là lối vào danh sách version của tài liệu đang đọc (cùng hình chip, thêm mũi tên)
+              <AnchoredPopover
+                label={t("versionsTitle")}
+                widthClassName="w-[420px]"
+                trigger={({ toggle, ...aria }) => (
+                  <button
+                    type="button"
+                    {...aria}
+                    onClick={toggle}
+                    title={t("versionsTitle")}
+                    className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-caption text-on-surface-variant bg-surface-container-high hover:bg-surface-container-highest px-2 py-0.5 rounded-full font-mono cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                  >
+                    {document.version}
+                    <Icon name="chevron-down" size={11} />
+                  </button>
+                )}
+              >
+                {versionMenu}
+              </AnchoredPopover>
+            ) : (
+              <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
+            ))}
           {document?.watermark && !isSignedVersion(document.version, baselineVersions) && (
             <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{document.watermark === "DRAFT" ? t("status.draft") : document.watermark}</span>
           )}
           {document && isSignedVersion(document.version, baselineVersions) && (
             <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-success-soft text-success">{t("signedBadge")}</span>
           )}
+          {statusPill}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {issues && onOpenIssues && (

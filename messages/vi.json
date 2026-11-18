@@ -1568,10 +1568,10 @@
       "viewHint": "Xem tài liệu chỉ đọc và comment",
       "view": "Xem & comment",
       "tools": "Công cụ",
-      "toolsPending": "{label} - {count} mục chờ bạn quyết",
-      "enterFocus": "Mở rộng trang (ẩn thanh trên)",
       "account": "Tài khoản",
-      "credits": "credits"
+      "credits": "credits",
+      "more": "Thao tác khác",
+      "secondaryActions": "Thao tác khác của dự án"
     },
     "phaseHeader": {
       "done": "Hoàn tất",
@@ -1930,7 +1930,10 @@
         "useOriginal": "Dùng ảnh gốc",
         "useOriginalFailed": "Không thể dùng lại ảnh gốc",
         "drawing": "Đang vẽ mockup…"
-      }
+      },
+      "versionsTitle": "Các version của tài liệu",
+      "compareVersions": "So sánh version",
+      "versionsLoading": "Đang tải danh sách version…"
     },
     "verification": {
       "closeHint": "Đóng bảng đánh giá",
@@ -2338,18 +2341,14 @@
         "glossary": "Thuật ngữ"
       },
       "empty": "Chưa có mục nào.",
-      "newTerm": "Thuật ngữ mới",
-      "definition": "Định nghĩa (tiếng Anh)",
-      "save": "Lưu tên chuẩn",
       "tabsLabel": "Loại tên",
-      "newNameAria": "Tên mới cho {name}",
-      "editTitle": "Bấm để sửa tên",
-      "edit": "Sửa",
       "collapse": "Thu gọn",
       "showMore": "Xem thêm {count}",
-      "cancel": "Huỷ",
-      "add": "Thêm",
-      "addTerm": "+ Thêm thuật ngữ"
+      "editByChat": "Sửa qua chat",
+      "editByChatAria": "Sửa tên {name} qua chat",
+      "renameByChatPrefill": "Đổi tên \"{name}\" thành ",
+      "addTermByChat": "+ Thêm thuật ngữ qua chat",
+      "addTermByChatPrefill": "Thêm thuật ngữ mới vào bảng thuật ngữ: "
     },
     "chatEdit": {
       "aria": "Sửa tài liệu",
@@ -2704,9 +2703,8 @@
       "resizePanel": "Đổi cỡ panel bên phải",
       "gapReport": "Gap report",
       "changeRequest": "Change request",
-      "compareVersions": "So sánh version",
       "reupload": "Re-upload file đã sửa",
-      "toolsMode1": "Cờ, change request & version",
+      "toolsMode1": "Kiểm & chốt",
       "toolsRecord": "Hồ sơ dự án",
       "toolsRecordShort": "Hồ sơ",
       "closeRecord": "Đóng hồ sơ dự án",
@@ -2732,7 +2730,8 @@
       "close": "Đóng",
       "interrupted": "Lượt chạy bị gián đoạn. Nội dung đã ghi trước đó được giữ.",
       "rerun": "Chạy lại",
-      "exitFocus": "Thoát mở rộng (Esc)",
+      "enterFocus": "Phóng to tài liệu",
+      "exitFocus": "Thu nhỏ tài liệu (Esc)",
       "confirmUpdate": "Cập nhật",
       "confirmApply": "Áp dụng"
     },
@@ -2901,9 +2900,8 @@
       },
       "none": "Chưa có quyết định nào được chốt.",
       "listAria": "Quyết định đã chốt",
-      "editAria": "Sửa quyết định {topic}",
-      "save": "Lưu",
-      "edit": "Sửa"
+      "editByChat": "Sửa qua chat",
+      "editByChatPrefill": "Sửa quyết định \"{topic}\" (hiện là \"{answer}\") thành "
     },
     "baseline": {
       "title": "Chốt baseline",
@@ -2960,13 +2958,15 @@
       "assumptionsHint": "Điều AI tạm hiểu khi bạn chưa nói rõ. Xác nhận đúng hay sai.",
       "notesTitle": "Ghi chú",
       "notesHint": "Chọn giữ, để dành cho phụ lục, hoặc bỏ từng ghi chú.",
-      "risksTitle": "Rủi ro & câu hỏi mở ({count})",
-      "risksHint": "Điều chưa ngã ngũ - trả lời trong chat khi AI hỏi tới.",
       "screensTitle": "Màn hình sẽ đặc tả",
       "screensHint": "Thứ tự các màn AI đặc tả chi tiết. Để lại màn chưa cần làm ở vòng này.",
       "nothingPending": "Hiện chưa có gì chờ bạn quyết.",
       "historyTitle": "Lịch sử sửa",
-      "historyHint": "20 thay đổi gần nhất, mới nhất ở trên."
+      "historyHint": "20 thay đổi gần nhất, mới nhất ở trên.",
+      "answerInChat": "Trả lời trong chat",
+      "answerInChatPrefill": "Trả lời câu hỏi \"{question}\": ",
+      "openQuestionsTitle": "Câu hỏi mở ({count})",
+      "openQuestionsHint": "AI ghi lại khi đọc tài liệu; trả lời để AI cập nhật nội dung."
     },
     "sources": {
       "loading": "Đang tải nguồn tài liệu…",
@@ -3296,6 +3296,22 @@
       "chipNothing": "Đã là mockup",
       "chipDone": "Đã vẽ {count} màn",
       "allFailed": "Chưa vẽ được {count} màn"
+    },
+    "projectDocuments": {
+      "button": "Tài liệu",
+      "hint": "Tài liệu đã tải lên của dự án",
+      "title": "Tài liệu của dự án",
+      "srsFile": "File SRS",
+      "srsOriginal": "File gốc đã nhập (bản {version})",
+      "references": "Tài liệu tham khảo ({count})",
+      "loading": "Đang tải tài liệu…",
+      "loadFailed": "Không tải được danh sách tài liệu",
+      "empty": "Chưa có tài liệu tham khảo nào. Đính kèm biên bản, email, ghi chú để AI đọc cùng.",
+      "add": "Thêm tài liệu",
+      "adding": "Đang tải lên…",
+      "addFailed": "Không tải được tài liệu lên",
+      "busy": "Đang tải tệp đính kèm ở ô chat. Chờ xong rồi thêm lại.",
+      "buttonAria": "Tài liệu ({count})"
     }
   },
   "errors": {
@@ -4705,10 +4721,7 @@
       "templateTitle": "Đổi mẫu tài liệu"
     },
     "workspaceTools": {
-      "flagsTitle": "Cờ & change request",
-      "navAria": "Import & change request",
-      "gapReport": "Gap report",
-      "changeRequest": "Change request"
+      "flagsTitle": "Cờ & change request"
     },
     "reviewPackage": {
       "aria": "Gói thay đổi chờ duyệt",
@@ -4741,7 +4754,8 @@
       "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến - sai thì phát hành bản mới.",
       "releasing": "Đang phát hành…",
       "confirmRelease": "Xác nhận phát hành",
-      "blockedMigrationMissing": "Còn {count} mục của mẫu mới chưa viết sau khi đổi mẫu. Viết xong (qua change request) mới gửi duyệt hoặc phát hành được."
+      "blockedMigrationMissing": "Còn {count} mục của mẫu mới chưa viết sau khi đổi mẫu. Viết xong (qua change request) mới gửi duyệt hoặc phát hành được.",
+      "unsentPill": "{count, plural, =1 {1 CR chưa gửi Lead} other {# CR chưa gửi Lead}}"
     },
     "paused": {
       "title": "{what} đang tạm dừng - {reason, select, credits {hết credit} interrupted {bị gián đoạn} other {AI lỗi, đã thử lại 2 lần}}",
@@ -4879,10 +4893,6 @@
     },
     "referenceDocs": {
       "aria": "Tài liệu tham khảo",
-      "title": "Tài liệu tham khảo",
-      "intro": "Biên bản, email, ghi chú đính kèm trong chat. Rút yêu cầu để AI liệt kê từng yêu cầu kèm đoạn nguồn rồi bạn duyệt thành change request.",
-      "loading": "Đang tải tài liệu tham khảo…",
-      "loadFailed": "Không tải được tài liệu tham khảo",
       "unreadable": "chưa đọc được chữ",
       "status": {
         "extracted": "{count, plural, =1 {1 yêu cầu chờ duyệt} other {# yêu cầu chờ duyệt}}",
@@ -4959,12 +4969,6 @@
       "entry": {
         "aria": "Đổi mẫu tài liệu",
         "title": "Mẫu tài liệu",
-        "help": "Chuyển nội dung sang mẫu khác: bản mới hơn, bản cũ hơn hoặc file tải lên. Mục khớp được chép nguyên, mục thiếu và mục thừa do bạn quyết.",
-        "currentOrg": "Đang theo: {name} · bản {version}",
-        "currentSkeleton": "Đang theo khung tự lưu: {name} · bản {version}",
-        "currentProject": "Đang theo file mẫu tải lên riêng của dự án · bản {version}",
-        "currentOwnFile": "Đang theo file mẫu của chính dự án (chưa gắn mẫu tổ chức).",
-        "openHelp": "Đang có một lần đổi mẫu chưa xong.",
         "change": "Đổi mẫu",
         "resume": "Tiếp tục đổi mẫu",
         "noBaseline": "Chưa có baseline. Chỉ đổi được mẫu sau khi tài liệu đã có baseline.",

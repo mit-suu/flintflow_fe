@@ -22,7 +22,7 @@ import ChatSessionHistory from "./ChatSessionHistory";
 import DocumentPane from "./DocumentPane";
 import ImportSkeleton from "./import/import-skeleton";
 import { CreationProgressShell } from "./import/creation-progress";
-import { compareHref, crListHref, gapReportHref, reuploadHref } from "./mode1/prefill";
+import { crListHref, gapReportHref, reuploadHref } from "./mode1/prefill";
 import ResizeHandle from "./ResizeHandle";
 import WorkspaceHeader from "./WorkspaceHeader";
 import WorkspaceProgressRail from "./WorkspaceProgressRail";
@@ -185,9 +185,6 @@ export default function WorkspaceLoading({ projectId, viewer = false }: { projec
                   <Link href={crListHref(projectId)} scroll={false} className={MODE1_ACTION}>
                     {t("page.changeRequest")}
                   </Link>
-                  <Link href={compareHref(projectId)} scroll={false} className={MODE1_ACTION}>
-                    {t("page.compareVersions")}
-                  </Link>
                   {canEdit && (
                     <Link href={reuploadHref(projectId)} scroll={false} className={MODE1_ACTION}>
                       {t("page.reupload")}
@@ -196,12 +193,12 @@ export default function WorkspaceLoading({ projectId, viewer = false }: { projec
                 </>
               ) : undefined
             }
-            onEnterFocus={noop}
             onVerifyClick={mode1 ? undefined : noop}
             onToolsClick={noop}
             toolsActive={mode1}
             toolsLabel={toolsLabel}
-            toolsShortLabel={mode1 ? undefined : t("page.toolsRecordShort")}
+            toolsShortLabel={mode1 ? t("page.toolsMode1") : t("page.toolsRecordShort")}
+            toolsIcon={mode1 ? "shield-check" : "folder"}
             onLogout={noop}
           />
         </div>

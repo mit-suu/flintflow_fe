@@ -6,7 +6,8 @@ import Tabs from "@/components/ui/Tabs";
 import type { Op } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
 import BriefSummaryCard from "./BriefSummaryCard";
-import { otherKindLabel, otherRequirementText } from "./brief-labels";
+import Icon from "@/components/ui/Icon";
+import { otherRequirementText } from "./brief-labels";
 import DecisionsPanel from "./DecisionsPanel";
 import NamesGlossaryPanel from "./NamesGlossaryPanel";
 import AssumptionSweepPanel from "./AssumptionSweepPanel";
@@ -32,6 +33,10 @@ interface ProjectRecordPanelProps {
   history: Change[];
   historyLoading: boolean;
   onLoadHistory: () => void;
+  /** Điền sẵn lệnh sửa (quyết định, tên, thuật ngữ) vào ô chat, bật Sửa tài liệu — không sửa tay trong panel. */
+  onEditByChat?: (prefill: string) => void;
+  /** Điền sẵn câu trả lời cho một câu hỏi mở vào ô chat (không bật Sửa tài liệu). */
+  onAnswerInChat?: (prefill: string) => void;
 }
 
 function Block({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
@@ -61,11 +66,12 @@ export default function ProjectRecordPanel({
   history,
   historyLoading,
   onLoadHistory,
+  onEditByChat,
+  onAnswerInChat,
 }: ProjectRecordPanelProps) {
   const t = useTranslations("workspace.projectRecord");
-  const tLabel = useTranslations("workspace.briefLabels");
   const locale = useLocale();
-  const openItems = spine.other_requirements;
+  const openQuestions = spine.other_requirements.filter((item) => item.kind === "open_question");
   const pendingCount = pendingRecordCount(spine, inBriefPhase);
   const decisions = (spine.decisions ?? []).filter((d) => d.superseded_by === null);
   const [tab, setTab] = useState<RecordTab>(pendingCount > 0 ? "pending" : "agreed");
@@ -102,7 +108,7 @@ export default function ProjectRecordPanel({
             </Block>
             {decisions.length > 0 ? (
               <Block title={t("decisionsTitle", { count: decisions.length })} hint={t("decisionsHint")}>
-                <DecisionsPanel spine={spine} onSubmitOps={onSubmitOps} busy={busy} />
+                <DecisionsPanel spine={spine} onEditByChat={readOnly ? undefined : onEditByChat} busy={busy} />
               </Block>
             ) : (
               <p className="px-1 text-body text-on-surface-variant">
@@ -110,7 +116,7 @@ export default function ProjectRecordPanel({
               </p>
             )}
             <Block title={t("namesTitle")} hint={t("namesHint")}>
-              <NamesGlossaryPanel spine={spine} onSubmitOps={onSubmitOps} busy={busy} />
+              <NamesGlossaryPanel spine={spine} onEditByChat={readOnly ? undefined : onEditByChat} busy={busy} />
             </Block>
           </>
         )}
@@ -127,13 +133,25 @@ export default function ProjectRecordPanel({
                 </Block>
               </>
             )}
-            {openItems.length > 0 && (
-              <Block title={t("risksTitle", { count: openItems.length })} hint={t("risksHint")}>
+            {/* Chỉ câu hỏi mở: rủi ro / rủi ro kỹ thuật đã là nội dung mục Other Requirements của tài liệu, không lặp ở panel.
+                Mỗi câu một thẻ, nút trả lời luôn ở góc phải dưới ⇒ thẳng hàng dù câu dài hay ngắn */}
+            {openQuestions.length > 0 && (
+              <Block title={t("openQuestionsTitle", { count: openQuestions.length })} hint={t("openQuestionsHint")}>
                 <ul className="flex flex-col gap-1.5">
-                  {openItems.map((item) => (
-                    <li key={item.id} className="text-body leading-relaxed text-on-surface">
-                      <span className="text-caption font-semibold text-on-surface-variant">{otherKindLabel(item.kind, tLabel)} · </span>
-                      {otherRequirementText(item, locale)}
+                  {openQuestions.map((item) => (
+                    <li key={item.id} className="rounded-inner bg-surface-container-low px-3 py-2.5 flex flex-col gap-1.5">
+                      <p className="text-body leading-relaxed text-on-surface">{otherRequirementText(item, locale)}</p>
+                      {onAnswerInChat && !readOnly && (
+                        <button
+                          type="button"
+                          disabled={busy}
+                          onClick={() => onAnswerInChat(t("answerInChatPrefill", { question: otherRequirementText(item, locale) }))}
+                          className="self-end inline-flex items-center gap-1 px-2 py-0.5 rounded-control text-caption font-bold text-primary hover:bg-primary-soft cursor-pointer disabled:opacity-50"
+                        >
+                          {t("answerInChat")}
+                          <Icon name="arrow-right" size={12} />
+                        </button>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -144,7 +162,7 @@ export default function ProjectRecordPanel({
                 <ScreenQueuePanel spine={spine} onMarkPlaceholder={onMarkPlaceholder} busy={busy} />
               </Block>
             )}
-            {!inBriefPhase && spine.screens.length === 0 && openItems.length === 0 && (
+            {!inBriefPhase && spine.screens.length === 0 && openQuestions.length === 0 && (
               <p className="px-1 py-2 text-body text-on-surface-variant">{t("nothingPending")}</p>
             )}
           </>

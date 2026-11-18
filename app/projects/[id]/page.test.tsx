@@ -46,17 +46,22 @@ describe("WorkspacePage - project mode 1 (v3 bám BPMN)", () => {
     await importToGapReview();
     renderWithIntl(<WorkspacePage />);
 
-    const tools = await screen.findByRole("complementary", { name: "Cờ, change request & version" });
+    const tools = await screen.findByRole("complementary", { name: "Kiểm & chốt" });
     expect(router.replace).not.toHaveBeenCalled();
     const red = await within(tools).findByRole("region", { name: "Cờ đỏ đang chặn release" });
     // Vùng cờ hiện trước khi danh sách cờ tải xong ⇒ chờ nút (trước đây getByRole ngay lập tức — flaky trên CI)
     expect((await within(red).findByRole("link", { name: "Tạo CR" })).getAttribute("href")).toContain("source=gap_report");
     expect(within(tools).queryByRole("button", { name: "Ký baseline v1" })).not.toBeInTheDocument();
     expect(within(tools).queryByRole("button", { name: /Waive|Bật|Tắt/ })).not.toBeInTheDocument();
-    expect(within(tools).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}?panel=gap`);
+    // Gap report chỉ còn ở header (panel không lặp lại)
+    expect(within(tools).queryByRole("link", { name: "Gap report" })).not.toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}?panel=gap`);
     // Header: người sửa được có lối re-upload file đã sửa (UC-25)
     expect(screen.getByRole("link", { name: "Re-upload file đã sửa" })).toHaveAttribute("href", `/projects/${P}?panel=reupload`);
-    expect(await within(tools).findByRole("button", { name: "Tải file gốc" })).toBeInTheDocument();
+    // Version (kèm file gốc) mở từ chip version ở thanh đầu tài liệu, không còn trong panel
+    expect(within(tools).queryByRole("button", { name: "Tải file gốc" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByTitle("Các version của tài liệu"));
+    expect(await screen.findByRole("button", { name: "Tải file gốc" })).toBeInTheDocument();
     // panel ghi Spine thẳng (tên riêng, hàng đợi màn) không có ở mode 1; không có nút chạy bước
     expect(within(tools).queryByText("Tên riêng & thuật ngữ")).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Chạy bước/ })).not.toBeInTheDocument();
@@ -98,11 +103,11 @@ describe("WorkspacePage - FLF-318: Lead chốt baseline dự án tạo SRS", () 
     renderWithIntl(<WorkspacePage />);
     await waitFor(() => expect(reads).toBeGreaterThan(0));
     await waitFor(() => expect(screen.queryByLabelText("Đang tải không gian làm việc SRS")).not.toBeInTheDocument());
-    expect(screen.queryByRole("complementary", { name: "Cờ, change request & version" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("complementary", { name: "Kiểm & chốt" })).not.toBeInTheDocument();
 
     converted = true;
     act(() => signalProjectModeMaybeChanged());
-    expect(await screen.findByRole("complementary", { name: "Cờ, change request & version" })).toBeInTheDocument();
+    expect(await screen.findByRole("complementary", { name: "Kiểm & chốt" })).toBeInTheDocument();
     expect(screen.getByText(/Baseline đã chốt - dự án chuyển sang chế độ quản lý thay đổi/)).toBeInTheDocument();
     expect(router.replace).not.toHaveBeenCalled();
   }, 30_000);

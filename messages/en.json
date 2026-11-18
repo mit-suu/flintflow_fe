@@ -1568,10 +1568,10 @@
       "viewHint": "View the read-only document and comment",
       "view": "View & comment",
       "tools": "Tools",
-      "toolsPending": "{label} - {count, plural, one {# item awaiting your decision} other {# items awaiting your decision}}",
-      "enterFocus": "Expand page (hide top bar)",
       "account": "Account",
-      "credits": "credits"
+      "credits": "credits",
+      "more": "More actions",
+      "secondaryActions": "Other project actions"
     },
     "phaseHeader": {
       "done": "Complete",
@@ -1930,7 +1930,10 @@
         "useOriginal": "Use original picture",
         "useOriginalFailed": "Could not switch back to the original picture",
         "drawing": "Drawing mockup…"
-      }
+      },
+      "versionsTitle": "Document versions",
+      "compareVersions": "Compare versions",
+      "versionsLoading": "Loading versions…"
     },
     "verification": {
       "closeHint": "Close the review panel",
@@ -2174,7 +2177,6 @@
         "cancelled": "The Google window closed before access was granted. If no window appeared, allow pop-ups for this site.",
         "unavailable": "Export to Google Docs is not enabled on this server."
       },
-      "languageUnavailable":"This version can't be downloaded in another language yet - download it in the document language.",
       "languageUnavailable": "This version can't be downloaded in another language yet - download it in the document language.",
       "close": "Close",
       "mockupPending": "{count} screens are still being drawn. Exporting now uses their original pictures.",
@@ -2339,18 +2341,14 @@
         "glossary": "Glossary"
       },
       "empty": "No entries yet.",
-      "newTerm": "New term",
-      "definition": "Definition (in English)",
-      "save": "Save canonical names",
       "tabsLabel": "Name type",
-      "newNameAria": "New name for {name}",
-      "editTitle": "Click to rename",
-      "edit": "Edit",
       "collapse": "Collapse",
       "showMore": "Show {count} more",
-      "cancel": "Cancel",
-      "add": "Add",
-      "addTerm": "+ Add term"
+      "editByChat": "Edit via chat",
+      "editByChatAria": "Edit the name {name} via chat",
+      "renameByChatPrefill": "Rename \"{name}\" to ",
+      "addTermByChat": "+ Add a term via chat",
+      "addTermByChatPrefill": "Add a new term to the glossary: "
     },
     "chatEdit": {
       "aria": "Edit document",
@@ -2705,9 +2703,8 @@
       "resizePanel": "Resize the right panel",
       "gapReport": "Gap report",
       "changeRequest": "Change request",
-      "compareVersions": "Compare versions",
       "reupload": "Re-upload edited file",
-      "toolsMode1": "Flags, change requests & versions",
+      "toolsMode1": "Check & sign-off",
       "toolsRecord": "Project record",
       "toolsRecordShort": "Record",
       "closeRecord": "Close project record",
@@ -2733,7 +2730,8 @@
       "close": "Close",
       "interrupted": "The run was interrupted. Content written before is kept.",
       "rerun": "Rerun",
-      "exitFocus": "Exit expanded view (Esc)",
+      "enterFocus": "Expand document",
+      "exitFocus": "Exit expanded document (Esc)",
       "confirmUpdate": "Update",
       "confirmApply": "Apply"
     },
@@ -2902,9 +2900,8 @@
       },
       "none": "No decisions confirmed yet.",
       "listAria": "Confirmed decisions",
-      "editAria": "Edit decision {topic}",
-      "save": "Save",
-      "edit": "Edit"
+      "editByChat": "Edit via chat",
+      "editByChatPrefill": "Change the decision \"{topic}\" (currently \"{answer}\") to "
     },
     "baseline": {
       "title": "Lock baseline",
@@ -2961,13 +2958,15 @@
       "assumptionsHint": "What AI assumed where you were not explicit. Confirm whether it is right.",
       "notesTitle": "Notes",
       "notesHint": "Keep, defer to the appendix, or drop each note.",
-      "risksTitle": "Risks & open questions ({count})",
-      "risksHint": "Still unsettled - answer in chat when AI asks.",
       "screensTitle": "Screens to specify",
       "screensHint": "The order in which AI specifies screens in detail. Leave out screens not needed this round.",
       "nothingPending": "Nothing is waiting for your decision right now.",
       "historyTitle": "Edit history",
-      "historyHint": "The 20 most recent changes, newest first."
+      "historyHint": "The 20 most recent changes, newest first.",
+      "answerInChat": "Answer in chat",
+      "answerInChatPrefill": "Answer to the question \"{question}\": ",
+      "openQuestionsTitle": "Open questions ({count})",
+      "openQuestionsHint": "Noted by the AI while reading your documents; answer so it can update the content."
     },
     "sources": {
       "loading": "Loading document sources…",
@@ -3297,6 +3296,22 @@
       "chipNothing": "Already mockups",
       "chipDone": "{count, plural, one {# screen} other {# screens}} drawn",
       "allFailed": "{count, plural, one {# screen} other {# screens}} could not be drawn"
+    },
+    "projectDocuments": {
+      "button": "Documents",
+      "hint": "Documents uploaded to this project",
+      "title": "Project documents",
+      "srsFile": "SRS file",
+      "srsOriginal": "Imported original file (version {version})",
+      "references": "Reference documents ({count})",
+      "loading": "Loading documents…",
+      "loadFailed": "Couldn't load the document list",
+      "empty": "No reference documents yet. Attach meeting notes, emails or notes for the AI to read.",
+      "add": "Add document",
+      "adding": "Uploading…",
+      "addFailed": "Couldn't upload the document",
+      "busy": "Files attached in the chat are still uploading. Add again once they finish.",
+      "buttonAria": "Documents ({count})"
     }
   },
   "errors": {
@@ -4706,10 +4721,7 @@
       "templateTitle": "Change document template"
     },
     "workspaceTools": {
-      "flagsTitle": "Flags & change requests",
-      "navAria": "Import & change requests",
-      "gapReport": "Gap report",
-      "changeRequest": "Change requests"
+      "flagsTitle": "Flags & change requests"
     },
     "reviewPackage": {
       "aria": "Change package awaiting review",
@@ -4742,7 +4754,8 @@
       "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable - if something is wrong, release a new version.",
       "releasing": "Releasing…",
       "confirmRelease": "Confirm release",
-      "blockedMigrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. Write them (through a change request) before submitting or releasing."
+      "blockedMigrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. Write them (through a change request) before submitting or releasing.",
+      "unsentPill": "{count, plural, one {# CR not sent to Lead} other {# CRs not sent to Lead}}"
     },
     "paused": {
       "title": "{what} is paused - {reason, select, credits {out of credit} interrupted {it was interrupted} other {AI failed after 2 retries}}",
@@ -4880,10 +4893,6 @@
     },
     "referenceDocs": {
       "aria": "Reference documents",
-      "title": "Reference documents",
-      "intro": "Minutes, emails and notes attached in chat. Extract requirements to have the AI list each requirement with its source paragraph, then approve them as change requests.",
-      "loading": "Loading reference documents…",
-      "loadFailed": "Could not load reference documents",
       "unreadable": "no readable text",
       "status": {
         "extracted": "{count, plural, =1 {1 requirement to review} other {# requirements to review}}",
@@ -4960,12 +4969,6 @@
       "entry": {
         "aria": "Change document template",
         "title": "Document template",
-        "help": "Move the content to another template: a newer version, an older version or an uploaded file. Matching sections are copied as they are; you decide on missing and extra ones.",
-        "currentOrg": "Current template: {name} · version {version}",
-        "currentSkeleton": "Current template (auto-saved skeleton): {name} · version {version}",
-        "currentProject": "Current template: file uploaded for this project · version {version}",
-        "currentOwnFile": "Uses the project's own template file (no organization template yet).",
-        "openHelp": "A template change is still in progress.",
         "change": "Change template",
         "resume": "Continue template change",
         "noBaseline": "No baseline yet. The template can only be changed once the document has a baseline.",

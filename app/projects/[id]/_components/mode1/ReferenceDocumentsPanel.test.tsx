@@ -4,7 +4,14 @@ import { renderWithIntl } from "@/test/intl";
 import { mockServer } from "@/mocks/server";
 import { mode1Handlers, resetMode1Extraction, MODE1_DOC_ID } from "@/mocks/mode1/handlers";
 import { resetMode1MockState, MODE1_PROJECT_ID } from "@/mocks/mode1/state";
+import { useProjectDocuments } from "../../hooks/useProjectDocuments";
 import ReferenceDocumentsPanel from "./ReferenceDocumentsPanel";
+
+/** Danh sách lấy qua hook thật (như nút Tài liệu ở đầu khung chat). */
+function Harness({ onCrsCreated, canExtract = true }: { onCrsCreated: () => void; canExtract?: boolean }) {
+  const { docs, remove } = useProjectDocuments(MODE1_PROJECT_ID);
+  return docs ? <ReferenceDocumentsPanel projectId={MODE1_PROJECT_ID} docs={docs} onRemove={remove} onCrsCreated={onCrsCreated} canExtract={canExtract} /> : null;
+}
 
 beforeAll(() => mockServer.listen({ onUnhandledRequest: "error" }));
 beforeEach(() => {
@@ -18,7 +25,7 @@ afterAll(() => mockServer.close());
 describe("ReferenceDocumentsPanel (FLF-338 - tài liệu tham khảo ⇒ rút yêu cầu)", () => {
   it("liệt kê tài liệu; Rút yêu cầu ⇒ hỏi credit trước (cổng cứng §3.6); Chạy ⇒ danh sách rút hiện ra; duyệt ⇒ onCrsCreated", async () => {
     const onCrsCreated = vi.fn();
-    renderWithIntl(<ReferenceDocumentsPanel projectId={MODE1_PROJECT_ID} onCrsCreated={onCrsCreated} />);
+    renderWithIntl(<Harness onCrsCreated={onCrsCreated} />);
     expect(await screen.findByText("minutes.txt")).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Rút yêu cầu" }));
@@ -39,8 +46,8 @@ describe("ReferenceDocumentsPanel (FLF-338 - tài liệu tham khảo ⇒ rút y�
     expect(screen.queryByRole("button", { name: "Rút lại" })).toBeNull();
   });
 
-  it("Huỷ ở thẻ credit ⇒ không gọi AI; Xoá tài liệu ⇒ biến mất; không có tài liệu ⇒ không hiện gì", async () => {
-    renderWithIntl(<ReferenceDocumentsPanel projectId={MODE1_PROJECT_ID} onCrsCreated={vi.fn()} />);
+  it("Huỷ ở thẻ credit ⇒ không gọi AI; Xoá tài liệu ⇒ biến mất", async () => {
+    renderWithIntl(<Harness onCrsCreated={vi.fn()} />);
     await screen.findByText("minutes.txt");
     fireEvent.click(screen.getByRole("button", { name: "Rút yêu cầu" }));
     fireEvent.click(await screen.findByRole("button", { name: "Huỷ" }));
@@ -50,5 +57,12 @@ describe("ReferenceDocumentsPanel (FLF-338 - tài liệu tham khảo ⇒ rút y�
     fireEvent.click(screen.getByRole("button", { name: "Xoá" }));
     await waitFor(() => expect(screen.queryByText("minutes.txt")).toBeNull());
     expect(MODE1_DOC_ID).toBeTruthy();
+  });
+
+  it("dự án AI soạn (canExtract = false) ⇒ không có Rút yêu cầu, vẫn Xoá được", async () => {
+    renderWithIntl(<Harness onCrsCreated={vi.fn()} canExtract={false} />);
+    await screen.findByText("minutes.txt");
+    expect(screen.queryByRole("button", { name: "Rút yêu cầu" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Xoá" })).toBeInTheDocument();
   });
 });
