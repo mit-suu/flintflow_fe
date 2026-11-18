@@ -1,9 +1,11 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/intl";
+import type { OrgRole } from "@/types/organization";
 import type { Flag } from "@/types/spine";
 import type { MigrationSummary } from "@/types/template-migration";
 import TemplateChangeEntry from "./TemplateChangeEntry";
+import { useTemplateChangeAvailability } from "./useTemplateChangeAvailability";
 
 const api = vi.hoisted(() => ({
   listTemplateMigrations: vi.fn(),
@@ -52,43 +54,57 @@ const setup = (over: { baselines?: unknown[]; pending?: boolean; migrations?: Mi
   api.listTemplateMigrations.mockResolvedValue(over.migrations ?? []);
 };
 
-const render = (flags: Flag[] = [], role: "lead" | "analyst" | "viewer" | null = "lead") =>
-  renderWithIntl(<TemplateChangeEntry projectId="p1" orgRole={role} flags={flags} sectionName={(id) => (id === "custom:new" ? "Phạm vi" : id)} />);
+/** Gọi hook điều kiện thật (như page) rồi đưa kết quả cho thẻ; hiện thêm lý do chặn để kiểm phần dùng cho menu ⋯ của header. */
+function Harness({ flags, role, sectionName }: { flags: Flag[]; role: OrgRole | null; sectionName: (id: string) => string }) {
+  const availability = useTemplateChangeAvailability("p1", role);
+  return (
+    <>
+      <output data-testid="reason">{availability.reason ?? ""}</output>
+      <output data-testid="open">{availability.migration.open ? "open" : ""}</output>
+      <TemplateChangeEntry projectId="p1" availability={availability} flags={flags} sectionName={sectionName} />
+    </>
+  );
+}
+
+const render = (flags: Flag[] = [], role: OrgRole | null = "lead") =>
+  renderWithIntl(<Harness flags={flags} role={role} sectionName={(id) => (id === "custom:new" ? "Phạm vi" : id)} />);
 
 beforeEach(() => vi.clearAllMocks());
 
-describe("TemplateChangeEntry", () => {
-  it("mở màn đổi mẫu khi đủ điều kiện", async () => {
+describe("useTemplateChangeAvailability - lý do chặn mục Đổi mẫu", () => {
+  it("đủ điều kiện ⇒ không có lý do; không có việc ⇒ không có thẻ trong panel", async () => {
     setup();
     render();
-    const link = await screen.findByRole("link", { name: "Đổi mẫu" });
-    expect(link.getAttribute("href")).toBe("/projects/p1?panel=template");
+    await waitFor(() => expect(api.listTemplateMigrations).toHaveBeenCalled());
+    await waitFor(() => expect(api.listBaselines).toHaveBeenCalled());
+    expect(screen.getByTestId("reason")).toBeEmptyDOMElement();
+    expect(screen.queryByRole("region", { name: "Đổi mẫu tài liệu" })).not.toBeInTheDocument();
   });
 
-  it("disable kèm lý do: chưa baseline, bản nháp chờ Lead, đang áp dụng", async () => {
+  it("chặn kèm lý do: chưa baseline, bản nháp chờ Lead, đang áp dụng", async () => {
     setup({ baselines: [] });
     const { unmount } = render();
-    expect(await screen.findByText(/Chưa có baseline/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Đổi mẫu" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByTestId("reason")).toHaveTextContent(/Chưa có baseline/));
     unmount();
 
     setup({ pending: true });
     const second = render();
-    expect(await screen.findByText(/chờ Lead duyệt/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("reason")).toHaveTextContent(/chờ Lead duyệt/));
     second.unmount();
 
     setup({ migrations: [summary({ state: "applying" })] });
     render();
-    expect(await screen.findByText(/đang được áp dụng/)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Tiếp tục đổi mẫu" })).toBeDisabled();
+    await waitFor(() => expect(screen.getByTestId("reason")).toHaveTextContent(/đang được áp dụng/));
   });
 
-  it("đang có lần đổi mẫu mở ⇒ Tiếp tục đổi mẫu", async () => {
+  it("đang có lần đổi mẫu mở ⇒ báo open (menu ghi Tiếp tục đổi mẫu)", async () => {
     setup({ migrations: [summary({ state: "decisions" })] });
     render();
-    expect(await screen.findByRole("link", { name: "Tiếp tục đổi mẫu" })).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByTestId("open")).toHaveTextContent("open"));
   });
+});
 
+describe("TemplateChangeEntry - thẻ trạng thái", () => {
   it("sau áp dụng: nút hoàn tác và thẻ mục thiếu từ cờ đỏ", async () => {
     setup({ migrations: [summary()] });
     render([redMissing]);
@@ -110,29 +126,19 @@ describe("TemplateChangeEntry", () => {
     expect(await screen.findByRole("button", { name: "Khôi phục" })).toBeInTheDocument();
   });
 
-  it("Viewer không thấy lối đổi mẫu", async () => {
+  it("Viewer không thấy thẻ và không gọi BE", async () => {
     setup();
-    const { container } = render([], "viewer");
-    expect(container).toBeEmptyDOMElement();
-    // Vai trò không đổi mẫu được ⇒ không gọi BE
+    render([], "viewer");
+    expect(screen.queryByRole("region", { name: "Đổi mẫu tài liệu" })).not.toBeInTheDocument();
     expect(api.listBaselines).not.toHaveBeenCalled();
     expect(api.listTemplateMigrations).not.toHaveBeenCalled();
   });
 
-  it("ghi mẫu đang theo; tên mục thiếu lấy theo câu cờ (mẫu có nhiều heading cùng section_id)", async () => {
+  it("tên mục thiếu lấy theo câu cờ (mẫu có nhiều heading cùng section_id)", async () => {
     setup({ migrations: [summary()] });
-    const flag: Flag = { ...redMissing, section_id: "fixed:5.4", message: 'Mục "User Documentation" có trong mẫu mới nhưng tài liệu cũ không có — chưa chốt bản được tới khi viết nội dung' };
-    renderWithIntl(
-      <TemplateChangeEntry projectId="p1" orgRole="lead" flags={[flag]} sectionName={() => "Other Requirements"} current={{ template_id: "t1", version: 2, name: "Mẫu IEEE", kind: "org" }} />
-    );
-    expect(await screen.findByText("Đang theo: Mẫu IEEE · bản 2")).toBeInTheDocument();
-    expect(screen.getByText("User Documentation")).toBeInTheDocument();
+    const flag: Flag = { ...redMissing, section_id: "fixed:5.4", message: 'Mục "User Documentation" có trong mẫu mới nhưng tài liệu cũ không có' };
+    renderWithIntl(<Harness flags={[flag]} role="lead" sectionName={() => "Other Requirements"} />);
+    expect(await screen.findByText("User Documentation")).toBeInTheDocument();
     expect(screen.queryByText("Other Requirements")).not.toBeInTheDocument();
-  });
-
-  it("dự án theo file mẫu của chính nó ⇒ ghi rõ, không để trống", async () => {
-    setup();
-    renderWithIntl(<TemplateChangeEntry projectId="p1" orgRole="lead" flags={[]} sectionName={(id) => id} current={null} />);
-    expect(await screen.findByText("Đang theo file mẫu của chính dự án (chưa gắn mẫu tổ chức).")).toBeInTheDocument();
   });
 });

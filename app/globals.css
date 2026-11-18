@@ -525,8 +525,7 @@ body {
 }
 .ff-scroll:hover::-webkit-scrollbar-thumb {
   background-color: color-mix(in srgb, var(--color-on-surface) 18%, transparent);
-}
-.ff-scroll::-webkit-scrollbar-thumb:hover {
+}.ff-scroll::-webkit-scrollbar-thumb:hover {
   background-color: color-mix(in srgb, var(--color-on-surface) 32%, transparent);
 }
 @supports not selector(::-webkit-scrollbar) {

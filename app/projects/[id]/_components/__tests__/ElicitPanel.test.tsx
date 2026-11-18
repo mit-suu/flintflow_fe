@@ -1,7 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { renderWithIntl } from "@/test/intl";
 import { splitQuestions, toStepAnswers } from "../ElicitPanel";
-import { buildNameOps } from "../NamesGlossaryPanel";
 import { formatDuration, summaryLine, visibleStages } from "../StepProgress";
 
 const questions = [
@@ -19,14 +18,6 @@ describe("toStepAnswers", () => {
     expect(toStepAnswers(questions, "1. Founder; Analyst\n3. Tiếng Anh")).toEqual([
       { question_id: "q1", answer: "Founder; Analyst" },
       { question_id: "q3", answer: "Tiếng Anh" },
-    ]);
-  });
-});
-
-describe("buildNameOps", () => {
-  it("chỉ sinh op cho ô đã đổi, path theo khoá", () => {
-    expect(buildNameOps("actors", "name", { A01: "Founder", A02: "Admin" }, { A01: "Founder", A02: " Administrator " })).toEqual([
-      { op: "set", path: "actors[id=A02].name", value: "Administrator", reason: "Panel Tên riêng" },
     ]);
   });
 });
