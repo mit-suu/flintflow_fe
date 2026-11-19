@@ -393,7 +393,7 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
 const PREVIEW_DESCRIPTION = ["thêm UC phúc khảo điểm", "", "Trả lời làm rõ:", "- Màn hình riêng"].join("\n");
 
 /** FLF-318: lệnh thêm / xoá use case đi vòng hỏi đáp + bản xem trước như trước baseline rồi mới tạo CR kèm bản xem trước. */
-function PreviewHarness({ onWritten }: { onWritten?: (crId: string, flagIds: string[]) => void }) {
+function PreviewHarness({ onWritten }: { onWritten?: (crId: string) => void }) {
   const chat = useCrChat(P, true, onWritten, MODE1_USER_ID);
   return (
     <>
@@ -442,7 +442,7 @@ describe("Mode1CrThread - CR từ bản xem trước (FLF-318)", () => {
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận & ghi vào bản nháp" }));
     await waitFor(() => expect(cr().status).toBe("written"));
     // Trang tải lại tài liệu / version ở khung phải khi CR vừa ghi bản nháp
-    await waitFor(() => expect(onWritten).toHaveBeenCalledWith("CR-001", []));
+    await waitFor(() => expect(onWritten).toHaveBeenCalledWith("CR-001"));
   });
 });
 

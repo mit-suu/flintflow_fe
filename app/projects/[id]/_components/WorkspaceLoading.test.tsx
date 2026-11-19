@@ -34,13 +34,13 @@ describe("WorkspaceLoading - workspace lúc đang tải", () => {
     expect(screen.getByRole("textbox")).toBeInTheDocument();
   });
 
-  it("dự án nhập SRS (bản nhớ): không rail; header có Gap report; panel Kiểm & chốt có tiêu đề", () => {
+  it("dự án nhập SRS (bản nhớ): không rail; header có Gap report; panel Công cụ có tiêu đề", () => {
     renderLoading({ memory: memory({ mode: "import", pane: "document" }) });
     expect(screen.getByText("Hỏi đáp & lệnh sửa")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Gap report" })).toHaveAttribute("href", "/projects/p1?panel=gap");
-    expect(screen.getByRole("complementary", { name: "Kiểm & chốt" })).toBeInTheDocument();
-    // Không rail; mode 1 chỉ có một nút "Kiểm & chốt" (chính nút mở panel), không có nút kiểm tra riêng như dự án AI soạn
-    expect(screen.queryAllByRole("button", { name: /Kiểm & chốt/ })).toHaveLength(1);
+    expect(screen.getByRole("complementary", { name: "Cờ, change request & version" })).toBeInTheDocument();
+    // Không rail, không nút kiểm & chốt trên header
+    expect(screen.queryAllByRole("button", { name: /Kiểm & chốt/ })).toHaveLength(0);
   });
 
   it("bản nhớ của dự án khác ⇒ không dùng tên của nó", () => {

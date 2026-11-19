@@ -148,9 +148,7 @@ test("mode 1 v3 đi trọn luồng trên BE thật", async ({ page }) => {
   expect(await visible(flagsPanel.getByRole("button", { name: "Waive" })), "mode 1 v3 không waive").toBe(false);
   await snap(page, "workspace");
 
-  // Bản 0.1 giữ được file gốc người dùng upload (FLF-184) — danh sách version mở từ chip version ở thanh đầu tài liệu
-  const versionChip = page.getByTitle("Các version của tài liệu");
-  if (await visible(versionChip)) await versionChip.click();
+  // Bản 0.1 giữ được file gốc người dùng upload (FLF-184)
   const original = page.getByRole("button", { name: "Tải file gốc" });
   if (await visible(original)) console.log(`[e2e] file gốc: ${await saveDownload(page, () => original.first().click())}`);
 

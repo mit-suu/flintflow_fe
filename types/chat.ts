@@ -24,7 +24,7 @@ export interface ChatSession {
  * `summarize_document`: đọc một tài liệu đính kèm (FLF-332 — báo credit trước khi tải lên).
  * `extract_requirements` (FLF-338): rút yêu cầu từ tài liệu thô — báo credit trước khi gọi.
  */
-export type ChatActionType = "chat" | "change_instruction" | "knowledge_answer" | "summarize_document" | "extract_requirements" | "translate";
+export type ChatActionType = "chat" | "change_instruction" | "knowledge_answer" | "summarize_document" | "extract_requirements";
 
 /** `source_kind` của chunk tri thức (BE §1.2): hướng dẫn nội bộ FlintFlow, hay chuẩn ngoài. */
 export type KnowledgeSourceKind = "internal_skill" | "standard";

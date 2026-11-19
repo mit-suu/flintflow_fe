@@ -81,6 +81,8 @@ const renderAll = (locale: "vi" | "en") =>
         onVerifyClick={() => {}}
         verifyCount={2}
         onToolsClick={() => {}}
+        toolsCount={1}
+        onEnterFocus={() => {}}
         onLogout={() => {}}
       />
       <WorkspaceProgressRail

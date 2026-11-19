@@ -327,13 +327,11 @@ export default function ExportPanel({
                 role="radio"
                 aria-checked={format === option.value}
                 onClick={() => selectFormat(option.value)}
-                className={`px-3 py-1 rounded-full text-body font-bold whitespace-nowrap cursor-pointer ${
+                className={`px-3 py-1 rounded-full text-body font-bold cursor-pointer ${
                   format === option.value ? "bg-white text-[#191817] shadow-sm" : "text-[#6B6862]"
                 }`}
               >
-                {option.label}
-                {/* Google Docs không có đuôi file — không để lại khoảng trắng thừa sau nhãn */}
-                {option.extension && <span className="ml-1 font-mono font-normal text-caption">{option.extension}</span>}
+                {option.label} <span className="font-mono font-normal text-caption">{option.extension}</span>
               </button>
             ))}
           </div>

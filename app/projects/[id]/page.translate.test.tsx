@@ -141,8 +141,6 @@ describe("WorkspacePage - dự án chuyển từ mode 2 tải version theo ngôn
     );
     renderWithIntl(<WorkspacePage />);
 
-    // Danh sách version mở từ chip version ở thanh đầu tài liệu
-    fireEvent.click(await screen.findByTitle("Các version của tài liệu"));
     fireEvent.click(await screen.findByRole("button", { name: "Tải bản Tiếng Việt" }));
     const alert = await screen.findByText("Còn 4 mục chưa dịch sang Tiếng Việt nên chưa tải được bản này.");
     expect(downloadUrls).toEqual(["?variant=auto&lang=vi"]);

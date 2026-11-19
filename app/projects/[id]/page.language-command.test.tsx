@@ -201,7 +201,7 @@ describe("WorkspacePage mode 1 - lệnh đổi ngôn ngữ (D3)", () => {
     await importToGapReview();
     writes = [];
     renderWithIntl(<WorkspacePage />);
-    await screen.findByRole("complementary", { name: "Kiểm & chốt" });
+    await screen.findByRole("complementary", { name: "Cờ, change request & version" });
 
     await type("dịch tài liệu sang tiếng Anh");
     const card = await screen.findByRole("status", { name: "Ngôn ngữ tài liệu" });

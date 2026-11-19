@@ -20,27 +20,22 @@ describe("DecisionsPanel - tab Đã chốt (R4)", () => {
   });
   const spineWith = (decisions: Decision[]): Spine => ({ decisions } as unknown as Spine);
 
-  it("chỉ hiện quyết định còn hiệu lực; không sửa tay, Sửa qua chat điền sẵn lệnh", () => {
-    const onEditByChat = vi.fn();
+  it("chỉ hiện quyết định còn hiệu lực, sửa được tại chỗ", () => {
+    const onSubmitOps = vi.fn();
     renderWithIntl(
-      <DecisionsPanel spine={spineWith([decision(), decision({ id: "DC02", topic_key: "deposit_amount", superseded_by: "DC03" })])} onEditByChat={onEditByChat} />
+      <DecisionsPanel spine={spineWith([decision(), decision({ id: "DC02", topic_key: "deposit_amount", superseded_by: "DC03" })])} onSubmitOps={onSubmitOps} />
     );
     expect(screen.getByText("Uptime")).toBeInTheDocument();
     expect(screen.queryByText("Tiền cọc")).not.toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).toBeNull();
 
-    fireEvent.click(screen.getByRole("button", { name: "Sửa qua chat" }));
-    expect(screen.queryByRole("textbox")).toBeNull();
-    expect(onEditByChat).toHaveBeenCalledWith('Sửa quyết định "Uptime" (hiện là "99%") thành ');
-  });
-
-  it("Viewer (không truyền onEditByChat) ⇒ không có nút sửa", () => {
-    renderWithIntl(<DecisionsPanel spine={spineWith([decision()])} />);
-    expect(screen.queryByRole("button", { name: "Sửa qua chat" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Sửa" }));
+    fireEvent.change(screen.getByLabelText("Sửa quyết định Uptime"), { target: { value: "99.9%" } });
+    fireEvent.click(screen.getByRole("button", { name: "Lưu" }));
+    expect(onSubmitOps).toHaveBeenCalledWith([expect.objectContaining({ path: "decisions[id=DC01].answer", value: "99.9%" })]);
   });
 
   it("chưa chốt gì thì nói thẳng, không hiện bảng rỗng", () => {
-    renderWithIntl(<DecisionsPanel spine={spineWith([])} />);
+    renderWithIntl(<DecisionsPanel spine={spineWith([])} onSubmitOps={vi.fn()} />);
     expect(screen.getByText("Chưa có quyết định nào được chốt.")).toBeInTheDocument();
     const t = createTranslator({ locale: "vi", messages: MESSAGES.vi, namespace: "workspace.decisions" });
     expect(topicLabel("slot_hold_minutes", t)).toBe("Giữ chỗ (phút)");

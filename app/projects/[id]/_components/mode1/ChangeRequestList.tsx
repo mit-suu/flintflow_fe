@@ -8,6 +8,7 @@ import { listFlags } from "@/lib/api/flags";
 import type { Flag } from "@/types/spine";
 import { CR_TERMINAL_STATUSES, type Cr } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
+import ReferenceDocumentsPanel from "./ReferenceDocumentsPanel";
 import { useErrorText, useMode1Labels } from "./i18n";
 import { crHref, crPrefillHref } from "./prefill";
 
@@ -133,6 +134,9 @@ export default function ChangeRequestList({ projectId, readOnly = false }: Chang
           </ul>
         </section>
       )}
+
+      {/* FLF-338 §3.6.1: tài liệu tham khảo ⇒ rút yêu cầu ⇒ nhiều CR một lúc */}
+      <ReferenceDocumentsPanel projectId={projectId} readOnly={readOnly} onCrsCreated={() => void load()} />
 
       <div className="flex gap-1.5" role="group" aria-label={t("filterAria")}>
         {(["open", "closed", "all"] as const).map((f) => (

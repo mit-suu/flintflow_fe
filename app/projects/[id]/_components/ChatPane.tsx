@@ -88,8 +88,6 @@ interface ChatPaneProps {
   editPlaceholder?: string;
   /** Đầu thanh tiêu đề, trước tên pane (vd. nút lịch sử phiên chat). */
   headerStart?: ReactNode;
-  /** Bên phải thanh tiêu đề, trước chip bước (vd. nút "Tài liệu" của dự án). */
-  headerEnd?: ReactNode;
   /** Khung sát mép trái màn hình (rail tiến độ ẩn / mở rộng trang) ⇒ chỉ bo góc bên phải; còn lại bo hai góc trên. */
   flushLeft?: boolean;
   /**
@@ -174,7 +172,6 @@ export default function ChatPane({
   inputPlaceholder,
   editPlaceholder,
   headerStart,
-  headerEnd,
   flushLeft = false,
   hideTrailingAiMessage = false,
   editMode = false,
@@ -209,41 +206,17 @@ export default function ChatPane({
   }, [session?.messages, hideTrailingAiMessage]);
   const [dismissedKey, setDismissedKey] = useState<string | null>(null);
 
-  // Bám đáy kiểu ChatGPT: chỉ tự cuộn xuống khi user đang ở đáy. User cuộn lên đọc tin cũ thì thôi bám, cuộn lại tới
-  // đáy thì bám tiếp. Chỉ coi là "rời đáy" khi scrollTop GIẢM (user cuộn lên) — lượt cuộn mượt do code chạy xuống đáy,
-  // hay nội dung dài thêm, không làm mất trạng thái bám.
-  const pinnedRef = useRef(true);
-  const lastTopRef = useRef(0);
-  const handleScroll = () => {
-    const el = scrollRef.current;
-    if (!el) return;
-    const top = el.scrollTop;
-    if (el.scrollHeight - top - el.clientHeight < 80) pinnedRef.current = true;
-    else if (top < lastTopRef.current) pinnedRef.current = false;
-    lastTopRef.current = top;
-  };
-  // User vừa gửi tin ⇒ luôn kéo xuống cho thấy tin của mình, kể cả khi đang cuộn ở trên
-  const lastMessage = messages.at(-1);
-  const sentByUser = lastMessage?.role === "user";
-  const messageCount = messages.length;
-  const prevCountRef = useRef(messageCount);
-
   useEffect(() => {
     // Cuộn tới đáy vùng cuộn (gồm cả phần chừa cho ô nhập), không phải tới phần tử cuối — nếu không tin nhắn cuối nằm dưới ô nhập
     const el = scrollRef.current;
     if (!el) return;
-    const userJustSent = sentByUser && messageCount > prevCountRef.current;
-    prevCountRef.current = messageCount;
-    if (userJustSent) pinnedRef.current = true;
-    // `children` là JSX dựng lại mỗi lần trang render ⇒ effect chạy rất thường xuyên; không bám đáy thì để yên chỗ user đang đọc
-    if (!pinnedRef.current) return;
     if (typeof el.scrollTo === "function")
       el.scrollTo({
         top: el.scrollHeight,
         behavior: streamingMessage !== null ? "auto" : "smooth"
       });
     else el.scrollTop = el.scrollHeight;
-  }, [messages, streamingMessage, children, footerHeight, sentByUser, messageCount]);
+  }, [messages, streamingMessage, children, footerHeight]);
 
   const dividers = useMemo(() => stepDividers(messages), [messages]);
   // P05: tin hỏi đã có câu trả lời ngay sau ⇒ thu gọn trong lịch sử
@@ -273,11 +246,8 @@ export default function ChatPane({
       className={`${fill ? "flex-1" : width ? "" : "w-[460px]"} relative shrink min-w-[320px] border-[0.5px] border-t-0 border-b-0 border-outline flex flex-col overflow-hidden`}>
       {/* Thanh tiêu đề nổi trên nội dung: không có nền riêng, tin nhắn cuộn qua phía dưới và chỉ bị che bởi
           nền của từng thứ trong thanh (nút lịch sử, chip bước) */}
-      {/* Container query "chathead" theo bề rộng khung chat: nút Tài liệu (headerEnd) thu về icon + số, chip bước ẩn hẳn khi không
-          còn đủ chỗ cho vài chữ (bước vẫn thấy ở rail tiến độ và dòng phân đoạn trong chat) — không để chip còn mỗi "T…" */}
-      <div className="@container/chathead absolute inset-x-0 top-0 z-20 px-3 flex justify-between items-center gap-2 h-12 pointer-events-none">
-        {/* Tiêu đề giữ nguyên; thiếu chỗ thì chip bước (bên phải) co lại trước */}
-        <div className="flex items-center gap-1.5 min-w-0 shrink-0 max-w-[70%] pointer-events-auto">
+      <div className="absolute inset-x-0 top-0 z-20 px-3 flex justify-between items-center gap-2 h-12 pointer-events-none">
+        <div className="flex items-center gap-1.5 min-w-0 pointer-events-auto">
           {headerStart}
           {/* Nhãn tĩnh không mang màu thương hiệu — tím để dành cho trạng thái (chip bước) và hành động.
               Dải mờ của vùng cuộn đã đặc trước khi chạm hàng này nên chữ trần vẫn đọc rõ. */}
@@ -285,35 +255,26 @@ export default function ChatPane({
             {title ?? t("title")}
           </h2>
         </div>
-        {(headerEnd || stepLabel) && (
-          <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
-            {headerEnd && <div className="shrink-0 pointer-events-auto">{headerEnd}</div>}
-            {stepLabel && (
-              <span
-                title={stepCode ?? undefined}
-                className="pointer-events-auto hidden @[24rem]/chathead:block min-w-[6rem] text-caption font-bold text-primary-hover bg-primary-soft px-2.5 py-0.5 rounded-full truncate max-w-[200px]">
-                {stepLabel}
-              </span>
-            )}
-          </div>
+        {stepLabel && (
+          <span
+            title={stepCode ?? undefined}
+            className="pointer-events-auto text-caption font-bold text-primary-hover bg-primary-soft px-2.5 py-0.5 rounded-full truncate max-w-[200px]">
+            {stepLabel}
+          </span>
         )}
       </div>
 
       <div className="relative flex-1 min-h-0">
-        {/* Tin nhắn mờ dần ở cả hai mép: trên khi cuộn lên sau thanh tiêu đề, dưới khi chạm ô nhập —
-            mép mờ thay cho dải nền chắn, nên nền pane liền một khối. Vùng cuộn dừng ngay trên ô nhập (chiều cao trừ
-            phần ô nhập) và bắt đầu ngay dưới thanh tiêu đề (mt-12 = h-12): để vùng cuộn chạy dưới hai thứ đó thì thanh cuộn
-            bị che hai đầu, dài qua ô nhập, khó kéo */}
+        {/* Tin nhắn mờ dần ở cả hai mép: trên khi cuộn lên sau thanh tiêu đề, dưới khi chui xuống ô nhập —
+            mép mờ thay cho dải nền chắn, nên nền pane liền một khối */}
         <div
           ref={scrollRef}
-          onScroll={handleScroll}
-          style={{ height: `calc(100% - ${footerHeight}px - 3rem)` }}
-          // Mép trên mờ dần 24px ngay dưới thanh tiêu đề, chữ cuộn lên không chồng vào chữ "Trò chuyện và duyệt".
-          // `overflow-x-hidden`: chỉ cuộn dọc; khối rộng (bảng, code) tự có thanh cuộn ngang riêng
-          className="mt-12 overflow-y-auto overflow-x-hidden ff-scroll px-6 pt-7 pb-8 [mask-image:linear-gradient(to_bottom,transparent_0,black_24px,black_calc(100%-20px),transparent)]">
+          style={{ paddingBottom: footerHeight + 32 }}
+          // Mép mờ phải TRONG SUỐT HẲN suốt chiều cao thanh tiêu đề (48px) rồi mới hiện dần; để ngưỡng ở 30px như
+          // trước thì chữ cuộn qua còn thấy lờ mờ sau chữ "Trò chuyện và duyệt" — đọc ra như hai dòng chồng nhau.
+          className="h-full overflow-y-auto ff-scroll px-6 pt-[76px] [mask-image:linear-gradient(to_bottom,transparent_0,transparent_48px,black_72px,black_calc(100%-20px),transparent)]">
           {/* Cột đọc giới hạn bề rộng, khoảng thở rộng giữa các lượt — kiểu ChatGPT */}
-          {/* `break-words` (kế thừa xuống mọi tin): link / chữ liền dài tự xuống dòng, không đẩy khung chat cuộn ngang */}
-          <div className="mx-auto w-full max-w-[720px] min-h-full flex flex-col gap-6 break-words">
+          <div className="mx-auto w-full max-w-[720px] min-h-full flex flex-col gap-6">
             {messages.length === 0 &&
               !children &&
               (emptyState ?? (

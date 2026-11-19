@@ -45,12 +45,15 @@ describe("WorkspaceHeader", () => {
     expect(screen.queryByText(/^Baseline/)).not.toBeInTheDocument();
   });
 
-  it("Export gọi callback; đăng xuất nằm trong menu tài khoản", async () => {
+  it("Export và mở rộng trang gọi callback; đăng xuất nằm trong menu tài khoản", async () => {
     const onExportClick = vi.fn();
+    const onEnterFocus = vi.fn();
     const onLogout = vi.fn();
-    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} onExportClick={onExportClick} onLogout={onLogout} />);
+    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} onExportClick={onExportClick} onEnterFocus={onEnterFocus} onLogout={onLogout} />);
     fireEvent.click(screen.getByRole("button", { name: /Export/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Mở rộng trang/ }));
     expect(onExportClick).toHaveBeenCalledTimes(1);
+    expect(onEnterFocus).toHaveBeenCalledTimes(1);
 
     fireEvent.click(screen.getByRole("button", { name: "Tài khoản" }));
     fireEvent.click(await screen.findByRole("menuitem", { name: "Đăng xuất" }));
@@ -89,49 +92,5 @@ describe("WorkspaceHeader", () => {
     rerender(<WorkspaceHeader project={PROJECT} user={null} progressHidden onShowProgress={onShowProgress} onLogout={() => {}} />);
     fireEvent.click(screen.getByRole("button", { name: "Hiện tiến độ" }));
     expect(onShowProgress).toHaveBeenCalledTimes(1);
-  });
-});
-
-describe("WorkspaceHeader - menu ⋯ và nút panel", () => {
-  it("menu ⋯ có Đổi mẫu; mục bị chặn mờ đi và ghi lý do ngay dưới", async () => {
-    const onSelect = vi.fn();
-    const { rerender } = renderWithIntl(
-      <WorkspaceHeader project={PROJECT} user={null} moreItems={[{ label: "Đổi mẫu", icon: "file-template", onSelect }]} onLogout={() => {}} />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Thao tác khác" }));
-    fireEvent.click(await screen.findByRole("menuitem", { name: "Đổi mẫu" }));
-    expect(onSelect).toHaveBeenCalledTimes(1);
-
-    rerender(
-      <WorkspaceHeader
-        project={PROJECT}
-        user={null}
-        moreItems={[{ label: "Đổi mẫu", icon: "file-template", onSelect, disabled: true, hint: "Chưa có baseline." }]}
-        onLogout={() => {}}
-      />
-    );
-    fireEvent.click(screen.getByRole("button", { name: "Thao tác khác" }));
-    const item = await screen.findByRole("menuitem", { name: /Đổi mẫu/ });
-    expect(item).toBeDisabled();
-    expect(item).toHaveTextContent("Chưa có baseline.");
-  });
-
-  it("không có mục nào ⇒ không có nút ⋯", () => {
-    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} moreItems={[]} onLogout={() => {}} />);
-    expect(screen.queryByRole("button", { name: "Thao tác khác" })).not.toBeInTheDocument();
-  });
-
-  it("nút Hồ sơ không có badge số chờ quyết; mode 1 đổi nhãn + icon thành Kiểm & chốt", () => {
-    const { rerender } = renderWithIntl(
-      <WorkspaceHeader project={PROJECT} user={null} onToolsClick={() => {}} toolsLabel="Hồ sơ dự án" toolsShortLabel="Hồ sơ" onLogout={() => {}} />
-    );
-    const btn = screen.getByRole("button", { name: "Hồ sơ" });
-    expect(btn).toHaveAttribute("title", "Hồ sơ dự án");
-    expect(btn.textContent).toBe("Hồ sơ");
-
-    rerender(
-      <WorkspaceHeader project={PROJECT} user={null} onToolsClick={() => {}} toolsLabel="Kiểm & chốt" toolsShortLabel="Kiểm & chốt" toolsIcon="shield-check" onLogout={() => {}} />
-    );
-    expect(screen.getByRole("button", { name: "Kiểm & chốt" })).toBeInTheDocument();
   });
 });

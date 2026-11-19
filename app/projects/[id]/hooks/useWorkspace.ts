@@ -96,8 +96,6 @@ export function useWorkspace(
    * này từng chạy bước song song với lượt đang tải ⇒ lượt đầu tải xong đụng `STEP_NOT_RUNNABLE` "đang chạy ở lượt trước".
    */
   const [uploadingAttachments, setUploadingAttachments] = useState(false);
-  /** Tăng mỗi lần tải tài liệu lên xong — nút "Tài liệu" ở đầu khung chat tải lại danh sách theo số này. */
-  const [documentsVersion, setDocumentsVersion] = useState(0);
   const uploadingRef = useRef(false);
   /** FLF-400: `sending` là state — hai lần bấm trong cùng một khung render đều thấy `false`; ref chặn ngay lần đầu. */
   const sendingRef = useRef(false);
@@ -266,53 +264,10 @@ export function useWorkspace(
   const canEdit = orgRole !== "viewer";
 
   /**
-   * Tải một loạt tệp lên `/documents` (không qua cổng credit — nơi gọi đã hỏi). Tệp trông như SRS ⇒ thẻ gợi ý trong chat;
-   * trả câu báo của các tệp trùng hệt tài liệu đã có. FLF-398: có thể là bản mới ⇒ hỏi qua `chooseDocumentVersion`, Bỏ qua ⇒
-   * tệp đó không tải. Lỗi giữa chừng: tệp đã tải vẫn được ghi nhận (gợi ý SRS, số tài liệu) rồi mới ném lỗi.
-   */
-  const uploadFiles = useCallback(
-    async (files: File[]): Promise<{ duplicates: string[] }> => {
-      const suggestions: SrsAttachmentSuggestion[] = [];
-      const duplicates: string[] = [];
-      try {
-        for (const file of files) {
-          const result = await uploadReferenceDocument(projectId, file, chooseDocumentVersion);
-          if (result.kind === "duplicate") duplicates.push(result.message);
-          if (result.kind !== "uploaded") continue;
-          const precheck = result.document?.precheck ?? null;
-          if (precheck?.looks_like_srs) suggestions.push({ key: `${file.name}:${++srsSuggestionSeq}`, file, fromThisProject: precheck.stamp?.project_id === projectId });
-        }
-      } finally {
-        if (suggestions.length) setSrsSuggestions((prev) => [...prev, ...suggestions]);
-        setDocumentsVersion((v) => v + 1);
-      }
-      return { duplicates };
-    },
-    [projectId, chooseDocumentVersion]
-  );
-
-  /**
-   * "Thêm tài liệu" của nút Tài liệu ở đầu khung chat: cùng chốt chặn với đính kèm ở ô chat — một lượt tải mỗi lúc, kẻo hai
-   * lượt cùng hỏi "bản mới?" và một tệp bị bỏ qua âm thầm. Đang có lượt khác ⇒ `null` (không tải gì).
-   */
-  const uploadDocuments = useCallback(
-    async (files: File[]): Promise<{ duplicates: string[] } | null> => {
-      if (uploadingRef.current) return null;
-      uploadingRef.current = true;
-      setUploadingAttachments(true);
-      try {
-        return await uploadFiles(files);
-      } finally {
-        uploadingRef.current = false;
-        setUploadingAttachments(false);
-      }
-    },
-    [uploadFiles]
-  );
-
-  /**
    * Tải các tệp đang đính kèm lên `/documents` (dùng chung cho chat hỏi đáp và chat khởi động bước — FLF-221). Lỗi ⇒
-   * `false`, giữ nguyên danh sách đính kèm để user thử lại; không có tệp nào ⇒ `true`. Tệp trùng ⇒ báo ở toast.
+   * `false`, giữ nguyên danh sách đính kèm để user thử lại; không có tệp nào ⇒ `true`.
+   * FLF-398: tệp trùng hệt tài liệu đã có ⇒ không tải, báo ở toast (không tính là lỗi); có thể là bản mới ⇒ hỏi qua
+   * `chooseDocumentVersion`, Bỏ qua ⇒ tệp đó không tải.
    */
   const uploadPendingAttachments = useCallback(async (): Promise<boolean> => {
     if (pendingAttachments.length === 0) return true;
@@ -321,8 +276,17 @@ export function useWorkspace(
     uploadingRef.current = true;
     setUploadingAttachments(true);
     try {
-      const { duplicates } = await uploadFiles(pendingAttachments);
+      const suggestions: SrsAttachmentSuggestion[] = [];
+      const duplicates: string[] = [];
+      for (const file of pendingAttachments) {
+        const result = await uploadReferenceDocument(projectId, file, chooseDocumentVersion);
+        if (result.kind === "duplicate") duplicates.push(result.message);
+        if (result.kind !== "uploaded") continue;
+        const precheck = result.document?.precheck ?? null;
+        if (precheck?.looks_like_srs) suggestions.push({ key: `${file.name}:${++srsSuggestionSeq}`, file, fromThisProject: precheck.stamp?.project_id === projectId });
+      }
       setPendingAttachments([]);
+      if (suggestions.length) setSrsSuggestions((prev) => [...prev, ...suggestions]);
       if (duplicates.length) setNotice({ text: duplicates.join(" ") });
       return true;
     } catch (err) {
@@ -332,7 +296,7 @@ export function useWorkspace(
       uploadingRef.current = false;
       setUploadingAttachments(false);
     }
-  }, [pendingAttachments, uploadFiles]);
+  }, [pendingAttachments, projectId, chooseDocumentVersion]);
 
   const dismissSrsSuggestion = useCallback((key: string) => setSrsSuggestions((prev) => prev.filter((x) => x.key !== key)), []);
 
@@ -593,8 +557,6 @@ export function useWorkspace(
       sendMessage,
       stopMessage,
       uploadPendingAttachments,
-      uploadDocuments,
-      documentsVersion,
       srsSuggestions,
       dismissSrsSuggestion,
       appendLocalMessage,
@@ -636,8 +598,6 @@ export function useWorkspace(
       sendMessage,
       stopMessage,
       uploadPendingAttachments,
-      uploadDocuments,
-      documentsVersion,
       srsSuggestions,
       dismissSrsSuggestion,
       appendLocalMessage,

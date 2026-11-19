@@ -14,10 +14,3 @@
 export const GOOGLE_CLIENT_ID = (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? "").trim();
 
 export const isGoogleAuthEnabled = GOOGLE_CLIENT_ID.length > 0;
-
-/**
- * Trợ lý Google Docs (chat sửa thẳng file Google Docs) mặc định tắt: chỗ sửa trên Google Docs không quay về FlintFlow
- * (business-flow §4), nên có hai ô chat sửa hai bản khác nhau. BE cũng chặn bằng `GOOGLE_DOCS_AGENT_ENABLED`; bật cả hai
- * phía mới dùng được. Nhập / xuất Google Docs không phụ thuộc cờ này.
- */
-export const isDocsAssistantEnabled = isGoogleAuthEnabled && process.env.NEXT_PUBLIC_GOOGLE_DOCS_AGENT_ENABLED === "true";

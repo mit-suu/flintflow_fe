@@ -3,12 +3,12 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import Tabs from "@/components/ui/Tabs";
+import type { Op } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
 
 interface NamesGlossaryPanelProps {
   spine: Pick<Spine, "actors" | "entities" | "screens" | "glossary">;
-  /** Điền sẵn lệnh đổi tên / thêm thuật ngữ vào ô chat (bật Sửa tài liệu); bỏ trống (Viewer) ⇒ không có nút. */
-  onEditByChat?: (prefill: string) => void;
+  onSubmitOps: (ops: Op[]) => Promise<void> | void;
   busy?: boolean;
 }
 
@@ -19,29 +19,70 @@ const TABS: readonly Tab[] = ["actors", "entities", "screens", "glossary"];
 /** Danh sách dài hơn mức này chỉ hiện chừng ấy dòng + "Xem thêm" — không cuộn lồng trong panel đã cuộn. */
 const PREVIEW_ROWS = 8;
 
+/** Lô op `set <collection>[id=X].<field>` cho các ô đã sửa (bỏ ô không đổi). */
+export const buildNameOps = (
+  collection: Tab,
+  field: "name" | "term" | "definition",
+  original: Record<string, string>,
+  edited: Record<string, string>
+): Op[] =>
+  Object.entries(edited)
+    .filter(([id, value]) => value.trim() && value.trim() !== original[id])
+    .map(([id, value]) => ({ op: "set", path: `${collection}[id=${id}].${field}`, value: value.trim(), reason: "Panel Tên riêng" }));
+
+const inputClass =
+  "w-full px-2 py-1 rounded-inner bg-surface-container text-body text-on-surface outline-none focus:ring-2 focus:ring-primary/30";
+
 /**
- * Tên & thuật ngữ (Phases §2.3): danh sách **chỉ đọc**. Đổi tên / thêm thuật ngữ đi qua chat (business-flow nguyên tắc 6):
- * nút "Sửa qua chat" điền sẵn lệnh, AI đổi tên ở field có khoá **và** các câu nhắc tới tên đó — sửa thẳng ở bảng chỉ đổi
- * field, để lại tham chiếu gãy trong văn xuôi.
+ * Tên & thuật ngữ (Phases §2.3): danh sách **chỉ đọc**, bấm một tên để sửa ngay tại dòng (Enter lưu, Esc huỷ) —
+ * gửi `POST /changes {ops}`. Chỉ sửa field có khoá; tên nhắc trong văn xuôi không tự đổi (S-8.4 Consistency Pass
+ * bắt phần đó).
  */
-export default function NamesGlossaryPanel({ spine, onEditByChat, busy = false }: NamesGlossaryPanelProps) {
+export default function NamesGlossaryPanel({ spine, onSubmitOps, busy = false }: NamesGlossaryPanelProps) {
   const t = useTranslations("workspace.names");
   const [tab, setTab] = useState<Tab>("actors");
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [adding, setAdding] = useState<{ term: string; definition: string } | null>(null);
 
   const rows =
     tab === "glossary"
       ? spine.glossary.map((g) => ({ id: g.id, value: g.term, hint: g.definition }))
       : spine[tab].map((el) => ({ id: el.id, value: el.name, hint: "" }));
+  const field = tab === "glossary" ? "term" : "name";
   const shown = showAll ? rows : rows.slice(0, PREVIEW_ROWS);
 
   const switchTab = (next: Tab) => {
     setTab(next);
+    setEditing(null);
+    setAdding(null);
     setShowAll(false);
   };
 
+  const saveEdit = async () => {
+    if (!editing) return;
+    const original = rows.find((r) => r.id === editing.id)?.value ?? "";
+    const ops = buildNameOps(tab, field, { [editing.id]: original }, { [editing.id]: editing.value });
+    setEditing(null);
+    if (ops.length > 0) await onSubmitOps(ops);
+  };
+
+  const saveNewTerm = async () => {
+    if (!adding?.term.trim()) return;
+    const next = spine.glossary.length + 1;
+    await onSubmitOps([
+      {
+        op: "add",
+        path: "glossary[]",
+        value: { id: `G${String(next).padStart(2, "0")}`, term: adding.term.trim(), definition: adding.definition.trim() },
+        reason: "Panel Tên riêng",
+      },
+    ]);
+    setAdding(null);
+  };
+
   return (
-    <div role="group" className="@container flex flex-col gap-2" aria-label={t("aria")}>
+    <div className="@container flex flex-col gap-2" aria-label={t("aria")}>
       <Tabs
         label={t("tabsLabel")}
         idBase="names"
@@ -58,25 +99,42 @@ export default function NamesGlossaryPanel({ spine, onEditByChat, busy = false }
 
       <ul role="tabpanel" id="names-panel" aria-labelledby={`names-tab-${tab}`} className="flex flex-col">
         {rows.length === 0 && <li className="py-1.5 text-body text-on-surface-muted">{t("empty")}</li>}
-        {shown.map((row) => (
-          <li key={row.id} className="group/name -mx-2 px-2 py-1.5 rounded-control flex items-center justify-between gap-2 hover:bg-surface-container-low">
-            <span className="min-w-0 flex flex-col">
-              <span className="text-body text-on-surface truncate">{row.value}</span>
-              {row.hint && <span className="text-caption text-on-surface-muted line-clamp-2">{row.hint}</span>}
-            </span>
-            {onEditByChat && (
+        {shown.map((row) =>
+          editing?.id === row.id ? (
+            <li key={row.id} className="py-1">
+              <input
+                autoFocus
+                aria-label={t("newNameAria", { name: row.value })}
+                value={editing.value}
+                disabled={busy}
+                onChange={(e) => setEditing({ id: row.id, value: e.target.value })}
+                onBlur={() => void saveEdit()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") void saveEdit();
+                  if (e.key === "Escape") setEditing(null);
+                }}
+                className={inputClass}
+              />
+            </li>
+          ) : (
+            <li key={row.id}>
               <button
                 type="button"
-                disabled={busy}
-                onClick={() => onEditByChat(t("renameByChatPrefill", { name: row.value }))}
-                aria-label={t("editByChatAria", { name: row.value })}
-                className="shrink-0 text-caption font-semibold text-primary hover:underline cursor-pointer opacity-0 group-hover/name:opacity-100 focus-visible:opacity-100 disabled:opacity-50"
+                onClick={() => setEditing({ id: row.id, value: row.value })}
+                title={t("editTitle")}
+                className="group/name w-full -mx-2 px-2 py-1.5 rounded-control flex items-center justify-between gap-2 text-left hover:bg-surface-container-low cursor-pointer"
               >
-                {t("editByChat")}
+                <span className="min-w-0 flex flex-col">
+                  <span className="text-body text-on-surface truncate">{row.value}</span>
+                  {row.hint && <span className="text-caption text-on-surface-muted line-clamp-2">{row.hint}</span>}
+                </span>
+                <span className="shrink-0 text-caption font-semibold text-primary opacity-0 group-hover/name:opacity-100 group-focus-visible/name:opacity-100">
+                  {t("edit")}
+                </span>
               </button>
-            )}
-          </li>
-        ))}
+            </li>
+          )
+        )}
       </ul>
 
       {rows.length > PREVIEW_ROWS && (
@@ -85,16 +143,42 @@ export default function NamesGlossaryPanel({ spine, onEditByChat, busy = false }
         </button>
       )}
 
-      {tab === "glossary" && onEditByChat && (
-        <button
-          type="button"
-          disabled={busy}
-          onClick={() => onEditByChat(t("addTermByChatPrefill"))}
-          className="self-start text-body font-semibold text-primary hover:underline cursor-pointer disabled:opacity-50"
-        >
-          {t("addTermByChat")}
-        </button>
-      )}
+      {tab === "glossary" &&
+        (adding ? (
+          <div className="flex flex-col gap-1.5">
+            <input
+              autoFocus
+              placeholder={t("newTerm")}
+              value={adding.term}
+              onChange={(e) => setAdding({ ...adding, term: e.target.value })}
+              className={inputClass}
+            />
+            <input
+              placeholder={t("definition")}
+              value={adding.definition}
+              onChange={(e) => setAdding({ ...adding, definition: e.target.value })}
+              onKeyDown={(e) => e.key === "Enter" && void saveNewTerm()}
+              className={inputClass}
+            />
+            <div className="flex justify-end gap-1.5">
+              <button type="button" onClick={() => setAdding(null)} className="h-7 px-2.5 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high cursor-pointer">
+                {t("cancel")}
+              </button>
+              <button
+                type="button"
+                disabled={busy || !adding.term.trim()}
+                onClick={() => void saveNewTerm()}
+                className="h-7 px-2.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+              >
+                {t("add")}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button type="button" onClick={() => setAdding({ term: "", definition: "" })} className="self-start text-body font-semibold text-primary hover:underline cursor-pointer">
+            {t("addTerm")}
+          </button>
+        ))}
     </div>
   );
 }

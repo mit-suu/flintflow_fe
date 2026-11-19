@@ -18,15 +18,7 @@ import {
   type CrAction,
 } from "@/lib/api/change-requests";
 import { getReviewPackage } from "@/lib/api/versions";
-import {
-  CR_AMENDABLE_STATUSES,
-  CR_OPEN_STATUSES,
-  CR_REDRAFT_STATUSES,
-  type CreateCrRequest,
-  type CrDetail,
-  type CrLocation,
-  type NEW_CR_SOURCE_KINDS,
-} from "@/types/change-request";
+import { CR_AMENDABLE_STATUSES, CR_OPEN_STATUSES, CR_REDRAFT_STATUSES, type CrDetail, type CrLocation, type NEW_CR_SOURCE_KINDS } from "@/types/change-request";
 import { useErrorText } from "../../_components/mode1/i18n";
 import { answersWithdraw } from "@/lib/withdrawal";
 
@@ -109,7 +101,7 @@ export const titleFromInstruction = (instruction: string): string => {
  * `myUserId`: BF §3.2 / spec UC-45 A6 — khung chat chỉ nhận **CR mở của chính mình**. CR của người khác treo ở người đó
  * (họ thấy dòng "<ai> có bản sửa chưa xác nhận" trong tài liệu), lệnh sửa của mình mở CR mới chứ không gộp vào CR của họ.
  */
-export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: string, flagIds: string[]) => void, myUserId: string | null = null) {
+export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: string) => void, myUserId: string | null = null) {
   // Chỉ dùng trong callback (`send`) và lúc render (`inputHint`) — không nằm trong effect tải dữ liệu
   const t = useTranslations("mode1.crChat");
   const errorText = useErrorText();
@@ -347,42 +339,6 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     [accepted, advance, call, projectId, redraftFor, t]
   );
 
-  /**
-   * FLF-445: thẻ nhóm cờ ở hàng việc chờ quyết tạo thẳng một CR (nguồn và người yêu cầu đã chọn trên thẻ) rồi chạy tiếp
-   * như CR mở từ chat. Không đi qua `pending`/`send` (thứ tự gửi của ô chat giữ nguyên). Lỗi BE ⇒ ném để thẻ hiện lỗi.
-   */
-  const startFromFlags = useCallback(
-    async (req: Pick<CreateCrRequest, "title" | "description" | "source" | "requester"> & { flag_ids: string[] }): Promise<string> => {
-      setBusy("create");
-      setError(null);
-      let created: CrDetail;
-      try {
-        const res = await createCr(projectId, {
-          ...req,
-          title: titleFromInstruction(req.title),
-          description: req.description.slice(0, 5000),
-          requester: req.requester.trim(),
-        });
-        if (!res.data) throw new Error(t("running"));
-        created = res.data;
-      } finally {
-        // Trả `busy` trước khi chạy tiếp: `advance` tự đặt `busy` cho từng bước AI (đặt sau sẽ xoá mất trạng thái đang chạy)
-        if (alive.current) setBusy(null);
-      }
-      if (alive.current) {
-        setDetail(created);
-        setPending(null);
-        setPendingSeed(null);
-        setPrefill(null);
-        setSent(null);
-      }
-      // Chạy tiếp (làm rõ, tìm vị trí...) như CR mở từ chat; thẻ không chờ, khung chat hiện tiến trình
-      void advance(created, new Set());
-      return created.change_request.cr_id;
-    },
-    [advance, projectId, t]
-  );
-
   /** Ô chat (chip "Sửa tài liệu" bật): định tuyến theo bước đang ở. */
   const send = useCallback(
     async (text: string) => {
@@ -468,7 +424,6 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     canContinue: detail ? nextAuto(detail) !== null : false,
     send,
     startCr,
-    startFromFlags,
     continueFlow: () => void advance(detail),
     /** Phần AI chưa kết luận / trượt kiểm — để luồng chat nói rõ chỗ nào cần xử lý. */
     unconcluded: detail ? detail.locations.filter((l) => l.conclusion === null) : [],
@@ -563,7 +518,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     cancelRedraft: () => setRedraftFor(null),
     /** C-6 (FLF-330): BA xác nhận ⇒ ghi ngay vào bản nháp (`written`); lệnh sửa tiếp theo mở CR mới. */
     submit: () =>
-      void withCr(async (id, before) => {
+      void withCr(async (id) => {
         const d = await call("submit", () => runCrAction(projectId, id, "submit"));
         if (d && (d.change_request.status === "written" || d.change_request.status === "in_review")) {
           writeStore(storageKey(projectId, id, "accepted"), null);
@@ -571,8 +526,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
           setSent(id);
           setDetail(null);
           setRedraftFor(null);
-          // Cờ của nhóm chỉ đóng khi CR thật sự ghi vào bản nháp (`in_review` cũ chưa ghi gì)
-          onWrittenRef.current?.(id, d.change_request.status === "written" ? (before.change_request.flag_ids ?? []) : []);
+          onWrittenRef.current?.(id);
         }
       }),
   };

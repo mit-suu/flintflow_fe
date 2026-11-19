@@ -12,8 +12,6 @@ export interface DropdownMenuItem {
   disabled?: boolean;
   /** Phần bên phải dòng (vd. nhãn gói trong menu user). */
   trailing?: ReactNode;
-  /** Dòng chữ nhỏ dưới nhãn (vd. lý do mục đang bị khoá) — tooltip trên nút disabled không hiện ổn định nên ghi thẳng ra. */
-  hint?: string;
 }
 
 export interface DropdownTriggerProps {
@@ -157,14 +155,7 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
             >
               {item.icon && <Icon name={item.icon} size={15} />}
               {/* Nhãn dài (tên tổ chức) phải tự cắt, nếu không nó đẩy phần bên phải ra khỏi menu */}
-              {item.hint ? (
-                <span className="flex-1 min-w-0 flex flex-col">
-                  <span className="truncate">{item.label}</span>
-                  <span className="text-caption font-normal text-on-surface-muted whitespace-normal">{item.hint}</span>
-                </span>
-              ) : (
-                <span className="flex-1 truncate">{item.label}</span>
-              )}
+              <span className="flex-1 truncate">{item.label}</span>
               {item.trailing && <span className="shrink-0">{item.trailing}</span>}
             </button>
           ))}

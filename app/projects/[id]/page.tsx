@@ -13,7 +13,7 @@ import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/
 import { setStepScreenNames } from "@/lib/constants/step-registry";
 import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
 import { ApiClientError } from "@/lib/api/client";
-import Badge, { type BadgeTone } from "@/components/ui/Badge";
+import type { BadgeTone } from "@/components/ui/Badge";
 import { createBaseline, rejectBaseline, submitBaseline } from "@/lib/api/export";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { friendlyError, type ErrorAction } from "@/lib/errors";
@@ -51,7 +51,7 @@ import DiffPreviewModal from "./_components/DiffPreviewModal";
 import { editLockReason } from "./_components/edit-lock";
 import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
-import ProjectDocumentsButton from "./_components/ProjectDocumentsButton";
+import { pendingRecordCount } from "./_components/project-record-pending";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
 import AutoPassedChip from "./_components/AutoPassedChip";
 import { patchSkipConfirmSections, setReviewMode } from "@/lib/api/review-level";
@@ -89,21 +89,14 @@ import { recordStepStat } from "@/lib/step-stats";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { usePendingSections } from "./hooks/mode1/usePendingSections";
-import { usePendingQueue } from "./hooks/usePendingQueue";
-import ResolveQueueDock from "./_components/resolve-queue/ResolveQueueDock";
-import { useResolveQueue } from "./_components/resolve-queue/useResolveQueue";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
-import Mode1VersionsMenu from "./_components/mode1/Mode1VersionsMenu";
-import { packageStatusView } from "./_components/mode1/review-package-status";
-import { useReviewPackage } from "./hooks/mode1/useReviewPackage";
 import Mode1Popup from "./_components/mode1/Mode1Popup";
 import TemplateMigrationPopup from "./_components/template-migration/TemplateMigrationPopup";
 import TemplateUpdateBanner from "./_components/template-migration/TemplateUpdateBanner";
 import TemplateChangeEntry from "./_components/template-migration/TemplateChangeEntry";
 import { templateMigrationHref } from "./_components/template-migration/href";
-import { useTemplateChangeAvailability } from "./_components/template-migration/useTemplateChangeAvailability";
-import { crListHref, gapReportHref, readChatCrDraft, reuploadHref } from "./_components/mode1/prefill";
+import { compareHref, crListHref, gapReportHref, readChatCrDraft, reuploadHref } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
@@ -122,7 +115,6 @@ import { canShowContinueCard } from "./_components/continue-card";
 import { canShowRerunCard } from "./_components/rerun-card";
 import { contentChangeCount } from "./_components/change-count";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
-import { listFlags } from "@/lib/api/flags";
 import { useSpine } from "./hooks/useSpine";
 import { useProgress } from "./hooks/useProgress";
 import { useFollowRunningElsewhere } from "./hooks/useFollowRunningElsewhere";
@@ -136,10 +128,7 @@ import CommentsPanel from "./_components/CommentsPanel";
 import type { CommentResolutionInput, PendingCommentAnchor } from "@/types/comment";
 import { useTurnNotice } from "./hooks/useTurnNotice";
 import DocsAssistantPanel from "./_components/google-docs/DocsAssistantPanel";
-import { isDocsAssistantEnabled } from "@/lib/google-auth";
-import { useSources } from "./hooks/useSources";
-import { sourcesByPath } from "./_components/SourceChip";
-import { ReferenceViewerProvider } from "./_components/reference-viewer/ReferenceViewerProvider";
+import { isGoogleAuthEnabled } from "@/lib/google-auth";
 
 /** Bề rộng cửa sổ — để biết có đủ chỗ cho rail tiến độ + chat + tài liệu + panel phải cùng lúc không. */
 const subscribeViewport = (onChange: () => void) => {
@@ -295,8 +284,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const t = useTranslations("workspace");
   const tHook = useTranslations("workspace.hookErrors");
   const tLanguage = useTranslations("common.documentLanguage");
-  const tTemplate = useTranslations("mode1.templateMigration.entry");
-  const tPackage = useTranslations("mode1.reviewPackage");
   const locale = useLocale();
   /** Lỗi hook lưu mã `@key` khi BE không kèm câu (`lib/hook-errors.ts`) — dịch lúc render. */
   const hookError = (error: string | null) => (error ? hookErrorText(error, tHook) : null);
@@ -329,22 +316,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // `onSpineChanged` khai báo phía dưới (cần hook Spine) ⇒ ref giữ bản mới nhất cho callback của chat CR
   const onSpineChangedRef = useRef<(spineVersion?: number) => void>(() => undefined);
   // CR vừa ghi bản nháp (1.1, 1.2…) ⇒ khung phải tải lại tài liệu, version và gói thay đổi
-  const crChat = useCrChat(
-    projectId,
-    mode1,
-    (crId, flagIds) => {
-      onSpineChangedRef.current();
-      // FLF-445: CR tạo từ nhóm cờ đã ghi ⇒ báo trong chat còn mấy cờ của nhóm chưa xong (chúng quay lại hàng việc chờ quyết)
-      if (flagIds.length === 0) return;
-      void listFlags(projectId)
-        .then((res) => {
-          const left = (res.data ?? []).filter((f) => flagIds.includes(f.id) && isOpenFlag(f)).length;
-          ws.appendLocalMessage(t("resolveQueue.mode1.writtenLine", { crId, count: left }), null, "ai");
-        })
-        .catch(() => undefined);
-    },
-    ws.user?.id ?? null
-  );
+  const crChat = useCrChat(projectId, mode1, () => onSpineChangedRef.current(), ws.user?.id ?? null);
   // FLF-411 U2-4: dự án mode 1 (import) không có step ⇒ BE từ chối `POST /resume` (409); chỉ đọc Spine, không gọi resume
   const spineState = useSpine(projectId, ws.ready, ws.canEdit && !mode1);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
@@ -361,9 +333,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   } = useFlags(projectId, spineState.version);
   // Góp ý ghim vào nội dung (UC-49) — nguồn duy nhất cho cả `DocumentPane` (chấm số) lẫn panel, như `useFlags`
   const comments = useComments(projectId, spineState.version);
-  // FLF-443: nguồn tài liệu tải một lần cho chip "Nguồn" (tài liệu + Hồ sơ). Viewer không đọc được nguồn (403) ⇒ không tải
-  const requirementSources = useSources(projectId, ws.ready && ws.canEdit ? spineState.version : null);
-  const sourceMap = useMemo(() => sourcesByPath(requirementSources.sources), [requirementSources.sources]);
 
   // Panel phải: mỗi lúc một (rail icon). Mode 1 mở sẵn cột cờ & version.
   const [rightPanel, setRightPanel] = useState<WorkspacePanel | null>(mode1 ? "tools" : null);
@@ -455,8 +424,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       localStorage.setItem(PROGRESS_OPEN_KEY, next ? "1" : "0");
     } catch {}
   };
-  // Phóng to tài liệu: khung tài liệu chiếm cả màn (ẩn header, rail tiến độ, khung chat); bật/tắt bằng nút ở header
-  // tài liệu hoặc Esc. Panel phải (comment, kiểm tra) vẫn mở được để review khi đang phóng to.
+  // Mở rộng trang: ẩn header + rail tiến độ; thoát bằng nút đầu rail công cụ hoặc Esc
   const [focusMode, setFocusMode] = useState(false);
   useEffect(() => {
     if (!focusMode) return;
@@ -741,14 +709,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       .then((res) => res.data && replaceProject(res.data))
       .catch(() => undefined);
   }, [projectId, replaceProject, onSpineChanged]);
-  // Đổi mẫu mở được không và vì sao — dùng chung cho mục "Đổi mẫu" ở menu ⋯ của header và thẻ trạng thái trong panel
-  // Dự án AI soạn chỉ đổi mẫu được sau baseline (cùng điều kiện `canChangeTemplate` bên dưới) ⇒ trước đó không gọi BE
-  const templateAvailability = useTemplateChangeAvailability(projectId, ws.orgRole, documentRefreshToken, {
-    enabled: mode1 || (spineState.spine?.baselines.length ?? 0) > 0,
-    checkPackage: mode1,
-  });
-  // Mode 1: gói thay đổi cho pill trạng thái ở thanh đầu tài liệu
-  const reviewPackage = useReviewPackage(projectId, mode1, documentRefreshToken);
 
   /**
    * Vòng dịch xong / dừng giữa chừng (FLF-265): chữ dịch nằm ở lớp bản dịch, Spine và `spine_version` không đổi ⇒ chỉ
@@ -1045,6 +1005,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   /** Pha Brief và S-1: ba panel Brief chỉ có nghĩa ở đây (Phases §5). */
   const inBriefPhase = (spine?.progress.current_phase ?? "").startsWith("B-") || spine?.progress.current_phase === "S-1";
   // Badge trên nút "Hồ sơ" — cùng con số với tab "Chờ bạn quyết" của panel
+  const pendingCount = useMemo(() => (!mode1 && spine ? pendingRecordCount(spine, inBriefPhase) : 0), [mode1, spine, inBriefPhase]);
   /**
    * Khung phải ở B-0…B-2 là Brief panel, không phải SRS pane (FLF-221): SRS chưa có nội dung trước S-1, và một trang
    * tài liệu trống làm user tưởng phải viết SRS ngay. Theo giai đoạn của bước đang làm; S-1 trở đi là SRS pane như cũ.
@@ -1257,7 +1218,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const [baselineBlockingFlags, setBaselineBlockingFlags] = useState<BlockingFlag[]>([]);
 
   /**
-   * Chip trạng thái chốt bản (thanh đầu tài liệu). Nói theo vai trò người đang xem: Lead cần biết "có bản chờ
+   * Chip trạng thái chốt bản trên breadcrumb. Nói theo vai trò người đang xem: Lead cần biết "có bản chờ
    * mình duyệt", Analyst cần biết "bản mình gửi đang ở đâu". Chưa nộp gì và chưa ký gì ⇒ không có chip.
    */
   const baselineStatus = ((): { label: string; tone: BadgeTone } | null => {
@@ -1276,8 +1237,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     const version = spine?.baselines.at(-1)?.version;
     return version ? { label: t("page.baselineVersion", { version }), tone: "success" } : null;
   })();
-  /** Pill trạng thái ở thanh đầu tài liệu: mode 1 = gói thay đổi gửi Lead; dự án AI soạn = baseline (nộp / duyệt / đã ký). */
-  const statusPill = mode1 ? packageStatusView(reviewPackage, tPackage) : baselineStatus;
   /**
    * Mọi điều kiện thật do BE kiểm. Lỗi `BASELINE_BLOCKED` / `REJECTION_COMMENTS_OPEN` mang `meta` chỉ
    * đúng chỗ phải xử lý, nên đẩy người dùng sang panel tương ứng thay vì chỉ hiện câu lỗi.
@@ -1362,22 +1321,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     setEditMode(true);
     setKnowledgeMode(false);
     if (prefill !== undefined) ws.setInputMessage(prefill);
-    focusInputAtEnd();
-  };
-  /** Đợi ô nhập render lại (chip đổi, chữ điền sẵn) rồi mới focus, con trỏ về cuối dòng. */
-  const focusInputAtEnd = () => {
+    // Đợi ô nhập render lại với chip bật rồi mới focus, con trỏ về cuối dòng
     setTimeout(() => {
       const input = document.getElementById("flintflow-chat-input") as HTMLTextAreaElement | null;
       input?.focus();
       input?.setSelectionRange(input.value.length, input.value.length);
     }, 0);
-  };
-  /** Câu hỏi mở ở Hồ sơ: điền sẵn câu trả lời vào ô chat — là câu trả lời, không phải lệnh sửa ⇒ tắt chip Sửa tài liệu. */
-  const answerInChat = (prefill: string) => {
-    setEditMode(false);
-    setKnowledgeMode(false);
-    ws.setInputMessage(prefill);
-    focusInputAtEnd();
   };
 
   // FLF-375 — CR chỉ tạo bằng chat (BF C-1): link từ gap report / comment / cờ / bản xem trước (`crPrefillHref`) đặt câu yêu
@@ -1446,81 +1395,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // Tab mở giữa lượt chạy ở nơi khác: theo dõi run-state tới khi BE xong rồi dựng lại / tải lại — không chờ user tải trang (FLF-235)
   useFollowRunningElsewhere({ active: stepRunningElsewhere, projectId, restore: restoreRunner, onSettled: onSpineChanged });
 
-  // ─── Hàng việc chờ quyết (FLF-443): dải + thẻ giải quyết lần lượt ở vùng ô nhập. Chỉ nối handler có sẵn, không logic. ───
-  // Chế độ 1 (FLF-445): thẻ là một nhóm cờ, sửa qua change request; Viewer / phiên phụ không có.
-  const pendingQueueEnabled = ws.ready && ws.canEdit && ws.isPipelineActive;
-  const pendingQueue = usePendingQueue(projectId, spineState.version, pendingQueueEnabled);
-  const gateAssumptionIds = new Set(
-    (runner.state.phaseGate ? runner.state.phaseGate.new_assumptions : runner.state.gate?.payload?.new_assumptions)?.map((a) => a.id) ?? []
-  );
-  /** Keep / waive cờ đi qua hàng ghi (như ghi op) rồi đọc lại Spine: hai lượt ghi liền nhau không ăn 409. */
-  const queueFlagWrite = (write: () => Promise<void>): Promise<void> => {
-    const run = writeQueueRef.current
-      .catch(() => undefined)
-      .then(async () => {
-        await write();
-        bumpVersion(await reloadSpine());
-      });
-    writeQueueRef.current = run;
-    return run;
-  };
-  // AI đang chạy (bước của tab này, bước người khác đang chạy, đang đọc file đính kèm) ⇒ thẻ quyết khoá theo cùng điều kiện
-  const aiWorking = runner.state.busy || stepRunningElsewhere || ws.uploadingAttachments;
-  const resolveQueue = useResolveQueue({
-    projectId,
-    queue: pendingQueue.queue,
-    loading: pendingQueue.loading,
-    reloadQueue: pendingQueue.reload,
-    spine,
-    flags,
-    enabled: pendingQueueEnabled,
-    // Chế độ 1: AI đang chạy bước của change request (làm rõ, đề xuất, kiểm) cũng khoá thẻ
-    locked: aiWorking || (mode1 && crChat.busy !== null),
-    mode1,
-    // Một CR chạy một lúc: CR của mình chưa xong (kể cả đang chờ chọn nguồn) hoặc gói chờ Lead ⇒ chưa tạo CR mới
-    crLock: !mode1
-      ? null
-      : crChat.draftLocked
-        ? { reason: "package" }
-        : // Còn đang tải CR mở của mình thì chưa biết có CR chạy không ⇒ khoá tới khi biết
-          crChat.loading || crChat.detail || crChat.pending !== null
-          ? { reason: "running", crId: crChat.detail?.change_request.cr_id ?? null }
-          : null,
-    requester: ws.user?.name?.trim() || ws.user?.email || "",
-    yielded: runner.state.status === "needs_input" || runner.state.status === "gate_ready",
-    excludeIds: gateAssumptionIds,
-    sectionName: panelSectionName,
-    handlers: {
-      submitOps,
-      decideAssumption: applyAssumptionDecision,
-      markPlaceholder,
-      keepFlag: (flagId, reason) => queueFlagWrite(() => handleFlagKeep(flagId, reason)),
-      waiveFlag: (flagId, reason) => queueFlagWrite(() => handleFlagWaive(flagId, reason)),
-      startEditing: (prefill) => {
-        if (editDisabledReason) {
-          setToast(editDisabledReason);
-          return false;
-        }
-        startEditing(prefill);
-        return true;
-      },
-      postChatLine: (text) => ws.appendLocalMessage(text, viewedStep ?? null, "ai"),
-      showSection,
-      createCrFromFlags: mode1 ? crChat.startFromFlags : undefined,
-    },
-  });
-
   if (!ws.ready) return <WorkspaceLoading projectId={projectId} />;
 
   /** FLF-244: phiên phụ chỉ hỏi đáp + lệnh sửa — thẻ hỏi, thẻ cổng, tiến trình bước chỉ hiện ở phiên chính. */
   const onPipelineSession = ws.isPipelineActive;
   /** FLF-244: Viewer chỉ đọc — ẩn ô nhập, thẻ hỏi, thẻ cổng và mọi nút chạy bước (BE cũng chặn 403). */
   const canEdit = ws.canEdit;
-  /** "Quyết trong chat" ở tab Chờ quyết: mở thẻ đúng việc; panel đang chiếm chỗ của khung chat (màn hẹp) thì đóng lại. */
-  const decideInChat = (key: string) => {
-    resolveQueue.openItem(key);
-    if (narrow) setRightPanel(null);
-  };
   /** Đổi mẫu cần baseline: mode 1, hoặc dự án mode 2 đã có baseline (chưa kịp chuyển mode / đang chờ Lead duyệt). */
   const canChangeTemplate = mode1 || (spine?.baselines.length ?? 0) > 0;
   /** FLF-278: dự án theo mẫu bắt buộc (FLF-335) — mục riêng của mẫu còn trống có nút "Nhờ AI soạn". */
@@ -1652,6 +1532,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // Lượt hỏi: câu mở trả lời bằng ô chat, câu có lựa chọn ở thẻ. Id Q1… lặp lại giữa các step nên khoá gồm cả step.
   const questionSetKey = `${runner.state.stepId ?? ""}|${runner.state.questions.map((q) => `${q.id}:${q.text}`).join("|")}`;
   // FLF-398: đang tải tệp đính kèm cũng là đang bận — gửi lần nữa lúc này sẽ chạy bước chồng lên lượt đang tải
+  const aiWorking = runner.state.busy || stepRunningElsewhere || ws.uploadingAttachments;
   /**
    * Bước đang xem là bước tới lượt và chưa có lượt chạy nào — gõ chat là chạy (FLF-221). Gồm cả bước tới lượt đang
    * `revision_requested` (bị mở lại, hoà giải): thiếu nó thì tin nhắn rơi vào hỏi đáp thường, AI chỉ trả lời "xem như
@@ -2064,7 +1945,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     // Tên mục theo tài liệu đang xem cho nhãn mục của mode 1 (mẫu cố định / file có sẵn đặt tên khác mẫu FPT)
     <SectionNamesContext.Provider value={panelSectionNames}>
     <RefNamesContext.Provider value={elementNames}>
-    <ReferenceViewerProvider projectId={projectId}>
     <div className="h-screen flex overflow-hidden bg-surface-container-lowest font-sans">
       {/* Rail tiến độ trái — z-30: nút tròn ở mép và tooltip nổi trên pane chat */}
       {/* Mode 1 v3: không có step ⇒ không có rail tiến độ */}
@@ -2091,6 +1971,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <WorkspaceHeader
           project={ws.project}
           user={ws.user}
+          baselineStatus={baselineStatus}
           progressHidden={!mode1 && !railShown}
           onShowProgress={toggleProgress}
           // FLF-221: không còn nút chạy — gõ chat là chạy
@@ -2098,9 +1979,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           currentStep={mode1 || !currentStep ? null : stepLabel(currentStep, locale)}
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           onExportClick={() => setExportOpen((v) => !v)}
-          // Trợ lý Google Docs: tắt mặc định (`isDocsAssistantEnabled`); Viewer không dùng (BE cũng chặn bằng vai trò)
+          // Trợ lý Google Docs: cần client id Google ở FE; Viewer không dùng (BE cũng chặn bằng vai trò)
           onDocsAssistantClick={
-            isDocsAssistantEnabled && (ws.orgRole === "lead" || ws.orgRole === "analyst") ? () => setDocsAssistantOpen((v) => !v) : undefined
+            isGoogleAuthEnabled && (ws.orgRole === "lead" || ws.orgRole === "analyst") ? () => setDocsAssistantOpen((v) => !v) : undefined
           }
           docsAssistantActive={docsAssistantOpen}
           // Mode 1: gap report, change request, so sánh version mở dạng popup ngay trên màn tài liệu
@@ -2114,6 +1995,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 <Link href={crListHref(projectId)} scroll={false} className={MODE1_ACTION}>
                   {t("page.changeRequest")}
                 </Link>
+                <Link href={compareHref(projectId)} scroll={false} className={MODE1_ACTION}>
+                  {t("page.compareVersions")}
+                </Link>
                 {/* Re-upload (UC-25) dẫn tới tạo CR ⇒ chỉ người sửa được */}
                 {canEdit && (
                   <Link href={reuploadHref(projectId)} scroll={false} className={MODE1_ACTION}>
@@ -2123,30 +2007,16 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               </>
             ) : undefined
           }
+          onEnterFocus={() => setFocusMode(true)}
           // Mode 1 chốt bản qua release gói CR, không có panel kiểm tra + chốt baseline
           onVerifyClick={mode1 ? undefined : () => (rightPanel === "verification" ? setRightPanel(null) : openIssues())}
           verifyActive={rightPanel === "verification"}
           verifyCount={documentIssues.blocking}
           onToolsClick={() => togglePanel("tools")}
           toolsActive={rightPanel === "tools"}
-          // Mode 1: panel là "Kiểm & chốt" (cờ + gói duyệt) — cùng nhãn, cùng icon với nút Kiểm & chốt của dự án AI soạn
           toolsLabel={mode1 ? t("page.toolsMode1") : t("page.toolsRecord")}
-          toolsShortLabel={mode1 ? t("page.toolsMode1") : t("page.toolsRecordShort")}
-          toolsIcon={mode1 ? "shield-check" : "folder"}
-          // Thao tác dùng hiếm: "Đổi mẫu" (trước là thẻ to trong panel) — chặn kèm lý do như thẻ cũ
-          moreItems={
-            canEdit && canChangeTemplate && templateAvailability.allowed
-              ? [
-                  {
-                    label: templateAvailability.migration.open ? tTemplate("resume") : tTemplate("change"),
-                    icon: "file-template",
-                    disabled: templateAvailability.reason !== null,
-                    hint: templateAvailability.reason ?? undefined,
-                    onSelect: () => router.push(templateMigrationHref(projectId), { scroll: false }),
-                  },
-                ]
-              : undefined
-          }
+          toolsShortLabel={mode1 ? undefined : t("page.toolsRecordShort")}
+          toolsCount={pendingCount}
           onLogout={ws.logout}
         />
       </Collapse>
@@ -2155,32 +2025,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         ref={mainRef}
         className="flex-1 min-h-0 flex overflow-hidden bg-surface-container-lowest"
       >
-        {/* Phóng to tài liệu ⇒ ẩn chat bằng CSS (không gỡ khỏi DOM) để giữ chữ đang gõ, vị trí cuộn, luồng đang chạy */}
-        <div className={focusMode ? "hidden" : "contents"}>
         <ChatPane
-          // Rail tiến độ ẩn ⇒ khung chat sát mép trái màn hình, chỉ bo bên phải
-          flushLeft={mode1 || !railShown}
+          // Rail tiến độ ẩn (hoặc đang mở rộng trang) ⇒ khung chat sát mép trái màn hình, chỉ bo bên phải
+          flushLeft={mode1 || focusMode || !railShown}
           hideTrailingAiMessage={trailingAskReply !== null}
           title={mode1 ? t("page.chatTitleMode1") : undefined}
-          // Tài liệu đã tải lên của cả dự án (file SRS gốc + tài liệu tham khảo) — cùng chỗ với nơi đính kèm, mọi chế độ.
-          // Viewer không vào workspace (chuyển sang trang đọc) nên chỉ Lead/Analyst thấy.
-          headerEnd={
-            canEdit ? (
-              <ProjectDocumentsButton
-                projectId={projectId}
-                projectName={ws.project?.name}
-                mode1={mode1}
-                refreshToken={ws.documentsVersion}
-                // Duyệt danh sách rút (mode 1) tạo change request ⇒ tải lại tài liệu, gói thay đổi (pill), mục đang chờ
-                onCrsCreated={() => onSpineChanged()}
-                onAdd={async (files) => {
-                  if (!(await confirmAttachments(files))) return { cancelled: true };
-                  const uploaded = await ws.uploadDocuments(files);
-                  return uploaded ? { cancelled: false, ...uploaded } : { busy: true };
-                }}
-              />
-            ) : undefined
-          }
           width={chat.width}
           fill={briefHidden || briefPane}
           session={ws.activeSession}
@@ -2245,8 +2094,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   onKeepAsReference={() => ws.dismissSrsSuggestion(ws.srsSuggestions[0].key)}
                 />
               )}
-              {/* FLF-443: việc chờ bạn quyết - thẻ một việc mỗi lần, nhường chỗ cho câu hỏi / thẻ duyệt của AI */}
-              <ResolveQueueDock controller={resolveQueue} onShowSection={showSection} />
             </>
           }
           onSelectAttachment={ws.selectAttachment}
@@ -2574,7 +2421,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         ) : (
           <ResizeHandle active={chat.resizing} onStart={chat.startResize} onReset={chat.reset} label={t("page.resizeChat")} />
         )}
-        </div>
 
         {briefHidden ? null : briefPane ? (
           <BriefPanel spine={spine} updating={runner.state.busy} width={brief.width} />
@@ -2582,7 +2428,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <DocumentPane
           projectId={projectId}
           projectName={documentName}
-          sources={canEdit ? sourceMap : undefined}
           baselineVersions={spine?.baselines.map((b) => b.version) ?? []}
           flags={flags}
           doc={doc}
@@ -2617,6 +2462,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               ? undefined
               : (diagramId) => redrawDiagrams(spineState.spine?.diagrams.filter((d) => d.id === diagramId) ?? [])
           }
+          // Nút thoát mở rộng (trước nằm đầu rail công cụ) — giữ nguyên icon, đặt cuối header tài liệu
           // FLF-410: tiến độ vẽ mockup chạy nền — pill nhỏ góc dưới trái tài liệu, bấm mở chi tiết
           footerStatus={
             mockupRun.run ? (
@@ -2634,53 +2480,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               />
             ) : undefined
           }
-          // Phóng to / thu nhỏ tài liệu: nút nằm trên chính khung được phóng to (giữ icon expand/collapse cũ)
-          headerEnd={
-            focusMode ? (
-              <IconButton icon="collapse" label={t("page.exitFocus")} onClick={() => setFocusMode(false)} />
-            ) : (
-              <IconButton icon="expand" label={t("page.enterFocus")} onClick={() => setFocusMode(true)} />
-            )
-          }
-          // Mode 1: chip version mở danh sách version (tải về, file gốc, so sánh) — trước nằm ở panel và nút trên header
-          versionMenu={
-            mode1
-              ? (close) => (
-                  <Mode1VersionsMenu
-                    projectId={projectId}
-                    projectName={ws.project?.name}
-                    documentLanguage={documentLanguage}
-                    onClose={close}
-                    onTranslate={
-                      canEdit && ws.project?.converted_from === "fpt"
-                        ? (locale, version) => {
-                            close();
-                            setTranslateStatus(undefined);
-                            setTranslateLocale(locale);
-                            setTranslateTarget({ version });
-                            setTranslateOpen(true);
-                          }
-                        : undefined
-                    }
-                  />
-                )
-              : undefined
-          }
-          // Trạng thái chốt bản cạnh chip version, luôn thấy; bấm mở panel có thao tác (Kiểm & chốt)
-          statusPill={
-            statusPill ? (
-              <button
-                type="button"
-                onClick={mode1 ? () => setRightPanel("tools") : () => openIssues()}
-                title={t("header.openVerify")}
-                className="shrink-0 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
-              >
-                <Badge tone={statusPill.tone} dot>
-                  {statusPill.label}
-                </Badge>
-              </button>
-            ) : undefined
-          }
+          headerEnd={focusMode ? <IconButton icon="collapse" label={t("page.exitFocus")} onClick={() => setFocusMode(false)} /> : undefined}
           documentLanguage={documentLanguage}
           // Dịch tốn credit ⇒ chỉ Lead/Analyst; mode 1 giữ ngôn ngữ file, không dịch (D3)
           onTranslate={!mode1 && canEdit ? () => setTranslateOpen(true) : undefined}
@@ -2701,26 +2501,41 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 {mode1 && (
                   <Mode1WorkspaceTools
                     projectId={projectId}
+                    projectName={ws.project?.name}
                     flags={flags}
                     onSpineChanged={() => onSpineChanged()}
                     readOnly={!canEdit}
+                    canRelease={ws.orgRole === "lead"}
                     orgRole={ws.orgRole}
                     sectionName={panelSectionName}
                     onTemplateChanged={handleTemplateChanged}
-                    templateAvailability={templateAvailability}
+                    templateCurrent={ws.project ? (ws.project.template_current ?? null) : undefined}
                     refreshToken={documentRefreshToken}
+                    documentLanguage={documentLanguage}
                     // CR đang soạn ở khung chat (chưa ghi bản nháp) ⇒ khoá gửi Lead duyệt / phát hành thẳng
                     crInProgress={crChat.detail ? crChat.detail.change_request.cr_id : crChat.pending !== null || crChat.busy !== null ? "" : null}
+                    onTranslate={
+                      canEdit && ws.project?.converted_from === "fpt"
+                        ? (locale, version) => {
+                            setTranslateStatus(undefined);
+                            setTranslateLocale(locale);
+                            setTranslateTarget({ version });
+                            setTranslateOpen(true);
+                          }
+                        : undefined
+                    }
                   />
                 )}
-                {/* FLF-395: dự án mode 2 đã có baseline vẫn đổi mẫu được — thẻ chỉ hiện khi có việc (kẹt, hoàn tác, mục thiếu) */}
+                {/* FLF-395: dự án mode 2 đã có baseline vẫn đổi mẫu được (cùng lý do chặn như mode 1) */}
                 {!mode1 && canChangeTemplate && canEdit && (
                   <TemplateChangeEntry
                     projectId={projectId}
-                    availability={templateAvailability}
+                    orgRole={ws.orgRole}
                     flags={flags}
                     sectionName={panelSectionName}
+                    refreshToken={documentRefreshToken}
                     onChanged={handleTemplateChanged}
+                    current={ws.project ? (ws.project.template_current ?? null) : undefined}
                   />
                 )}
                 {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
@@ -2736,18 +2551,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                     history={changes.history}
                     historyLoading={changes.historyLoading}
                     onLoadHistory={changes.loadHistory}
-                    onEditByChat={(prefill) => startEditing(prefill)}
-                    onAnswerInChat={answerInChat}
-                    queue={
-                      pendingQueueEnabled && pendingQueue.queue
-                        ? { ...pendingQueue.queue, items: pendingQueue.queue.items.filter((item) => resolveQueue.pendingKeys.has(item.key)) }
-                        : null
-                    }
-                    queueError={pendingQueueEnabled ? pendingQueue.error : null}
-                    flags={flags}
-                    onDecideInChat={decideInChat}
-                    sectionName={panelSectionName}
-                    sources={sourceMap}
                   />
                 )}
               </>
@@ -2757,6 +2560,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
         {shownPanel === "verification" && (
           <VerificationPane
+            projectId={projectId}
+            // Bản đồ truy vết chọn thực thể từ Spine đang mở — không gọi thêm request
+            spine={spine ?? undefined}
             issues={{
               sectionLabelOf: (id) => panelSectionNames.get(id),
               onShowSection: showSection,
@@ -2890,7 +2696,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         />
       )}
 
-      {docsAssistantOpen && isDocsAssistantEnabled && <DocsAssistantPanel projectId={projectId} onClose={() => setDocsAssistantOpen(false)} />}
+      {docsAssistantOpen && isGoogleAuthEnabled && <DocsAssistantPanel projectId={projectId} onClose={() => setDocsAssistantOpen(false)} />}
 
       {exportOpen && (
         <ExportPanel
@@ -2973,7 +2779,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         </Suspense>
       )}
     </div>
-    </ReferenceViewerProvider>
     </RefNamesContext.Provider>
     </SectionNamesContext.Provider>
   );

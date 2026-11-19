@@ -9,22 +9,18 @@ import Logo from "@/components/Logo";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import CountBadge from "@/components/ui/CountBadge";
-import DropdownMenu, { type DropdownMenuItem } from "@/components/ui/DropdownMenu";
-import Icon, { type IconName } from "@/components/ui/Icon";
+import DropdownMenu from "@/components/ui/DropdownMenu";
+import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
-
-/** Một nút trong nhóm thao tác phụ: bo tròn, nổi nền trắng khi rê (giống từng ô của cụm VI/EN). */
-const GROUP_ITEM =
-  "h-7 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-full text-body font-bold cursor-pointer transition-colors hover:bg-surface-container-lowest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
 interface WorkspaceHeaderProps {
   project: Project | null;
   user: User | null;
   /**
-   * Chip trạng thái trên breadcrumb — chỉ các màn chưa có thanh đầu tài liệu (đang nhập SRS, đang tạo dự án). Workspace chính
-   * đặt trạng thái baseline / gói duyệt ở thanh đầu tài liệu. `null` ⇒ không hiện chip.
+   * Trạng thái chốt bản hiện trên breadcrumb: baseline đã ký, hoặc bản đang chờ duyệt / vừa bị từ chối.
+   * `null` ⇒ không hiện chip. Chữ do nơi gọi dựng vì nó phụ thuộc vai trò người đang xem.
    */
   baselineStatus?: { label: string; tone: BadgeTone } | null;
   /** Rail tiến độ đang ẩn ⇒ đầu header có nút hiện lại + logo (logo nằm trên rail khi rail mở). */
@@ -43,16 +39,16 @@ interface WorkspaceHeaderProps {
   docsAssistantActive?: boolean;
   /** Nút riêng của chế độ (mode 1: mở popup Gap report / Change request), đứng trước Export. */
   actions?: ReactNode;
+  /** Mở rộng trang: ẩn header và khối tiến độ. */
+  onEnterFocus?: () => void;
   /** Mở/đóng panel Công cụ (thuật ngữ, đã chốt, hàng đợi màn, lịch sử sửa…) — thay rail icon bên phải cũ. */
   onToolsClick?: () => void;
   toolsActive?: boolean;
   toolsLabel?: string;
-  /** Icon của nút panel — mặc định `folder` (Hồ sơ); mode 1 dùng `shield-check` vì panel là "Kiểm & chốt". */
-  toolsIcon?: IconName;
-  /** Menu ⋯ (thao tác dùng hiếm, vd "Đổi mẫu"); rỗng / bỏ trống ⇒ không có nút. */
-  moreItems?: readonly DropdownMenuItem[];
   /** Chữ ngắn trên nút (màn rộng) — mặc định "Công cụ". */
   toolsShortLabel?: string;
+  /** Số mục trong panel đang chờ user quyết — hiện thành badge trên nút, 0 thì không hiện. */
+  toolsCount?: number;
   /**
    * Mở/đóng panel "Kiểm tra tài liệu" (cờ đỏ/vàng + chốt baseline). Trước đây panel này chỉ vào được
    * qua chip trên header pane tài liệu — mà chip đó ghi "Không có vấn đề" khi tài liệu sạch, đúng lúc
@@ -71,9 +67,8 @@ interface WorkspaceHeaderProps {
 }
 
 /**
- * Thanh trên của workspace, cố ý ít chữ: breadcrumb `Dự án / tên` · Export, menu ⋯, menu tài khoản
- * (credits, đăng xuất). Tiến độ giai đoạn/bước nằm ở rail trái (`WorkspaceProgressRail`); trạng thái baseline / gói duyệt
- * nằm ở thanh đầu tài liệu (`DocumentPane`).
+ * Thanh trên của workspace, cố ý ít chữ: breadcrumb `Dự án / tên` (+ baseline) · Export, mở rộng trang,
+ * menu tài khoản (credits, đăng xuất). Tiến độ giai đoạn/bước nằm ở rail trái (`WorkspaceProgressRail`).
  */
 export default function WorkspaceHeader({
   project,
@@ -89,12 +84,12 @@ export default function WorkspaceHeader({
   onDocsAssistantClick,
   docsAssistantActive = false,
   actions,
+  onEnterFocus,
   onToolsClick,
   toolsActive = false,
   toolsLabel,
-  toolsIcon = "folder",
-  moreItems,
   toolsShortLabel,
+  toolsCount = 0,
   onVerifyClick,
   verifyActive = false,
   verifyCount = 0,
@@ -102,9 +97,8 @@ export default function WorkspaceHeader({
 }: WorkspaceHeaderProps) {
   const t = useTranslations("workspace.header");
   const tools = toolsLabel ?? t("tools");
-  // Container query theo bề rộng thật của header (rail tiến độ, panel phải đổi chỗ trống): nhãn chữ ẩn dần, nút ít dùng ẩn trước
   return (
-    <header className="@container/header shrink-0 bg-surface-container-lowest h-[58px] px-4 flex items-center gap-3">
+    <header className="shrink-0 bg-surface-container-lowest h-[58px] px-4 flex items-center gap-3">
       {progressHidden && (
         <div className="shrink-0 flex items-center gap-2">
           <IconButton icon="sidebar" label={t("showProgress")} onClick={onShowProgress} aria-controls="workspace-progress" aria-expanded={false} />
@@ -124,6 +118,9 @@ export default function WorkspaceHeader({
           <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || fallbackName || t("untitled")}</span>
         )}
         {baselineStatus && (
+          // Trạng thái chốt bản là thứ cả Lead lẫn Analyst cần thấy MỌI LÚC (có bản chờ mình duyệt không,
+          // bản mình gửi bị từ chối chưa), nên nó ở ngay breadcrumb. Hành động thì nằm trong panel — bấm
+          // chip là mở panel đó, khỏi phải nhớ nút nào mở cái gì.
           <button
             type="button"
             onClick={onVerifyClick}
@@ -149,7 +146,7 @@ export default function WorkspaceHeader({
             aria-label={t("backAria", { step: currentStep })}
             className="shrink-0"
           >
-            <span className="hidden @[60rem]/header:inline max-w-[16rem] truncate">{t("back", { step: currentStep })}</span>
+            <span className="hidden sm:inline max-w-[16rem] truncate">{t("back", { step: currentStep })}</span>
           </Button>
         )}
         {actions}
@@ -163,68 +160,54 @@ export default function WorkspaceHeader({
             title={verifyCount > 0 ? t("verifyIssues", { count: verifyCount }) : t("verifyHint")}
             className={`shrink-0 ${verifyActive ? "bg-primary-soft text-primary-hover" : ""}`}
           >
-            <span className="hidden @[56rem]/header:inline">{t("verify")}</span>
+            <span className="hidden md:inline">{t("verify")}</span>
             {verifyCount > 0 && <CountBadge count={verifyCount} tone="alert" />}
           </Button>
+        )}
+        {/* UC-49: bản đọc + comment (Viewer góp ý trên baseline, Lead/Analyst xử lý) */}
+        {project && (
+          <Link
+            href={`/projects/${project._id}/view`}
+            title={t("viewHint")}
+            aria-label={t("view")}
+            className="shrink-0 inline-flex items-center justify-center h-8 px-3.5 gap-1.5 rounded-control text-body font-bold text-on-surface-variant hover:bg-surface-container-high hover:text-on-surface transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2"
+          >
+            <Icon name="eye" size={14} />
+            <span className="hidden md:inline">{t("view")}</span>
+          </Link>
         )}
         {onToolsClick && (
           <Button
             size="sm"
             variant="ghost"
-            icon={toolsIcon}
+            icon="folder"
             onClick={onToolsClick}
             aria-pressed={toolsActive}
-            // Không có badge số chờ quyết: việc chờ quyết không phải lỗi, số nằm ở tab "Chờ bạn quyết" trong panel
-            title={tools}
+            title={toolsCount > 0 ? t("toolsPending", { label: tools, count: toolsCount }) : tools}
             className={`shrink-0 ${toolsActive ? "bg-primary-soft text-primary-hover" : ""}`}
           >
-            <span className="hidden @[56rem]/header:inline">{toolsShortLabel ?? t("tools")}</span>
+            <span className="hidden md:inline">{toolsShortLabel ?? t("tools")}</span>
+            {/* Có mục chờ quyết mà nút im lặng thì user không biết để mở — badge nói số, không chỉ một chấm màu */}
+            {toolsCount > 0 && <CountBadge count={toolsCount} tone="alert" />}
           </Button>
         )}
-        {/* Thao tác phụ gom một nhóm nền xám (cùng kiểu cụm VI/EN): header hẹp thì chỉ còn icon, nằm trong khung chung nên
-            không lơ lửng cạnh các nút có chữ */}
-        <div role="group" aria-label={t("secondaryActions")} className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-surface-sidebar p-1">
-          {/* UC-49: bản đọc + comment (Viewer góp ý trên baseline, Lead/Analyst xử lý) */}
-          {project && (
-            <Link
-              href={`/projects/${project._id}/view`}
-              title={t("viewHint")}
-              aria-label={t("view")}
-              className={`${GROUP_ITEM} text-on-surface-variant hover:text-on-surface`}
-            >
-              <Icon name="eye" size={14} />
-              <span className="hidden @[80rem]/header:inline">{t("view")}</span>
-            </Link>
-          )}
-          {onDocsAssistantClick && (
-            <button
-              type="button"
-              onClick={onDocsAssistantClick}
-              aria-pressed={docsAssistantActive}
-              aria-label={t("docsAssistant")}
-              title={t("docsAssistantHint")}
-              className={`${GROUP_ITEM} ${docsAssistantActive ? "bg-primary-soft text-primary-hover" : "text-on-surface-variant hover:text-on-surface"}`}
-            >
-              <Icon name="file" size={14} />
-              <span className="hidden @[80rem]/header:inline">{t("docsAssistant")}</span>
-            </button>
-          )}
-          <button type="button" onClick={onExportClick} aria-label={t("export")} title={t("exportHint")} className={`${GROUP_ITEM} text-on-surface-variant hover:text-on-surface`}>
-            <Icon name="export" size={14} />
-            <span className="hidden @[80rem]/header:inline">{t("export")}</span>
-          </button>
-          {moreItems && moreItems.length > 0 && (
-            <DropdownMenu
-              placement="bottom-end"
-              trigger={(props) => (
-                <button type="button" {...props} aria-label={t("more")} title={t("more")} className={`${GROUP_ITEM} text-on-surface-variant hover:text-on-surface`}>
-                  <Icon name="more-horizontal" size={14} />
-                </button>
-              )}
-              items={moreItems}
-            />
-          )}
-        </div>
+        {onDocsAssistantClick && (
+          <Button
+            size="sm"
+            variant="ghost"
+            onClick={onDocsAssistantClick}
+            aria-pressed={docsAssistantActive}
+            title={t("docsAssistantHint")}
+            className={`shrink-0 ${docsAssistantActive ? "bg-primary-soft text-primary-hover" : ""}`}
+          >
+            <span className="md:hidden">G</span>
+            <span className="hidden md:inline">{t("docsAssistant")}</span>
+          </Button>
+        )}
+        <Button size="sm" variant="ghost" icon="export" onClick={onExportClick} title={t("exportHint")} className="shrink-0">
+          <span className="hidden md:inline">{t("export")}</span>
+        </Button>
+        {onEnterFocus && <IconButton icon="expand" label={t("enterFocus")} onClick={onEnterFocus} />}
         {/* Màn hẹp header đã chật: đổi ngôn ngữ vẫn có ở trang chủ / hồ sơ */}
         <LocaleSwitcher className="hidden sm:inline-flex shrink-0" />
         <DropdownMenu

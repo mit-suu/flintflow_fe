@@ -1,59 +1,54 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { estimateActionCost } from "@/lib/api/chat";
+import { deleteProjectDocument, listProjectDocuments } from "@/lib/api/documents";
 import { extractRequirements, getExtraction } from "@/lib/api/extraction";
 import type { ProjectDocument } from "@/types/document";
 import type { Extraction } from "@/types/extraction";
 import ExtractionList from "./ExtractionList";
-import { useReferenceViewer } from "../reference-viewer/ReferenceViewerProvider";
-import ReferenceDownloadButton from "../reference-viewer/ReferenceDownloadButton";
 import { useMode1Labels } from "./i18n";
 
 interface ReferenceDocumentsPanelProps {
   projectId: string;
-  /** Danh sách tài liệu tham khảo (nơi gọi tải qua `useProjectDocuments`). */
-  docs: ProjectDocument[];
-  /** Xoá trên BE rồi bỏ khỏi danh sách; lỗi ném lại để hiện ở đây. */
-  onRemove: (documentId: string) => Promise<void>;
   /** Sau khi duyệt danh sách (CR đã tạo). */
   onCrsCreated: () => void;
   readOnly?: boolean;
-  /**
-   * Có nút "Rút yêu cầu" không. Duyệt danh sách rút là tạo change request (`POST .../extraction` thuộc luồng CR, chỉ có ở
-   * dự án nhập SRS) ⇒ dự án AI soạn chỉ xem / xoá tài liệu.
-   */
-  canExtract?: boolean;
 }
 
 /**
  * Tài liệu tham khảo của dự án (biên bản, email đính kèm trong chat) + "Rút yêu cầu" (FLF-338 §3.6.1): báo credit trước (cổng
  * cứng §3.6) ⇒ AI rút danh sách ⇒ `ExtractionList` để BA duyệt. Tài liệu đã có danh sách thì hiện lại.
  */
-export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onCrsCreated, readOnly = false, canExtract = true }: ReferenceDocumentsPanelProps) {
+export default function ReferenceDocumentsPanel({ projectId, onCrsCreated, readOnly = false }: ReferenceDocumentsPanelProps) {
   const t = useTranslations("mode1.referenceDocs");
   const L = useMode1Labels();
-  // FLF-443: xem chữ / tải file gốc (mọi chế độ). Ngoài provider của workspace thì không có nút "Xem"
-  const viewer = useReferenceViewer();
+  const [docs, setDocs] = useState<ProjectDocument[] | null>(null);
   const [extractions, setExtractions] = useState<Record<string, Extraction | null>>({});
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{ documentId: string; cost: number | null } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  // Danh sách rút đã có của từng tài liệu — chỉ khi dự án có luồng rút yêu cầu
-  const docIds = docs.map((d) => d._id).join(",");
+  const load = useCallback(async () => {
+    try {
+      const res = await listProjectDocuments(projectId);
+      const list = res.data ?? [];
+      setDocs(list);
+      const pairs = await Promise.all(list.map(async (d) => [d._id, (await getExtraction(projectId, d._id).catch(() => ({ data: null }))).data ?? null] as const));
+      setExtractions(Object.fromEntries(pairs));
+    } catch (err) {
+      setError(L.errorText(err, t("loadFailed")));
+    }
+    // `L` đổi tham chiếu mỗi render — chỉ tải lại theo project
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [projectId]);
+
   useEffect(() => {
-    if (!canExtract || !docIds) return;
-    let cancelled = false;
-    void Promise.all(docIds.split(",").map(async (id) => [id, (await getExtraction(projectId, id).catch(() => ({ data: null }))).data ?? null] as const)).then(
-      (pairs) => !cancelled && setExtractions(Object.fromEntries(pairs)),
-    );
-    return () => {
-      cancelled = true;
-    };
-  }, [projectId, docIds, canExtract]);
+    // Lùi một microtask: `load()` không đặt state đồng bộ trong effect (react-hooks/set-state-in-effect)
+    void Promise.resolve().then(load);
+  }, [load]);
 
   const askExtract = async (documentId: string) => {
     setError(null);
@@ -82,9 +77,9 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
 
   const remove = async (documentId: string) => {
     setBusy(documentId);
-    setError(null);
     try {
-      await onRemove(documentId);
+      await deleteProjectDocument(projectId, documentId);
+      setDocs((prev) => (prev ?? []).filter((d) => d._id !== documentId));
       if (openDoc === documentId) setOpenDoc(null);
     } catch (err) {
       setError(L.errorText(err, t("deleteFailed")));
@@ -93,69 +88,64 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
     }
   };
 
+  if (docs === null && !error) return <p className="text-body text-[#8A867E]">{t("loading")}</p>;
+  if (docs && docs.length === 0 && !error) return null;
+
   return (
-    <div role="group" className="flex flex-col gap-2" aria-label={t("aria")}>
+    <section className="bg-white border border-[#ECEAE5] rounded-[14px] p-4 flex flex-col gap-3" aria-label={t("aria")}>
+      <div>
+        <h3 className="text-body font-extrabold text-[#191817]">{t("title")}</h3>
+        <p className="text-caption text-[#8A867E]">{t("intro")}</p>
+      </div>
       {error && (
-        <p role="alert" className="text-body text-error">
+        <p role="alert" className="text-body text-[#B03030]">
           {error}
         </p>
       )}
-      <ul className="flex flex-col gap-1">
-        {docs.map((d) => {
+      <ul className="flex flex-col gap-1.5">
+        {(docs ?? []).map((d) => {
           const ex = extractions[d._id] ?? null;
           const unreadable = d.parseStatus !== "success";
           return (
-            <li key={d._id} className="flex flex-wrap items-center gap-2 text-body rounded-inner px-2 py-1.5 odd:bg-surface-container-low">
-              <span className="font-bold text-on-surface truncate min-w-0 max-w-[200px]" title={d.originalName}>
-                {d.originalName}
-              </span>
-              {unreadable && <span className="text-caption text-accent-gold-text">{t("unreadable")}</span>}
+            <li key={d._id} className="flex flex-wrap items-center gap-2 text-body">
+              <span className="font-bold text-[#191817] truncate max-w-[280px]">{d.originalName}</span>
+              {unreadable && <span className="text-caption text-[#8A6D1F]">{t("unreadable")}</span>}
               {ex && (
-                <span className={`px-2 py-0.5 rounded-full text-caption font-bold ${ex.status === "approved" ? "bg-success-soft text-success" : "bg-primary-soft text-primary-hover"}`}>
+                <span className={`px-2 py-0.5 rounded-full text-caption font-bold ${ex.status === "approved" ? "bg-[#E9F7EE] text-[#1F7A45]" : "bg-[#F2F1FB] text-[#554DB0]"}`}>
                   {t(`status.${ex.status}`, { count: ex.items.length })}
                 </span>
               )}
               <span className="ml-auto flex items-center gap-1.5">
-                {viewer && !unreadable && (
-                  <button
-                    type="button"
-                    onClick={() => viewer.openDocument({ documentId: d._id, name: d.originalName })}
-                    className="px-2.5 py-1 rounded-full text-caption font-bold bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest cursor-pointer"
-                  >
-                    {t("view")}
-                  </button>
-                )}
-                <ReferenceDownloadButton projectId={projectId} documentId={d._id} fallbackName={d.originalName} />
                 {ex && (
-                  <button type="button" onClick={() => setOpenDoc(openDoc === d._id ? null : d._id)} className="px-2.5 py-1 rounded-full text-caption font-bold bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest cursor-pointer">
+                  <button type="button" onClick={() => setOpenDoc(openDoc === d._id ? null : d._id)} className="px-2.5 py-1 rounded-full text-caption font-bold border border-[#ECEAE5] bg-white text-[#4B4842] cursor-pointer">
                     {openDoc === d._id ? t("hide") : t("show")}
                   </button>
                 )}
-                {canExtract && !readOnly && !unreadable && ex?.status !== "approved" && (
+                {!readOnly && !unreadable && ex?.status !== "approved" && (
                   <button type="button" disabled={busy !== null} onClick={() => void askExtract(d._id)} className="px-2.5 py-1 rounded-full text-caption font-bold btn-gradient-primary text-white cursor-pointer disabled:opacity-50">
                     {busy === d._id ? t("extracting") : ex ? t("reExtract") : t("extract")}
                   </button>
                 )}
                 {!readOnly && ex?.status !== "approved" && (
-                  <button type="button" disabled={busy !== null} onClick={() => void remove(d._id)} className="text-caption font-bold text-on-surface-muted underline cursor-pointer disabled:opacity-50">
+                  <button type="button" disabled={busy !== null} onClick={() => void remove(d._id)} className="text-caption font-bold text-[#8A867E] underline cursor-pointer disabled:opacity-50">
                     {t("delete")}
                   </button>
                 )}
               </span>
               {confirming?.documentId === d._id && (
                 // §3.6 cổng cứng: báo credit, người dùng xác nhận mới gọi AI
-                <div role="dialog" aria-label={t("confirmAria")} className="w-full flex flex-wrap items-center gap-2 rounded-inner bg-primary-soft px-3 py-2">
-                  <span className="flex-1 min-w-[180px] text-body text-primary-hover">{confirming.cost === null ? t("confirmUnknown") : t("confirm", { credits: confirming.cost })}</span>
-                  <button type="button" onClick={() => setConfirming(null)} className="px-2.5 py-1 rounded-full text-caption font-bold bg-surface-container-lowest text-on-surface-variant cursor-pointer">
+                <div role="dialog" aria-label={t("confirmAria")} className="w-full flex flex-wrap items-center gap-2 rounded-[10px] bg-[#F2F1FB] border border-[#DCD8F0] px-3 py-2">
+                  <span className="flex-1 min-w-[200px] text-body text-[#554DB0]">{confirming.cost === null ? t("confirmUnknown") : t("confirm", { credits: confirming.cost })}</span>
+                  <button type="button" onClick={() => setConfirming(null)} className="px-2.5 py-1 rounded-full text-caption font-bold border border-[#DCD8F0] bg-white text-[#4B4842] cursor-pointer">
                     {t("cancel")}
                   </button>
-                  <button type="button" onClick={() => void runExtract(d._id)} className="px-2.5 py-1 rounded-full text-caption font-bold bg-primary text-white cursor-pointer">
+                  <button type="button" onClick={() => void runExtract(d._id)} className="px-2.5 py-1 rounded-full text-caption font-bold bg-[#6A62C4] text-white cursor-pointer">
                     {t("run")}
                   </button>
                 </div>
               )}
               {openDoc === d._id && ex && (
-                <div className="w-full pt-2">
+                <div className="w-full border-t border-[#ECEAE5] pt-3">
                   <ExtractionList
                     projectId={projectId}
                     extraction={ex}
@@ -171,6 +161,6 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
           );
         })}
       </ul>
-    </div>
+    </section>
   );
 }

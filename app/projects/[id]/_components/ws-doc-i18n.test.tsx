@@ -103,6 +103,7 @@ describe.each<Locale>(["en"])("ws-doc i18n (%s)", (locale) => {
   it("panel kiểm tra tài liệu + chốt baseline: không còn chữ tiếng Việt", () => {
     const { container } = renderWithIntl(
       <VerificationPane
+        projectId="p1"
         readiness={{ score: 0 } as never}
         flags={FLAGS}
         flagsLoading={false}

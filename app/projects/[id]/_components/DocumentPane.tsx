@@ -12,15 +12,12 @@ import { hookErrorText } from "@/lib/hook-errors";
 import { shownDocumentLanguage } from "@/lib/document-language";
 import { blockHasRealText, isGuidanceOnly } from "@/lib/instruction-text";
 import { useDocument, type DocumentUpdate, type UseDocumentResult } from "../hooks/useDocument";
-import AnchoredPopover from "./AnchoredPopover";
 import DocumentLanguageChip from "./DocumentLanguageChip";
 import DocumentUpdatePill from "./DocumentUpdatePill";
 import { blockRegionKey, sectionRegionKey } from "./document-diff";
 import type { Block, InlineRun, RenderedSection, SectionStatus, TableCell } from "@/types/document";
 import type { Flag } from "@/types/flags";
 import type { DocumentLanguage } from "@/types/project";
-import type { RequirementSourceRef } from "@/types/sources";
-import SourceChip, { sectionEntityPath } from "./SourceChip";
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface DocumentPaneProps {
@@ -84,13 +81,6 @@ interface DocumentPaneProps {
   rewriteError?: string | null;
   /** Báo danh sách mục đang hiển thị — panel kiểm tra dùng để gọi tên mục (`§2.2.2 Actors`). */
   onSectionsLoaded?: (sections: readonly RenderedSection[]) => void;
-  /**
-   * Danh sách version mở từ chip version (mode 1: version, tải về, file gốc, so sánh) — `close` đóng popup sau một hành
-   * động. Bỏ trống ⇒ chip chỉ hiển thị.
-   */
-  versionMenu?: (close: () => void) => ReactNode;
-  /** Pill trạng thái chốt bản cạnh chip version (baseline / gói thay đổi) — nơi gọi dựng vì chữ phụ thuộc vai trò. */
-  statusPill?: ReactNode;
   /** Nút thêm ở cuối header (vd. thoát mở rộng trang). */
   headerEnd?: ReactNode;
   /**
@@ -133,11 +123,6 @@ interface DocumentPaneProps {
    * "Có bản mới · Cập nhật" ở đầu tài liệu. Không truyền ⇒ không có dải.
    */
   newerVersion?: { onApply: () => void } | null;
-  /**
-   * FLF-443: nguồn tài liệu theo đường dẫn phần tử (`sourcesByPath`) ⇒ chip "Nguồn · n" ở đoạn / dòng / mục và cạnh tiêu đề
-   * mục chi tiết function / feature. Không truyền ⇒ không có chip.
-   */
-  sources?: ReadonlyMap<string, RequirementSourceRef[]>;
 }
 
 /** "Vẽ lại sơ đồ" của một mục: vẽ lại bằng code hiện tại dù dữ liệu không đổi (vd đổi kiểu đường ERD). */
@@ -526,19 +511,12 @@ export function BlockView({
   projectId,
   afterHeading = false,
   onRedrawDiagram,
-  sourceChip,
 }: {
   block: Block;
   projectId: string;
   afterHeading?: boolean;
   onRedrawDiagram?: (diagramId: string) => Promise<void>;
-  /**
-   * FLF-443: chip "Nguồn" cho đoạn / mục / dòng gắn phần tử Spine. Chỉ workspace (`DocumentPane`) truyền; trang `/view` không
-   * truyền nên không có chip.
-   */
-  sourceChip?: (entityPath: string | null | undefined) => ReactNode;
 }) {
-  const chip = (path: string | null | undefined) => (sourceChip && path ? sourceChip(path) : null);
   switch (block.type) {
     case "heading": {
       const Tag = HEADING_TAGS[Math.min(6, Math.max(1, block.level)) - 1];
@@ -548,7 +526,6 @@ export function BlockView({
       return (
         <p className="mb-2 last:mb-0 text-body text-on-surface-dark leading-[1.65]">
           <Runs runs={block.runs} />
-          {chip(block.entity_path)}
         </p>
       );
     case "bullet_list":
@@ -557,7 +534,6 @@ export function BlockView({
           {block.items.map((item, i) => (
             <li key={i}>
               <Runs runs={item} />
-              {chip(block.item_entity_paths?.[i])}
             </li>
           ))}
         </ul>
@@ -568,7 +544,6 @@ export function BlockView({
           {block.items.map((item, i) => (
             <li key={i}>
               <Runs runs={item} />
-              {chip(block.item_entity_paths?.[i])}
             </li>
           ))}
         </ol>
@@ -592,8 +567,6 @@ export function BlockView({
                   {row.map((cell, ci) => (
                     <td key={ci} className="border border-outline px-2 py-1 align-top">
                       <Cell cell={cell} />
-                      {/* Chip ở ô cuối của dòng */}
-                      {ci === row.length - 1 && chip(block.row_entity_paths?.[ri])}
                     </td>
                   ))}
                 </tr>
@@ -684,9 +657,7 @@ function SectionView({
   onRedraw,
   onRedrawDiagram,
   screenMockup,
-  sources,
 }: {
-  sources?: ReadonlyMap<string, RequirementSourceRef[]>;
   /** FLF-410: nút vẽ lại ảnh gốc bằng mockup của mục; `pending` ⇒ màn đang chờ lượt vẽ nền (phủ vệt quét lên ảnh). */
   screenMockup?: { enabled: boolean; pending: boolean; onAction: (action: "redraw" | "original") => Promise<void> | void };
   onEdit?: (sectionLabel: string) => void;
@@ -718,13 +689,6 @@ function SectionView({
   // Hook gọi trước mọi `return` sớm (rules-of-hooks)
   const t = useTranslations("workspace.document");
   if (section.id.startsWith("group:")) return <GroupHeading section={section} />;
-  const sourceChip = sources
-    ? (path: string | null | undefined) => {
-        const refs = path ? sources.get(path) : undefined;
-        return refs ? <SourceChip refs={refs} /> : null;
-      }
-    : undefined;
-  const sectionChip = sourceChip?.(sectionEntityPath(section.id));
   const badge = section.status && !mode1 ? STATUS_BADGE[section.status] : null;
   // `feature:*` (§3.2…) chỉ là tiêu đề nhóm, Spine feature không có thân — nội dung nằm ở các function con (FLF-248)
   // P07 (câu 3): mục chỉ có chữ hướng dẫn của mẫu cũng là mục chưa soạn — nhãn như mục trống, hướng dẫn mờ bên dưới
@@ -760,7 +724,6 @@ function SectionView({
             {section.number ? `${section.number}. ` : ""}
             {section.heading}
           </h5>
-          {sectionChip}
           {showEmpty && <EmptySection hint={emptyHint} onSelectStep={onSelectStep} mode1={mode1} />}
           {pendingProposals.length > 0 && (
             // BF §3.2 "Hai người sửa cùng lúc": không khoá, chỉ báo ai đang có bản sửa chưa xác nhận ở mục này
@@ -861,7 +824,7 @@ function SectionView({
               {screenMockup?.pending && inScreenImages(i) ? (
                 // Màn đang chờ vẽ mockup: ảnh cũ mờ dưới vệt quét, tới lượt xong thì tài liệu tải lại thay ảnh mới
                 <div className="relative" aria-busy>
-                  <BlockView block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} onRedrawDiagram={onRedrawDiagram} sourceChip={sourceChip} />
+                  <BlockView block={block} projectId={projectId} afterHeading={followsHeading(section.blocks, i)} onRedrawDiagram={onRedrawDiagram} />
                   <Skeleton className="absolute inset-0 opacity-85 rounded-inner" />
                   <span className="absolute inset-0 flex items-center justify-center text-body font-bold text-on-surface-variant">{t("screenMockup.drawing")}</span>
                 </div>
@@ -871,7 +834,6 @@ function SectionView({
                   projectId={projectId}
                   afterHeading={followsHeading(section.blocks, i)}
                   onRedrawDiagram={onRedrawDiagram}
-                  sourceChip={sourceChip}
                 />
               )}
             </BlockSlot>
@@ -926,8 +888,6 @@ function DocumentPaneView({
   rewriteError = null,
   onSectionsLoaded,
   headerEnd,
-  versionMenu,
-  statusPill,
   footerStatus,
   onRedrawSection,
   onRedrawDiagram,
@@ -938,7 +898,6 @@ function DocumentPaneView({
   onTranslate,
   newerVersion = null,
   baselineVersions = [],
-  sources,
 }: Omit<DocumentPaneProps, "doc" | "refreshToken"> & { doc: UseDocumentResult }) {
   const t = useTranslations("workspace.document");
   const tHook = useTranslations("workspace.hookErrors");
@@ -1014,37 +973,15 @@ function DocumentPaneView({
           <h3 className="font-bold text-body text-on-surface truncate min-w-0 max-w-full" title={t("heading", { name })}>
             {t("heading", { name })}
           </h3>
-          {document &&
-            (versionMenu ? (
-              // Chip version là lối vào danh sách version của tài liệu đang đọc (cùng hình chip, thêm mũi tên)
-              <AnchoredPopover
-                label={t("versionsTitle")}
-                widthClassName="w-[420px]"
-                trigger={({ toggle, ...aria }) => (
-                  <button
-                    type="button"
-                    {...aria}
-                    onClick={toggle}
-                    title={t("versionsTitle")}
-                    className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-caption text-on-surface-variant bg-surface-container-high hover:bg-surface-container-highest px-2 py-0.5 rounded-full font-mono cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                  >
-                    {document.version}
-                    <Icon name="chevron-down" size={11} />
-                  </button>
-                )}
-              >
-                {versionMenu}
-              </AnchoredPopover>
-            ) : (
-              <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
-            ))}
+          {document && (
+            <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
+          )}
           {document?.watermark && !isSignedVersion(document.version, baselineVersions) && (
             <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{document.watermark === "DRAFT" ? t("status.draft") : document.watermark}</span>
           )}
           {document && isSignedVersion(document.version, baselineVersions) && (
             <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-success-soft text-success">{t("signedBadge")}</span>
           )}
-          {statusPill}
         </div>
         <div className="flex items-center gap-1.5 shrink-0">
           {issues && onOpenIssues && (
@@ -1184,7 +1121,6 @@ function DocumentPaneView({
               onRedraw={onRedrawSection && hasDiagrams?.(section.id) ? () => onRedrawSection(section.id) : undefined}
               onRedrawDiagram={onRedrawDiagram}
               screenMockup={screenMockupState(section.id)}
-              sources={sources}
             />
           ))}
       </div>
