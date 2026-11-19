@@ -1,23 +1,26 @@
 "use client";
 
-import { useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { workspaceStepLabel } from "./phase-labels";
-import type { Op } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
+import type { RequirementSourceRef } from "@/types/sources";
+import SourceChip from "./SourceChip";
 
 /**
  * Tab "Đã chốt" — sổ quyết định (`02-reduce-stops-plan.md` R4).
  *
  * Trong lượt test, user trả lời uptime ba lần và vẫn thấy AI gợi ý ngược lại điều mình vừa nói. Sổ này là
- * chỗ để họ **thấy** hệ thống nhớ gì, và sửa nếu nhớ sai — sửa ở đây là sửa nguồn, không phải sửa từng
- * chỗ hệ quả (việc lan toả do cờ `derived_from_changed_assumption` nhắc).
+ * chỗ để họ **thấy** hệ thống nhớ gì. Sửa nếu nhớ sai đi qua chat (business-flow nguyên tắc 6: không sửa tay trong app) —
+ * nút "Sửa qua chat" điền sẵn lệnh; AI sửa nguồn rồi lan sang các chỗ hệ quả.
  */
 
 interface DecisionsPanelProps {
   spine: Spine | null;
-  onSubmitOps: (ops: Op[]) => void | Promise<void>;
+  /** Điền sẵn lệnh sửa quyết định vào ô chat (bật Sửa tài liệu); bỏ trống (Viewer) ⇒ không có nút. */
+  onEditByChat?: (prefill: string) => void;
   busy?: boolean;
+  /** FLF-443: nguồn theo đường dẫn phần tử - quyết định chốt bằng tài liệu tham khảo không render ra tài liệu nên chip ở đây. */
+  sources?: ReadonlyMap<string, RequirementSourceRef[]>;
 }
 
 /** Chủ đề chuẩn có nhãn (`messages → workspace.decisions.topic`); chủ đề tự do hiện nguyên khoá. */
@@ -51,24 +54,15 @@ const isTopicKey = (key: string): key is DecisionTopicKey => (TOPIC_KEYS as read
 export const topicLabel = (topicKey: string, t: (key: `topic.${DecisionTopicKey}`) => string): string =>
   isTopicKey(topicKey) ? t(`topic.${topicKey}`) : topicKey.replace(/_/g, " ");
 
-export default function DecisionsPanel({ spine, onSubmitOps, busy = false }: DecisionsPanelProps) {
+export default function DecisionsPanel({ spine, onEditByChat, busy = false, sources }: DecisionsPanelProps) {
   const t = useTranslations("workspace.decisions");
   const locale = useLocale();
   const stepLabel = (stepId: string) => workspaceStepLabel(stepId, locale);
-  const [editing, setEditing] = useState<{ id: string; answer: string } | null>(null);
   const decisions = (spine?.decisions ?? []).filter((d) => d.superseded_by === null);
 
   if (decisions.length === 0) {
     return <p className="text-body text-on-surface-muted italic">{t("none")}</p>;
   }
-
-  const save = () => {
-    if (!editing || editing.answer.trim() === "") return;
-    void onSubmitOps([
-      { op: "set", path: `decisions[id=${editing.id}].answer`, value: editing.answer.trim(), reason: "Sửa quyết định đã chốt" },
-    ]);
-    setEditing(null);
-  };
 
   return (
     <ul className="flex flex-col gap-2" aria-label={t("listAria")}>
@@ -80,36 +74,22 @@ export default function DecisionsPanel({ spine, onSubmitOps, busy = false }: Dec
               {stepLabel(decision.step_id)}
             </span>
           </div>
-          {editing?.id === decision.id ? (
-            <div className="flex gap-1.5">
-              <input
-                aria-label={t("editAria", { topic: topicLabel(decision.topic_key, t) })}
-                value={editing.answer}
-                onChange={(e) => setEditing({ id: decision.id, answer: e.target.value })}
-                className="flex-1 px-2 py-1 border border-[#E5E3DF] rounded-[8px] text-body outline-none"
-              />
-              <button
-                type="button"
-                disabled={busy || editing.answer.trim() === ""}
-                onClick={save}
-                className="px-2.5 py-1 rounded-full text-body font-bold bg-[#191817] text-white disabled:opacity-50 cursor-pointer"
-              >
-                {t("save")}
-              </button>
-            </div>
-          ) : (
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-body text-[#4B4842] min-w-0 break-words">{decision.answer}</span>
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-body text-[#4B4842] min-w-0 break-words">
+              {decision.answer}
+              {sources?.get(`decisions[id=${decision.id}]`) && <SourceChip refs={sources.get(`decisions[id=${decision.id}]`) ?? []} />}
+            </span>
+            {onEditByChat && (
               <button
                 type="button"
                 disabled={busy}
-                onClick={() => setEditing({ id: decision.id, answer: decision.answer })}
-                className="text-caption font-bold text-[#6A62C4] hover:underline cursor-pointer shrink-0"
+                onClick={() => onEditByChat(t("editByChatPrefill", { topic: topicLabel(decision.topic_key, t), answer: decision.answer }))}
+                className="text-caption font-bold text-[#6A62C4] hover:underline cursor-pointer shrink-0 disabled:opacity-50"
               >
-                {t("edit")}
+                {t("editByChat")}
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </li>
       ))}
     </ul>

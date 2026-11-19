@@ -1,8 +1,7 @@
 /**
- * Cột công cụ mode 1 — chủ yếu là chỗ nối: ba link điều hướng, cờ + lối tạo CR, bảng version. Mode 1 v3 (bám BPMN):
- * không còn kế hoạch step / ký baseline v1.
+ * Panel "Kiểm & chốt" mode 1: cờ + gói thay đổi. Gap report / Change request ở header, version ở chip version của tài liệu.
  */
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { http, HttpResponse } from "msw";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -54,134 +53,39 @@ const servePackage = () =>
     )
   );
 
-const VERSION_00 = {
-  version: "0.1",
-  kind: "import",
-  based_on: null,
-  cr_ids: [],
-  baseline_id: "B01",
-  has_clean_file: false,
-  has_tracked_file: false,
-  has_original_file: true,
-  other_language_available: false,
-  created_by: "u1",
-  created_at: "2026-09-20T03:00:00.000Z",
-};
-
 const renderTools = (over: Partial<Parameters<typeof Mode1WorkspaceTools>[0]> = {}) =>
-  renderWithIntl(
-    <Mode1WorkspaceTools
-      projectId={P}
-      projectName="Lumen LMS"
-      flags={[]}
-      onSpineChanged={vi.fn()}
-      canRelease
-      {...over}
-    />
-  );
+  renderWithIntl(<Mode1WorkspaceTools projectId={P} flags={[]} onSpineChanged={vi.fn()} {...over} />);
 
 describe("Mode1WorkspaceTools", () => {
-  it("ba lối đi của mode 1 đều có link đúng địa chỉ", async () => {
-    serveVersions([VERSION_00]);
-    renderTools();
-    const nav = screen.getByRole("navigation", { name: "Import & change request" });
-    expect(within(nav).getByRole("link", { name: "Gap report" })).toHaveAttribute("href", `/projects/${P}?panel=gap`);
-    expect(within(nav).getByRole("link", { name: "Change request" })).toHaveAttribute("href", `/projects/${P}?panel=cr`);
-    // Lối tải phiên bản mới chỉ còn nút re-upload ở thanh trên — không còn link "Nhập SRS"
-    expect(within(nav).queryByRole("link", { name: "Nhập SRS" })).not.toBeInTheDocument();
-  });
-
-  it("hiện cờ + gói thay đổi (FLF-330) + bảng version; không còn kế hoạch step, ký baseline v1, Release riêng của bảng version", async () => {
-    serveVersions([VERSION_00]);
+  it("hiện cờ + gói thay đổi; không còn link Gap report / Change request trùng header, không còn bảng version", async () => {
     servePackage();
     renderTools();
     expect(screen.getByText("Cờ & change request")).toBeInTheDocument();
     expect(await screen.findByText("Gói thay đổi")).toBeInTheDocument();
-    expect(screen.queryByText("Kế hoạch step theo template")).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: "Ký baseline v1" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Gap report" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Các version" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Release" })).not.toBeInTheDocument();
   });
 
-  it("Lead phát hành từ gói thay đổi ⇒ tải lại CẢ Spine lẫn danh sách version", async () => {
-    const versionCalls = serveVersions([VERSION_00]);
+  it("Lead phát hành từ gói thay đổi ⇒ báo Spine đổi (page tải lại tài liệu, version, pill)", async () => {
     servePackage();
+    serveVersions([]);
     mockServer.use(
       http.get(`${API_BASE_URL}/projects/:projectId/spine`, () => HttpResponse.json({ data: { spine_version: 7 }, error: null })),
       http.post(`${API_BASE_URL}/projects/:projectId/release`, () => HttpResponse.json({ data: { version: { version: "1.0" }, cr_ids: ["CR-001"], spine_version: 8 }, error: null }, { status: 201 }))
     );
     const onSpineChanged = vi.fn();
     renderTools({ onSpineChanged, orgRole: "lead" });
-    await waitFor(() => expect(versionCalls.n).toBe(1));
     fireEvent.click(await screen.findByRole("button", { name: "Phát hành thẳng (Lead)" }));
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận phát hành" }));
     await waitFor(() => expect(onSpineChanged).toHaveBeenCalled());
-    await waitFor(() => expect(versionCalls.n, "bảng version phải tải lại").toBeGreaterThan(1));
   });
 
-  it("FLF-318: refreshToken đổi (CR vừa ghi bản nháp ở khung chat) ⇒ tải lại danh sách version", async () => {
-    const versionCalls = serveVersions([VERSION_00]);
+  it("không truyền trạng thái đổi mẫu ⇒ không có thẻ đổi mẫu", async () => {
     servePackage();
-    const { rerender } = renderTools({ refreshToken: 0 });
-    await waitFor(() => expect(versionCalls.n).toBe(1));
-    rerender(<Mode1WorkspaceTools projectId={P} projectName="Lumen LMS" flags={[]} onSpineChanged={vi.fn()} canRelease refreshToken={1} />);
-    await waitFor(() => expect(versionCalls.n).toBe(2));
-  });
-
-  it("lỗi tải version ⇒ báo ra, không nuốt", async () => {
-    servePackage();
-    mockServer.use(
-      http.get(`${API_BASE_URL}/projects/:projectId/versions`, () =>
-        HttpResponse.json({ data: null, error: { code: "INTERNAL", message: "Không tải được version" } }, { status: 500 })
-      ),
-      http.get(`${API_BASE_URL}/projects/:projectId/flags`, () => HttpResponse.json({ data: [], error: null }))
-    );
-    renderTools();
-    expect(await screen.findByText("Không tải được version")).toHaveAttribute("role", "alert");
-  });
-});
-
-describe("Mode1WorkspaceTools - Viewer (readOnly)", () => {
-  it("không có Nhập SRS và Release; vẫn có Gap report, Change request và bảng version", async () => {
-    serveVersions([VERSION_00]);
-    renderTools({ readOnly: true });
-    const nav = screen.getByRole("navigation", { name: "Import & change request" });
-    expect(within(nav).getByRole("link", { name: "Gap report" })).toBeInTheDocument();
-    expect(within(nav).getByRole("link", { name: "Change request" })).toBeInTheDocument();
-    expect(within(nav).queryByRole("link", { name: "Nhập SRS" })).not.toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
-  });
-});
-
-describe("Mode1WorkspaceTools - Analyst (không phải Lead)", () => {
-  it("không có Release (chỉ Lead release)", async () => {
-    serveVersions([VERSION_00]);
-    renderTools({ canRelease: false });
-    const nav = screen.getByRole("navigation", { name: "Import & change request" });
-    expect(within(nav).getByRole("link", { name: "Gap report" })).toBeInTheDocument();
-    expect(await screen.findByRole("heading", { name: "Các version" })).toBeInTheDocument();
-    expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
-  });
-
-  it("Lead thấy lối Đổi mẫu (đọc baseline, gói duyệt, lần đổi mẫu); Viewer thì không gọi API đổi mẫu", async () => {
-    serveVersions([VERSION_00]);
-    servePackage();
-    const migrationCalls = { n: 0 };
-    mockServer.use(
-      http.get(`${API_BASE_URL}/projects/:projectId/baselines`, () => HttpResponse.json({ data: [{ id: "B01" }], error: null })),
-      http.get(`${API_BASE_URL}/projects/:projectId/template-migrations`, () => {
-        migrationCalls.n += 1;
-        return HttpResponse.json({ data: [], error: null });
-      })
-    );
-    const { unmount } = renderTools({ orgRole: "lead" });
-    expect(await screen.findByRole("link", { name: "Đổi mẫu" })).toHaveAttribute("href", `/projects/${P}?panel=template`);
-    expect(migrationCalls.n).toBe(1);
-    unmount();
-
-    migrationCalls.n = 0;
-    renderTools({ orgRole: "viewer", readOnly: true });
-    await screen.findByText("Cờ & change request");
-    expect(migrationCalls.n).toBe(0);
+    renderTools({ orgRole: "lead" });
+    await screen.findByText("Gói thay đổi");
+    expect(screen.queryByRole("region", { name: "Đổi mẫu tài liệu" })).not.toBeInTheDocument();
   });
 });

@@ -23,12 +23,17 @@ export interface InlineRun {
 /** Một ô bảng = một dãy run (giữ được bold/italic trong ô). */
 export type TableCell = InlineRun[];
 
+/**
+ * `entity_path` / `row_entity_paths` / `item_entity_paths` (FLF-443): phần tử Spine mà đoạn / dòng / mục này thể hiện, dạng
+ * `<collection>[id=X]` như `GET /sources`; `null` = không gắn phần tử. Song song với `rows` / `items`. Bản Viewer (`/view`)
+ * không có các field này.
+ */
 export type Block =
-  | { type: "paragraph"; runs: InlineRun[] }
+  | { type: "paragraph"; runs: InlineRun[]; entity_path?: string | null }
   | { type: "heading"; level: number; text: string }
-  | { type: "bullet_list"; items: InlineRun[][] }
-  | { type: "numbered_list"; items: InlineRun[][] }
-  | { type: "table"; header: TableCell[]; rows: TableCell[][] }
+  | { type: "bullet_list"; items: InlineRun[][]; item_entity_paths?: (string | null)[] }
+  | { type: "numbered_list"; items: InlineRun[][]; item_entity_paths?: (string | null)[] }
+  | { type: "table"; header: TableCell[]; rows: TableCell[][]; row_entity_paths?: (string | null)[] }
   | { type: "image"; png: string; caption?: string }
   | { type: "page_break" };
 
@@ -124,7 +129,6 @@ export interface TranslationRunResult {
   credits_used: number;
 }
 
-/** Tài liệu đính kèm của project (`/projects/:id/documents`). */
 /**
  * Business-flow §3.6: file .docx có trông như SRS không (Code nhận diện như preflight, không gọi AI) — FE gợi ý chuyển ô /
  * cập nhật phiên bản mới, không chặn. `heading_overlap` (0–1) chỉ có khi dự án đã có SRS.
@@ -141,15 +145,14 @@ export interface DocxPrecheck {
   heading_overlap?: number;
 }
 
+/** Tài liệu đính kèm của project (`/projects/:id/documents`). Không có `url` / `fileName`: file tải qua `downloadReferenceDocument`. */
 export interface ProjectDocument {
   _id: string;
   projectId: string;
   uploadedBy: string;
-  fileName: string;
   originalName: string;
   mimeType: string;
   size: number;
-  url: string;
   extension?: string | null;
   parseStatus: "pending" | "success" | "failed";
   parseError?: string | null;
@@ -185,3 +188,15 @@ export interface DocumentVersionCandidate extends DocumentRef {
 
 /** FLF-398: lựa chọn gửi kèm lần tải lại sau `POSSIBLE_NEW_VERSION`. */
 export type DocumentUploadChoice = { replaceDocumentId: string } | { keepBoth: true };
+
+/** `GET /projects/:id/documents/:docId/text` (contract #52): chữ đã trích, chia đoạn theo mã `D<n>-P<mm>` của `GET /sources`. */
+export interface ReferenceDocumentParagraph {
+  para_id: string;
+  text: string;
+}
+
+export interface ReferenceDocumentText {
+  id: string;
+  name: string;
+  paragraphs: ReferenceDocumentParagraph[];
+}

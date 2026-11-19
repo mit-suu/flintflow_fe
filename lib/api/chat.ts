@@ -1,4 +1,5 @@
 import type { ActionCostEstimate, ChatActionType, ChatSession } from "@/types/chat";
+import type { CrCostActionType } from "@/types/change-request";
 import { apiCall } from "./client";
 
 export const listChatSessions = (projectId: string) =>
@@ -14,7 +15,7 @@ export const deleteChatSession = (projectId: string, chatId: string) =>
   apiCall<{ message: string }>(`/projects/${projectId}/chats/${chatId}`, { method: "DELETE" });
 
 /** Giá credit của một lần gọi AI theo ActionType (BE đọc bảng giá đang active). */
-export const estimateActionCost = (actionType: ChatActionType) =>
+export const estimateActionCost = (actionType: ChatActionType | CrCostActionType) =>
   apiCall<ActionCostEstimate>("/ai-actions/estimate-cost", {
     method: "POST",
     body: JSON.stringify({ actionType }),

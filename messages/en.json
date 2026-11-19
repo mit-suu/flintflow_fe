@@ -1568,10 +1568,10 @@
       "viewHint": "View the read-only document and comment",
       "view": "View & comment",
       "tools": "Tools",
-      "toolsPending": "{label} - {count, plural, one {# item awaiting your decision} other {# items awaiting your decision}}",
-      "enterFocus": "Expand page (hide top bar)",
       "account": "Account",
-      "credits": "credits"
+      "credits": "credits",
+      "more": "More actions",
+      "secondaryActions": "Other project actions"
     },
     "phaseHeader": {
       "done": "Complete",
@@ -1930,16 +1930,17 @@
         "useOriginal": "Use original picture",
         "useOriginalFailed": "Could not switch back to the original picture",
         "drawing": "Drawing mockup…"
-      }
+      },
+      "versionsTitle": "Document versions",
+      "compareVersions": "Compare versions",
+      "versionsLoading": "Loading versions…"
     },
     "verification": {
       "closeHint": "Close the review panel",
       "loadingFlags": "Loading flags…",
       "title": "Document check",
       "close": "Close document check",
-      "loadingIssues": "Loading issues…",
-      "hideTrace": "Hide traceability map",
-      "showTrace": "Show traceability map"
+      "loadingIssues": "Loading issues…"
     },
     "flags": {
       "waiveTitle": "Waive flag {rule}",
@@ -2165,7 +2166,7 @@
       "translateAskEditor": "Ask a Lead or Analyst on this project to translate the rest, then download again.",
       "googleDocs": {
         "officialNote": "The Word file is the official copy. Google Docs is for viewing and collaborating; formatting may differ slightly.",
-        "lastExport": "Exported {time}: {title}",
+        "lastExport": "Exported {time}",
         "open": "Open",
         "modeLabel": "Export mode",
         "modeUpdate": "Update this file",
@@ -2194,7 +2195,7 @@
         "ownerMe": "Yours",
         "ownerOther": "{name}'s"
       },
-      "languageUnavailable":"This version can't be downloaded in another language yet - download it in the document language.",
+      "languageUnavailable": "This version can't be downloaded in another language yet - download it in the document language.",
       "close": "Close",
       "mockupPending": "{count} screens are still being drawn. Exporting now uses their original pictures.",
       "mockupWaiting": "Waiting for {count} screens to finish drawing; the draft downloads automatically when done.",
@@ -2349,6 +2350,190 @@
       "intro": "{count, plural, one {# assumption} other {# assumptions}} awaiting confirmation. Confirming keeps the content as is; marking wrong means the parts based on it need fixing.",
       "confirmRest": "Confirm the remaining {count, plural, one {# assumption} other {# assumptions}}"
     },
+    "resolveQueue": {
+      "dock": {
+        "pending": "{count, plural, one {# item waiting for your decision} other {# items waiting for your decision}}",
+        "deferred": "{count, plural, one {# item set aside for later} other {# items set aside for later}}",
+        "start": "Resolve one by one",
+        "review": "Review",
+        "locked": "AI is working, this reopens when it finishes"
+      },
+      "afterSingle": {
+        "text": "{count, plural, one {# item still waiting for your decision} other {# items still waiting for your decision}}",
+        "continue": "Continue one by one",
+        "later": "Later"
+      },
+      "kind": {
+        "assumption": "Assumption",
+        "brief_note": "Note",
+        "screen": "Screen",
+        "flag_red": "Issue to resolve",
+        "flag_yellow_group": "Heads-up"
+      },
+      "question": {
+        "assumption": "Is this assumption correct?",
+        "brief_note": "What should we do with this note?",
+        "screen": "Detail the \"{name}\" screen in this round?",
+        "group": "{count, plural, one {# related heads-up to review} other {# related heads-ups to review}}",
+        "groupLeft": "{count, plural, one {# heads-up still unresolved} other {# heads-ups still unresolved}}"
+      },
+      "moreLines": "and {count} more",
+      "prefill": {
+        "flag": "In {label}: fix the issue \"{issue}\" ",
+        "group": "Fix these related issues: {issues} "
+      },
+      "card": {
+        "aria": "Pending decision: {kind}",
+        "left": "· {count, plural, one {# item left} other {# items left}}",
+        "collapse": "Collapse",
+        "later": "Later",
+        "progress": "Decided {done} of {total}",
+        "why": "Why: {text}",
+        "section": "Section {name} ↗",
+        "dependents": "Decide this first because {count, plural, one {# later item depends} other {# later items depend}} on it.",
+        "alsoDone": "This answer also settled {count, plural, one {# other item} other {# other items}}.",
+        "alsoDoneShow": "Show",
+        "alsoDoneHide": "Hide",
+        "credit": "about {count, plural, one {# credit} other {# credits}}",
+        "apply": "Apply",
+        "back": "Back",
+        "confirmDrop": "Remove this note from the project record? It cannot be undone here.",
+        "confirmDropYes": "Remove note",
+        "reasonPlaceholder": "Reason (at least {min} characters)",
+        "reasonCount": "{count}/{min} characters",
+        "textPlaceholder": {
+          "assumption": "What is correct, in your view?",
+          "brief_note": "New text for the note"
+        },
+        "leftAfterChat": "AI already tried the whole group but some heads-ups remain. Keep fixing in chat or set the whole group aside."
+      },
+      "choice": {
+        "assumption": {
+          "right": "Correct",
+          "wrong": "Not correct",
+          "other": "Something else"
+        },
+        "brief_note": {
+          "keep": "Keep",
+          "drop": "Remove",
+          "other": "Something else"
+        },
+        "screen": {
+          "detail": "Detail it this round",
+          "later": "Leave it for now"
+        },
+        "flag_red": {
+          "chat": "Fix in chat",
+          "keep": "Keep as is, with a reason"
+        },
+        "flag_yellow_group": {
+          "chat": "Fix the group in chat",
+          "waive": "Set the group aside, with a reason"
+        }
+      },
+      "choiceHint": {
+        "assumption": {
+          "right": "Keep what is built on this assumption",
+          "wrong": "What is built on it will need rework",
+          "other": "Type what is right, AI updates and confirms it"
+        },
+        "brief_note": {
+          "keep": "The note stays in the section it is filed under",
+          "drop": "Only when the content is wrong",
+          "other": "Rewrite the note, no credits used"
+        },
+        "screen": {
+          "detail": "Ask for the full detail of this screen in the detail round",
+          "later": "Keep this screen at outline level, do it later"
+        },
+        "flag_red": {
+          "chat": "Prefill the chat box so AI can fix it",
+          "keep": "Still counts as unresolved, but your reason is recorded"
+        },
+        "flag_yellow_group": {
+          "chat": "Prefill the chat box so AI can fix the group",
+          "waive": "Set each heads-up in the group aside and record why"
+        }
+      },
+      "result": {
+        "assumption": {
+          "right": "confirmed correct",
+          "wrong": "marked not correct",
+          "other": "changed as you said"
+        },
+        "brief_note": {
+          "keep": "kept",
+          "drop": "removed",
+          "other": "text updated"
+        },
+        "screen": {
+          "detail": "detail this round",
+          "later": "left for now"
+        },
+        "flag_red": {
+          "keep": "kept as is"
+        },
+        "flag_yellow_group": {
+          "waive": "set the whole group aside ({done}/{total})"
+        }
+      },
+      "chatLine": "✓ {kind} \"{text}\" → {choice}",
+      "partialLine": "{done}/{total} heads-ups set aside",
+      "errors": {
+        "write": "Could not save, please try again.",
+        "reasonShort": "The reason needs at least {min} characters.",
+        "chatBlocked": "Fixing in chat is not available right now.",
+        "partial": "Only {done}/{total} heads-ups were set aside. {message}",
+        "pausedByAi": "The AI just started working. The rest can wait until it finishes."
+      },
+      "mode1": {
+        "dock": {
+          "pending": "{count} flags to review"
+        },
+        "kind": {
+          "flag_red": "Red flag",
+          "flag_yellow_group": "Flag group"
+        },
+        "left": "· {count} groups left",
+        "question": "{count, plural, =1 {How should this flag be fixed?} other {How should this group of # flags be fixed?}}",
+        "groupTitle": "{rule} · {section}",
+        "listAria": "Flags in this group",
+        "choice": {
+          "cr": "Let AI propose a fix for the whole group",
+          "keep": "Keep as is, with a reason",
+          "other": "Something else"
+        },
+        "choiceHint": {
+          "cr": "AI drafts one change request for the selected flags; you review and confirm each change",
+          "keep": "Record why each selected flag stays as is, no change request",
+          "other": "Type how you want it fixed; AI drafts the change request from it"
+        },
+        "textPlaceholder": "How do you want these flags fixed?",
+        "footer": "{count, plural, =0 {No flag selected} other {Becomes 1 change request · Source: Gap report}}",
+        "requester": "Requester: {name}",
+        "requesterLabel": "Requester:",
+        "requesterEdit": "Edit",
+        "requesterEmpty": "not set",
+        "requesterMissing": "Enter a requester before creating the change request.",
+        "split": "Split {count} unselected flags into their own group",
+        "splitHint": "Unselect flags to split the group",
+        "tooMany": "A change request takes at most {max} flags. Unselect some and split them into their own group.",
+        "lock": {
+          "package": "The package is waiting for Lead approval, so no new change request can be created. Keep as is still works.",
+          "running": "You still have {crId} in progress. Confirm or cancel it in the chat before creating a new change request. Keep as is still works.",
+          "busy": "A change request in the chat is not finished yet. Finish it before creating a new one. Keep as is still works."
+        },
+        "chatLine": "✓ Group \"{text}\" ({count} flags) → {result}",
+        "result": {
+          "keep": "Kept as is"
+        },
+        "writtenLine": "{crId} is written to the draft{count, plural, =0 {, the group's flags are done} other {, # flags still open}}",
+        "partialLine": "{done}/{total} flags kept as is",
+        "errors": {
+          "partial": "Only {done}/{total} flags kept as is. {message}"
+        }
+      }
+    },
     "names": {
       "aria": "Proper names and glossary",
       "tab": {
@@ -2358,18 +2543,14 @@
         "glossary": "Glossary"
       },
       "empty": "No entries yet.",
-      "newTerm": "New term",
-      "definition": "Definition (in English)",
-      "save": "Save canonical names",
       "tabsLabel": "Name type",
-      "newNameAria": "New name for {name}",
-      "editTitle": "Click to rename",
-      "edit": "Edit",
       "collapse": "Collapse",
       "showMore": "Show {count} more",
-      "cancel": "Cancel",
-      "add": "Add",
-      "addTerm": "+ Add term"
+      "editByChat": "Edit via chat",
+      "editByChatAria": "Edit the name {name} via chat",
+      "renameByChatPrefill": "Rename \"{name}\" to ",
+      "addTermByChat": "+ Add a term via chat",
+      "addTermByChatPrefill": "Add a new term to the glossary: "
     },
     "chatEdit": {
       "aria": "Edit document",
@@ -2724,9 +2905,8 @@
       "resizePanel": "Resize the right panel",
       "gapReport": "Gap report",
       "changeRequest": "Change request",
-      "compareVersions": "Compare versions",
       "reupload": "Re-upload edited file",
-      "toolsMode1": "Flags, change requests & versions",
+      "toolsMode1": "Check & sign-off",
       "toolsRecord": "Project record",
       "toolsRecordShort": "Record",
       "closeRecord": "Close project record",
@@ -2752,7 +2932,8 @@
       "close": "Close",
       "interrupted": "The run was interrupted. Content written before is kept.",
       "rerun": "Rerun",
-      "exitFocus": "Exit expanded view (Esc)",
+      "enterFocus": "Expand document",
+      "exitFocus": "Exit expanded document (Esc)",
       "confirmUpdate": "Update",
       "confirmApply": "Apply"
     },
@@ -2921,9 +3102,8 @@
       },
       "none": "No decisions confirmed yet.",
       "listAria": "Confirmed decisions",
-      "editAria": "Edit decision {topic}",
-      "save": "Save",
-      "edit": "Edit"
+      "editByChat": "Edit via chat",
+      "editByChatPrefill": "Change the decision \"{topic}\" (currently \"{answer}\") to "
     },
     "baseline": {
       "title": "Lock baseline",
@@ -2965,8 +3145,8 @@
       "tab": {
         "agreed": "Agreed",
         "pending": "Awaiting you",
-        "sources": "Sources",
-        "history": "History"
+        "history": "History",
+        "trace": "Trace"
       },
       "viewerNote": "You are viewing as a Viewer - you can read the record but cannot confirm or edit.",
       "briefTitle": "Brief summary",
@@ -2980,46 +3160,28 @@
       "assumptionsHint": "What AI assumed where you were not explicit. Confirm whether it is right.",
       "notesTitle": "Notes",
       "notesHint": "Keep, defer to the appendix, or drop each note.",
-      "risksTitle": "Risks & open questions ({count})",
-      "risksHint": "Still unsettled - answer in chat when AI asks.",
       "screensTitle": "Screens to specify",
       "screensHint": "The order in which AI specifies screens in detail. Leave out screens not needed this round.",
       "nothingPending": "Nothing is waiting for your decision right now.",
       "historyTitle": "Edit history",
-      "historyHint": "The 20 most recent changes, newest first."
+      "historyHint": "The 20 most recent changes, newest first.",
+      "answerInChat": "Answer in chat",
+      "answerInChatPrefill": "Answer to the question \"{question}\": ",
+      "openQuestionsTitle": "Open questions ({count})",
+      "openQuestionsHint": "Noted by the AI while reading your documents; answer so it can update the content.",
+      "queueTitle": "Waiting for your decision ({count})",
+      "queueHint": "Decide each item in the chat, in order. This list is view only.",
+      "decideInChat": "Decide in chat",
+      "queueFallback": "Could not load the list of pending decisions. You can still decide right here.",
+      "traceHint": "Pick an item to see what it links to in the document."
     },
     "sources": {
-      "loading": "Loading document sources…",
-      "count": "{count, plural, one {# item} other {# items}} sourced from documents",
-      "assumptions": "{count, plural, one {# thing} other {# things}} AI is assuming on its own - confirm in the “Awaiting you” tab",
-      "empty": "No items have been written from documents yet. Attach meeting minutes, emails or transcripts in the chat panel, and AI will read them and record the source passage for each requirement.",
       "deletedDocument": "Deleted document",
-      "groupHeading": "{label} ({count})",
       "paragraph": "paragraph {n}",
-      "kind": {
-        "use_cases": "Use case",
-        "functions": "Function",
-        "nfrs": "Non-functional requirement",
-        "business_rules": "Business rule",
-        "actors": "Actor",
-        "roles": "Role",
-        "features": "Feature",
-        "screens": "Screen",
-        "entities": "Data entity",
-        "common_requirements": "Common requirement",
-        "messages": "Message",
-        "other_requirements": "Other requirement",
-        "glossary": "Glossary",
-        "addendum": "Brief note",
-        "project": "Project information"
-      },
-      "field": {
-        "vision": "Vision",
-        "goals": "Goals",
-        "release_scope": "Version 1.0 scope",
-        "system_name": "System name",
-        "name": "Project name"
-      }
+      "chip": "Source · {count}",
+      "chipAria": "Source documents for this item ({count} paragraphs)",
+      "popoverLabel": "Source documents",
+      "openDocument": "Open document"
     },
     "editHistory": {
       "loading": "Loading…",
@@ -3316,6 +3478,32 @@
       "chipNothing": "Already mockups",
       "chipDone": "{count, plural, one {# screen} other {# screens}} drawn",
       "allFailed": "{count, plural, one {# screen} other {# screens}} could not be drawn"
+    },
+    "projectDocuments": {
+      "button": "Documents",
+      "hint": "Documents uploaded to this project",
+      "title": "Project documents",
+      "srsFile": "SRS file",
+      "srsOriginal": "Imported original file (version {version})",
+      "references": "Reference documents ({count})",
+      "loading": "Loading documents…",
+      "loadFailed": "Couldn't load the document list",
+      "empty": "No reference documents yet. Attach meeting notes, emails or notes for the AI to read.",
+      "add": "Add document",
+      "adding": "Uploading…",
+      "addFailed": "Couldn't upload the document",
+      "busy": "Files attached in the chat are still uploading. Add again once they finish.",
+      "buttonAria": "Documents ({count})"
+    },
+    "referenceViewer": {
+      "loading": "Loading document…",
+      "loadFailed": "Could not open this document.",
+      "empty": "No text could be read from this document.",
+      "paragraphMissing": "This paragraph is no longer in the current version.",
+      "paragraph": "Paragraph {n}",
+      "download": "Download",
+      "downloading": "Downloading…",
+      "downloadFailed": "Could not download the file. Try again later."
     }
   },
   "errors": {
@@ -3517,7 +3705,9 @@
     "SKELETON_CONFLICT": "Someone else just reviewed the skeleton template. Reload to see it.",
     "SKELETON_NOT_FOUND": "The project has no auto-saved skeleton template.",
     "SKELETON_SUGGEST_FAILED": "Could not suggest generic names. Try again later.",
-    "IMPORT_FILE_REJECTED": "This file could not be read."
+    "IMPORT_FILE_REJECTED": "This file could not be read.",
+    "FLAG_NOT_OPEN": "A flag in this group was just handled. Reload the list and try again.",
+    "CR_TOO_MANY_LOCATIONS": "This flag group touches too many places for one change request. Split it into smaller groups."
   },
   "maintenance": {
     "metaTitle": "Under maintenance · FlintFlow",
@@ -4868,10 +5058,7 @@
       "templateTitle": "Change document template"
     },
     "workspaceTools": {
-      "flagsTitle": "Flags & change requests",
-      "navAria": "Import & change requests",
-      "gapReport": "Gap report",
-      "changeRequest": "Change requests"
+      "flagsTitle": "Flags & change requests"
     },
     "reviewPackage": {
       "aria": "Change package awaiting review",
@@ -4904,7 +5091,8 @@
       "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable - if something is wrong, release a new version.",
       "releasing": "Releasing…",
       "confirmRelease": "Confirm release",
-      "blockedMigrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. Write them (through a change request) before submitting or releasing."
+      "blockedMigrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. Write them (through a change request) before submitting or releasing.",
+      "unsentPill": "{count, plural, one {# CR not sent to Lead} other {# CRs not sent to Lead}}"
     },
     "paused": {
       "title": "{what} is paused - {reason, select, credits {out of credit} interrupted {it was interrupted} other {AI failed after 2 retries}}",
@@ -5042,10 +5230,6 @@
     },
     "referenceDocs": {
       "aria": "Reference documents",
-      "title": "Reference documents",
-      "intro": "Minutes, emails and notes attached in chat. Extract requirements to have the AI list each requirement with its source paragraph, then approve them as change requests.",
-      "loading": "Loading reference documents…",
-      "loadFailed": "Could not load reference documents",
       "unreadable": "no readable text",
       "status": {
         "extracted": "{count, plural, =1 {1 requirement to review} other {# requirements to review}}",
@@ -5063,7 +5247,8 @@
       "confirm": "The AI reads the whole document once for ~{credits} credits. Run?",
       "confirmUnknown": "The AI reads the whole document once and spends credits. Run?",
       "cancel": "Cancel",
-      "run": "Run"
+      "run": "Run",
+      "view": "View"
     },
     "extraction": {
       "aria": "Requirements extracted from {name}",
@@ -5122,12 +5307,6 @@
       "entry": {
         "aria": "Change document template",
         "title": "Document template",
-        "help": "Move the content to another template: a newer version, an older version or an uploaded file. Matching sections are copied as they are; you decide on missing and extra ones.",
-        "currentOrg": "Current template: {name} · version {version}",
-        "currentSkeleton": "Current template (auto-saved skeleton): {name} · version {version}",
-        "currentProject": "Current template: file uploaded for this project · version {version}",
-        "currentOwnFile": "Uses the project's own template file (no organization template yet).",
-        "openHelp": "A template change is still in progress.",
         "change": "Change template",
         "resume": "Continue template change",
         "noBaseline": "No baseline yet. The template can only be changed once the document has a baseline.",

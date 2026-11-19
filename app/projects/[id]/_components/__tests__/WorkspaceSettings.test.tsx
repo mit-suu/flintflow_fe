@@ -51,35 +51,28 @@ describe("NamesGlossaryPanel", () => {
     glossary: [{ id: "G01", term: "COD", definition: "Cash on delivery" }],
   } as unknown as Pick<Spine, "actors" | "entities" | "screens" | "glossary">;
 
-  it("danh sách chỉ đọc, không lộ mã; bấm tên để sửa tại chỗ, Enter lưu đúng một op", async () => {
-    const onSubmitOps = vi.fn();
-    render(<NamesGlossaryPanel spine={spine} onSubmitOps={onSubmitOps} />);
+  it("danh sách chỉ đọc, không lộ mã; Sửa qua chat điền sẵn lệnh đổi tên, không có ô sửa", () => {
+    const onEditByChat = vi.fn();
+    render(<NamesGlossaryPanel spine={spine} onEditByChat={onEditByChat} />);
 
     expect(screen.queryByRole("textbox")).toBeNull();
     expect(screen.queryByText("A01")).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: /Dispatcher/ }));
-    const input = screen.getByRole("textbox", { name: "Tên mới cho Dispatcher" });
-    fireEvent.change(input, { target: { value: " Điều phối viên " } });
-    fireEvent.keyDown(input, { key: "Enter" });
-
-    expect(onSubmitOps).toHaveBeenCalledWith([{ op: "set", path: "actors[id=A02].name", value: "Điều phối viên", reason: "Panel Tên riêng" }]);
+    fireEvent.click(screen.getByRole("button", { name: "Sửa tên Dispatcher qua chat" }));
+    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(onEditByChat).toHaveBeenCalledWith('Đổi tên "Dispatcher" thành ');
   });
 
-  it("Esc huỷ, không gửi gì; tab Thuật ngữ có định nghĩa và thêm thuật ngữ mới", () => {
-    const onSubmitOps = vi.fn();
-    render(<NamesGlossaryPanel spine={spine} onSubmitOps={onSubmitOps} />);
-
-    fireEvent.click(screen.getByRole("button", { name: /Founder/ }));
-    fireEvent.keyDown(screen.getByRole("textbox"), { key: "Escape" });
-    expect(onSubmitOps).not.toHaveBeenCalled();
+  it("tab Thuật ngữ có định nghĩa; thêm thuật ngữ cũng qua chat; Viewer không có nút", () => {
+    const onEditByChat = vi.fn();
+    const { unmount } = render(<NamesGlossaryPanel spine={spine} onEditByChat={onEditByChat} />);
 
     fireEvent.click(screen.getByRole("tab", { name: /Thuật ngữ/ }));
     expect(screen.getByText("Cash on delivery")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "+ Thêm thuật ngữ" }));
-    fireEvent.change(screen.getByPlaceholderText("Thuật ngữ mới"), { target: { value: "SLA" } });
-    fireEvent.click(screen.getByRole("button", { name: "Thêm" }));
-    expect(onSubmitOps).toHaveBeenCalledWith([
-      { op: "add", path: "glossary[]", value: { id: "G02", term: "SLA", definition: "" }, reason: "Panel Tên riêng" },
-    ]);
+    fireEvent.click(screen.getByRole("button", { name: "+ Thêm thuật ngữ qua chat" }));
+    expect(onEditByChat).toHaveBeenCalledWith("Thêm thuật ngữ mới vào bảng thuật ngữ: ");
+    unmount();
+
+    render(<NamesGlossaryPanel spine={spine} />);
+    expect(screen.queryByRole("button", { name: /qua chat/ })).toBeNull();
   });
 });

@@ -87,14 +87,17 @@ describe("GoogleDocsExportSection", () => {
     renderSection();
 
     expect(await screen.findByText(/Dữ liệu dự án đã đổi sau lần xuất này/)).toBeInTheDocument();
-    expect(screen.getByLabelText("Cập nhật file này")).toBeChecked();
+    // Tên file hiện ở hộp lần xuất trước và trong danh sách Google Doc của dự án
+    expect(screen.getAllByText(/FAP_DRAFT/)).toHaveLength(2);
+    expect(screen.getByRole("radio", { name: "Cập nhật file này" })).toBeChecked();
     expect(screen.getByText(/ghi đè nội dung Google Doc/)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole("button", { name: "Cập nhật Google Doc" }));
     expect(await screen.findByText(/Đã cập nhật Google Doc/)).toBeInTheDocument();
     expect(h.exportToGoogleDocs).toHaveBeenLastCalledWith("p1", expect.anything(), "update", false);
 
-    fireEvent.click(screen.getByLabelText("Tạo bản mới"));
+    fireEvent.click(screen.getByRole("radio", { name: "Tạo bản mới" }));
+    expect(screen.queryByText(/ghi đè nội dung Google Doc/)).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Xuất sang Google Docs" }));
     await waitFor(() => expect(h.exportToGoogleDocs).toHaveBeenLastCalledWith("p1", expect.anything(), "new", false));
   });
