@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
-import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "@/lib/api/users";
+import { changeMyPassword, fetchMe, logoutAllDevices, updateApprovalEmails, updateMyName } from "@/lib/api/users";
 import { logoutAndRedirect } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { User } from "@/types/user";
@@ -13,6 +13,7 @@ vi.mock("@/lib/api/users", () => ({
   updateMyName: vi.fn(),
   changeMyPassword: vi.fn(),
   logoutAllDevices: vi.fn(),
+  updateApprovalEmails: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn() }));
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
@@ -231,5 +232,24 @@ describe("ProfilePage", () => {
     await waitFor(() => expect(screen.getByText("Máy chủ đang gặp sự cố.")).toBeInTheDocument());
     expect(logoutAndRedirect).not.toHaveBeenCalled();
     expect(screen.getByRole("button", { name: "Đăng xuất tất cả" })).toBeEnabled();
+  });
+
+  it("UC-89: công tắc email việc duyệt mặc định bật, bấm ⇒ tắt và lưu", async () => {
+    vi.mocked(updateApprovalEmails).mockResolvedValue({ ...LOCAL_USER, approvalEmails: false });
+    await renderLoaded();
+    const toggle = screen.getByRole("switch", { name: "Email việc duyệt" });
+    expect(toggle).toHaveAttribute("aria-checked", "true");
+    fireEvent.click(toggle);
+    expect(updateApprovalEmails).toHaveBeenCalledWith(false);
+    await waitFor(() => expect(toggle).toHaveAttribute("aria-checked", "false"));
+  });
+
+  it("UC-89: lưu lỗi ⇒ công tắc trả về trạng thái cũ và báo lỗi", async () => {
+    vi.mocked(updateApprovalEmails).mockRejectedValue(new ApiClientError(500, "INTERNAL", "Máy chủ đang gặp sự cố."));
+    await renderLoaded({ ...LOCAL_USER, approvalEmails: false });
+    const toggle = screen.getByRole("switch", { name: "Email việc duyệt" });
+    fireEvent.click(toggle);
+    expect(await screen.findByText("Máy chủ đang gặp sự cố.")).toBeInTheDocument();
+    expect(toggle).toHaveAttribute("aria-checked", "false");
   });
 });

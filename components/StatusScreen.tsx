@@ -9,8 +9,10 @@ interface StatusScreenProps {
   eyebrow: string;
   title: string;
   body: string;
-  /** Nhãn link về trang chủ (`/`). */
+  /** Nhãn link về trang chủ. */
   homeLabel: string;
+  /** Đích của link về trang chủ; mặc định `/` (landing). Trang 404 truyền `/home` khi đã đăng nhập. */
+  homeHref?: string;
   /** Hành động thêm đứng trước link về trang chủ (vd nút "Thử lại" của trang lỗi). */
   action?: ReactNode;
   /** Dòng phụ nhỏ dưới cùng (vd mã lỗi `digest` để đối chiếu log server). */
@@ -24,7 +26,7 @@ interface StatusScreenProps {
  * như landing/auth, logo FlintFlow, một thẻ ở giữa. Không tự lấy chuỗi — mọi chuỗi đi vào qua props để khung
  * không phụ thuộc i18n (nơi gọi tự dịch: `ErrorScreen`, trang bảo trì).
  */
-export default function StatusScreen({ icon, eyebrow, title, body, homeLabel, action, footnote, headerEnd }: StatusScreenProps) {
+export default function StatusScreen({ icon, eyebrow, title, body, homeLabel, homeHref = "/", action, footnote, headerEnd }: StatusScreenProps) {
   return (
     <div className="flex min-h-dvh flex-1 flex-col bg-surface p-4 font-sans text-on-surface antialiased sm:p-6">
       <header className="flex items-center justify-between gap-3">
@@ -41,7 +43,7 @@ export default function StatusScreen({ icon, eyebrow, title, body, homeLabel, ac
           <p className="text-body leading-[1.6] text-on-surface-muted">{body}</p>
           <div className="mt-2 flex flex-wrap items-center justify-center gap-2">
             {action}
-            <Link href="/" className={action ? LINK_SECONDARY_LG : LINK_PRIMARY}>
+            <Link href={homeHref} className={action ? LINK_SECONDARY_LG : LINK_PRIMARY}>
               {homeLabel}
             </Link>
           </div>

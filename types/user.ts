@@ -23,4 +23,6 @@ export interface User {
   emailVerified?: boolean;
   /** `false` với tài khoản Google thuần ⇒ không có form đổi mật khẩu. */
   hasPassword?: boolean;
+  /** UC-89: nhận email việc duyệt (gửi / quyết định baseline và gói thay đổi); BE mặc định `true`. */
+  approvalEmails?: boolean;
 }

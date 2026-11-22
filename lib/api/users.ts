@@ -13,6 +13,12 @@ export const updateMyName = async (name: string): Promise<User> => {
   return res.data as User;
 };
 
+/** UC-89: bật / tắt email việc duyệt (theo tài khoản, áp cho mọi tổ chức). */
+export const updateApprovalEmails = async (approvalEmails: boolean): Promise<User> => {
+  const res = await apiCall<User>("/users/me", { method: "PATCH", body: JSON.stringify({ approvalEmails }) });
+  return res.data as User;
+};
+
 /**
  * Ngôn ngữ giao diện của tài khoản (FLF-259) — `LocaleSwitcher` gọi khi user tự chọn, `useAccountLocaleSync` gọi
  * khi tài khoản chưa chọn. Nơi gọi tự ghi lỗi; lỗi không chặn việc đổi ngôn ngữ trên thiết bị này.
