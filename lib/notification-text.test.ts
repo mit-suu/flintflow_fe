@@ -55,6 +55,17 @@ describe("useNotificationText (T25)", () => {
     expect(textIn("vi")(note("template_version_published", null))).toEqual({ title: "Tiêu đề đã lưu", body: "Nội dung đã lưu" });
   });
 
+  it("UC-85 / UC-88: đề xuất mẫu gửi / duyệt / từ chối dịch theo ngôn ngữ người xem; thiếu meta giữ câu đã lưu", () => {
+    const meta = { project_name: "Lumen", proposer_name: "Bình" };
+    expect(textIn("en")(note("template_proposal_submitted", meta))).toEqual({
+      title: "Template proposal from \"Lumen\" awaits your approval",
+      body: "Bình proposed saving the project structure as an organization template.",
+    });
+    expect(textIn("vi")(note("template_proposal_approved", meta)).title).toBe("Mẫu từ dự án \"Lumen\" đã được lưu");
+    expect(textIn("en")(note("template_proposal_rejected", meta)).title).toBe("Your template from \"Lumen\" was not saved");
+    expect(textIn("vi")(note("template_proposal_submitted", null))).toEqual({ title: "Tiêu đề đã lưu", body: "Nội dung đã lưu" });
+  });
+
   it("FLF-303: yêu cầu mời / duyệt / từ chối dịch theo ngôn ngữ người xem", () => {
     const meta = { requesterName: "Bình", email: "moi@flintflow.test", organizationName: "Nhóm A", role: "viewer" };
     expect(textIn("en")(note("org_invitation_requested", meta)).body).toBe(

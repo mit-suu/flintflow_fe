@@ -57,7 +57,8 @@ import AutoPassedChip from "./_components/AutoPassedChip";
 import { patchSkipConfirmSections, setReviewMode } from "@/lib/api/review-level";
 import { sectionTitleOf } from "@/lib/section-title";
 import ExportPanel from "./_components/ExportPanel";
-import ProjectPendingHeadingsCard from "@/components/org-template/project-pending-headings-card";
+import TemplateProposalCard from "@/components/org-template/template-proposal-card";
+import SaveStructureEntry from "@/components/org-template/save-structure-entry";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
@@ -112,7 +113,6 @@ import ImportWorkspace from "./_components/import/import-workspace";
 import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
 import { clearImportPending } from "@/lib/import-pending";
 import { fetchOrganization } from "@/lib/api/orgs";
-import type { OrgRole } from "@/types/organization";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { useWorkspace, type WorkspaceNotice } from "./hooks/useWorkspace";
 import { useResizableWidth } from "./hooks/useResizableWidth";
@@ -250,14 +250,10 @@ export default function WorkspacePage() {
   // UC-47: Viewer không vào workspace (Spine, cờ, CR là dữ liệu làm việc — BE trả 403) ⇒ sang trang đọc tài liệu.
   // Lỗi đọc vai trò ⇒ coi như không phải Viewer (BE vẫn chặn).
   const [isViewer, setIsViewer] = useState<boolean | null>(null);
-  const [orgRole, setOrgRole] = useState<OrgRole | null>(null);
   useEffect(() => {
     let cancelled = false;
     const orgId = getActiveOrgId();
-    (orgId ? fetchOrganization(orgId).then((org) => {
-          if (!cancelled) setOrgRole(org.role);
-          return org.role === "viewer";
-        }) : Promise.resolve(false))
+    (orgId ? fetchOrganization(orgId).then((org) => org.role === "viewer") : Promise.resolve(false))
       .catch(() => false)
       .then((viewer) => !cancelled && setIsViewer(viewer));
     return () => {
@@ -273,7 +269,7 @@ export default function WorkspacePage() {
 
   if (project === null || isViewer !== false) return <WorkspaceLoading projectId={projectId} viewer={isViewer === true} />;
   // Chưa đọc xong file SRS ⇒ màn đọc khung / tiến trình ngay trong layout workspace (không còn trang `/import` riêng)
-  if (mode1 && !importDone) return <ImportWorkspace projectId={projectId} onProjectChanged={reloadProject} orgRole={orgRole} />;
+  if (mode1 && !importDone) return <ImportWorkspace projectId={projectId} onProjectChanged={reloadProject} />;
   // Đổi mode ⇒ dựng lại workspace từ đầu (hook của mode 2 — step, gate — không mang sang mode 1)
   return <FptWorkspace key={mode1 ? "mode1" : "fpt"} mode1={mode1} initialNotice={mode1 ? convertedNotice : null} />;
 }
@@ -578,6 +574,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const { refreshUser } = ws;
 
   const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
+  // UC-85: Lead vừa bấm "Lưu cấu trúc thành mẫu" ⇒ thẻ đề xuất đọc lại
+  const [proposalRefresh, setProposalRefresh] = useState(0);
   /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
   const documentLanguage = knownDocumentLanguage(ws.project);
   /**
@@ -2230,8 +2228,16 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   className="mx-3 mb-2"
                 />
               )}
-              {/* Mục BA tự đặt của mẫu khung tự lưu chờ duyệt (chỉ hiện khi dự án có khung riêng còn mục chờ) */}
-              {ws.ready && ws.project?.template_intent !== "fixed" && <ProjectPendingHeadingsCard projectId={projectId} canReview={canEdit} refreshToken={documentRefreshToken} className="mx-3 mb-2" />}
+              {/* UC-85: đề xuất lưu cấu trúc dự án thành mẫu tổ chức - chỉ tác giả baseline thấy */}
+              {ws.ready && canChangeTemplate && (
+                <TemplateProposalCard
+                  projectId={projectId}
+                  orgRole={ws.orgRole}
+                  refreshToken={documentRefreshToken + proposalRefresh}
+                  onSaved={handleTemplateChanged}
+                  className="mx-3 mb-2"
+                />
+              )}
               {/* §3.6: file đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới — chỉ khi đã có bản gốc */}
               {mode1 && canEdit && ws.srsSuggestions[0] && (
                 <SrsAttachmentChip
@@ -2723,6 +2729,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                     onChanged={handleTemplateChanged}
                   />
                 )}
+                {/* UC-85: Lead lưu cấu trúc dự án thành mẫu bất cứ lúc nào (sau baseline) */}
+                {canChangeTemplate && ws.orgRole === "lead" && <SaveStructureEntry projectId={projectId} onCreated={() => setProposalRefresh((n) => n + 1)} />}
                 {/* Ghi Spine thẳng (`/changes`) — mode 1 v3 mọi sửa qua CR nên không hiện */}
                 {!mode1 && (
                   <ProjectRecordPanel

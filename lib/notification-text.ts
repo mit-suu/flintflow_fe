@@ -195,6 +195,21 @@ export const useNotificationText = () => {
         if (pending === undefined) return stored;
         return { title: t("skeleton_headings_pending.title", { count: pending }), body: t("skeleton_headings_pending.body") };
       }
+      // UC-85 / UC-88: Analyst gửi đề xuất mẫu ⇒ Lead; Lead duyệt / từ chối ⇒ người gửi
+      case "template_proposal_submitted": {
+        const project = str(meta.project_name);
+        if (!project) return stored;
+        return {
+          title: t("template_proposal_submitted.title", { project }),
+          body: t("template_proposal_submitted.body", { name: str(meta.proposer_name) ?? "Analyst" }),
+        };
+      }
+      case "template_proposal_approved":
+      case "template_proposal_rejected": {
+        const project = str(meta.project_name);
+        if (!project) return stored;
+        return { title: t(`${notification.type}.title`, { project }), body: t(`${notification.type}.body`) };
+      }
       // Đổi mẫu kẹt sau nhiều lần phục hồi: người tạo mở dự án và bấm Khôi phục
       case "template_migration_failed":
         return { title: t("template_migration_failed.title"), body: t("template_migration_failed.body") };

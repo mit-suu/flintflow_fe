@@ -686,6 +686,18 @@
         "title": "Mẫu của tổ chức có bản {version}",
         "body": "{count, plural, one {# dự án đang} other {# dự án đang}} theo bản cũ. Mở dự án để cập nhật sang mẫu mới hoặc để sau."
       },
+      "template_proposal_submitted": {
+        "title": "Đề xuất mẫu từ dự án \"{project}\" chờ bạn duyệt",
+        "body": "{name} đề xuất lưu cấu trúc dự án thành mẫu của tổ chức."
+      },
+      "template_proposal_approved": {
+        "title": "Mẫu từ dự án \"{project}\" đã được lưu",
+        "body": "Cấu trúc dự án đã vào thư viện mẫu và dự án theo mẫu đó."
+      },
+      "template_proposal_rejected": {
+        "title": "Mẫu từ dự án \"{project}\" chưa được lưu",
+        "body": "Dự án tiếp tục không có mẫu; bạn có thể tự áp một mẫu sau."
+      },
       "skeleton_headings_pending": {
         "title": "Có {count} mục chờ duyệt cho mẫu khung",
         "body": "Mục do BA tự đặt hoặc tên mục khác tên chuẩn chỉ vào mẫu của tổ chức sau khi được duyệt."
@@ -1399,9 +1411,10 @@
         "delete": "Xoá",
         "confirmDelete": "Xác nhận xoá",
         "templates": {
-          "help": "Mỗi mẫu có nhiều bản. Lead tải file .docx (hoặc bấm “Lưu làm mẫu của tổ chức” ở màn nhập tài liệu của dự án theo mẫu khách), rà mapping heading rồi đăng. Dự án sau chọn mẫu và bản ở ô SRS khi tạo dự án, không phải tải và map lại.",
+          "help": "Mỗi mẫu có nhiều bản. Lead tải file .docx, rà mapping heading rồi đăng; hoặc lưu cấu trúc của một dự án thành mẫu (ngay trong dự án, hoặc khi được hỏi sau lúc ký baseline). Dự án sau chọn mẫu và bản ở ô SRS khi tạo dự án, không phải tải và map lại.",
           "empty": "Tổ chức chưa lưu mẫu nào.",
           "headingsCount": "{count} heading",
+          "savedFromProject": "Lưu từ dự án {project}",
           "customsCount": "{count} giữ nguyên văn",
           "usesCount": "{count, plural, =0 {Chưa dùng} other {Dùng # lần}}",
           "cols": {
@@ -1422,8 +1435,6 @@
           "results": "{count, plural, =0 {Không có kết quả} other {# kết quả}}",
           "latest": "Bản mới nhất: {version}",
           "draftOnly": "Chưa đăng bản nào",
-          "skeleton": "Khung tự lưu",
-          "pending": "{count} mục chờ duyệt",
           "pendingHint": "Duyệt trong thẻ “mục chờ duyệt” của dự án đã tạo ra khung này.",
           "newTemplate": "Tải mẫu mới",
           "newNameLabel": "Tên mẫu",
@@ -1446,7 +1457,6 @@
           "reviewTitle": "Rà mapping: {name} · bản {version}",
           "contentWarning": "Mẫu còn chữ ở {count}/{total} mục (nội dung cũ chưa xoá). Nên xoá trước khi đăng; dự án dùng mẫu này sẽ mặc định bỏ chữ ở mọi mục.",
           "publish": "Đăng bản này",
-          "reviewPending": "Duyệt mục chờ",
           "hidePending": "Ẩn mục chờ",
           "publishedBy": "đăng bởi {name}",
           "publishedByFormer": "đăng bởi thành viên cũ",
@@ -1464,34 +1474,38 @@
         "empty": "File mẫu không có heading nào.",
         "listLabel": "Heading của file mẫu"
       },
-      "pendingHeadings": {
-        "loading": "Đang tải danh sách mục chờ duyệt…",
-        "help": "Các mục dưới đây chỉ vào mẫu “{name}” của tổ chức sau khi được duyệt.",
-        "empty": "Không có mục nào cần duyệt.",
-        "listLabel": "Mục chờ duyệt",
-        "kindCustom": "Mục BA tự đặt",
-        "kindWording": "Tên khác tên chuẩn",
-        "pending": "Chờ duyệt",
-        "decided": {
-          "keep": "Đã giữ nguyên",
-          "generic": "Đã giữ dạng chung",
-          "drop": "Đã bỏ"
-        },
-        "standardTitle": "Tên chuẩn gần nhất: {title}",
-        "choiceLabel": "Chọn cách xử lý mục “{heading}”",
-        "choice": {
-          "keep": "Giữ nguyên",
-          "generic": "Giữ dạng chung",
-          "drop": "Bỏ"
-        },
-        "genericLabel": "Tên dạng chung (dùng '{'Tên khách hàng'}' thay cho tên riêng)",
-        "genericRequired": "Nhập tên dạng chung cho mục đã chọn “Giữ dạng chung”.",
-        "save": "Lưu quyết định",
-        "suggest": "Gợi ý tên chung ({credits, plural, one {# credit} other {# credit}})",
-        "cardTitle": "Mục chờ duyệt của mẫu khung",
-        "cardSummary": "{count} mục chờ duyệt cho mẫu khung của dự án",
-        "review": "Duyệt",
-        "hide": "Thu gọn"
+      "templateProposal": {
+        "cardTitle": "Lưu cấu trúc này thành mẫu của tổ chức?",
+        "cardBody": "Cấu trúc của bản baseline này (heading, cột bảng, chữ hướng dẫn) có thể thành mẫu cho cả tổ chức. Nội dung không bao giờ được lưu, và mọi tên riêng dưới đây đã được thay.",
+        "replacedTitle": "{count} heading đã đổi",
+        "noReplaced": "Không thấy tên riêng nào trong các heading.",
+        "dropped": "Bỏ khỏi mẫu",
+        "droppedReason": "Bỏ khỏi mẫu: {reason}",
+        "showStructure": "Xem cấu trúc ({count} heading)",
+        "hideStructure": "Ẩn cấu trúc",
+        "sendToLead": "Gửi Lead duyệt",
+        "saveToLibrary": "Lưu vào thư viện",
+        "dontSave": "Không lưu",
+        "sentNotice": "Đã gửi cấu trúc này cho Lead duyệt.",
+        "savedNotice": "Đã lưu vào thư viện mẫu. Dự án này giờ theo mẫu đó.",
+        "declinedNotice": "Đã không lưu. Cấu trúc này sẽ không được đề xuất lại.",
+        "actionFailed": "Chưa làm được việc này. Vui lòng thử lại.",
+        "saveStructureTitle": "Lưu cấu trúc thành mẫu",
+        "saveStructureBody": "Biến cấu trúc của bản mới nhất thành mẫu của tổ chức. Tên riêng được thay trước, việc này dùng credit AI.",
+        "saveStructure": "Lưu cấu trúc thành mẫu",
+        "createFailed": "Chưa chuẩn bị được mẫu. Vui lòng thử lại.",
+        "sectionTitle": "Đề xuất mẫu",
+        "rowTitle": "Mẫu từ dự án \"{project}\"",
+        "rowMeta": "{name} gửi · {date}",
+        "review": "Xem và duyệt",
+        "reviewBody": "Duyệt để đưa cấu trúc này vào thư viện mẫu; dự án nguồn sẽ theo mẫu đó. Từ chối thì dự án tiếp tục không có mẫu.",
+        "alreadyDecided": "Đề xuất này đã được xử lý.",
+        "approve": "Duyệt",
+        "reject": "Từ chối",
+        "approvedNotice": "Đã đưa mẫu từ dự án \"{project}\" vào thư viện.",
+        "rejectedNotice": "Đã từ chối mẫu từ dự án \"{project}\".",
+        "noneWaiting": "Không có đề xuất nào đang chờ bạn.",
+        "loadFailed": "Không mở được đề xuất này."
       }
     },
     "screenMockup": {
@@ -3364,14 +3378,6 @@
           "body": "FlintFlow giữ nguyên các mục bạn đã viết, soạn các mục còn thiếu cùng bạn trong workspace và sắp lại bố cục theo mẫu chuẩn FlintFlow.",
           "draft": "Soạn phần còn thiếu"
         }
-      },
-      "saveToOrg": {
-        "help": "Lưu file mẫu này cho tổ chức - dự án sau chọn lại ngay ở ô SRS khi tạo dự án, FlintFlow hiểu sẵn các mục của mẫu.",
-        "nameLabel": "Tên mẫu",
-        "action": "Lưu làm mẫu của tổ chức",
-        "saving": "Đang lưu…",
-        "saved": "Đã lưu. Dự án mới của tổ chức sẽ thấy mẫu này ở ô SRS khi tạo dự án.",
-        "failed": "Chưa lưu được mẫu. Vui lòng thử lại."
       },
       "creating": {
         "title": "Đang chuẩn bị dự án",

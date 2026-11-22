@@ -13,7 +13,7 @@ import {
   InfiniteDataList,
   Modal,
 } from "@/components/ui";
-import PendingHeadingsReview from "@/components/org-template/pending-headings-review";
+import TemplateProposalsSection from "@/components/org-template/template-proposals-section";
 import NewTemplateUpload from "@/components/org-template/new-template-upload";
 import { MappingReviewDialog, TemplateVersionsDialog } from "@/components/org-template/template-library-dialogs";
 import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
@@ -57,8 +57,6 @@ export default function OrgLibraryPage() {
   /** Bản nháp đang rà mapping trước khi đăng. */
   const [review, setReview] = useState<TemplateVersionDetail | null>(null);
   const [newOpen, setNewOpen] = useState(false);
-  /** Mẫu khung tự lưu đang mở hộp duyệt mục chờ (duyệt qua dự án nguồn). */
-  const [pendingOf, setPendingOf] = useState<{ projectId: string; name: string } | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   /** Input file dùng chung cho "Đăng bản mới" — giữ mẫu đích tới khi người dùng chọn file. */
   const versionFileRef = useRef<HTMLInputElement>(null);
@@ -80,7 +78,6 @@ export default function OrgLibraryPage() {
   const { org: activeOrg, error: orgError } = useActiveOrganizationState();
   const role: OrgRole | null = activeOrg?.role ?? null;
   const isLead = role === "lead";
-  const canReviewPending = role === "lead" || role === "analyst";
   const versionsTemplate = versionsOf ? (list.items.find((tpl) => tpl.id === versionsOf) ?? null) : null;
   /** Tổ chức thật sự chưa có mẫu nào (không phải "không khớp từ khoá"). */
   const orgEmpty = !list.loading && !list.error && q === "" && list.total === 0;
@@ -146,6 +143,9 @@ export default function OrgLibraryPage() {
           )
         }
       >
+        {/* UC-88: đề xuất mẫu Analyst gửi từ dự án chờ Lead duyệt */}
+        {isLead && orgId && <TemplateProposalsSection orgId={orgId} onDecided={list.reload} />}
+
         {orgEmpty ? (
           // Chưa có mẫu: nói luôn mẫu được tạo ở đâu, vì trang này không có nút thêm
           <EmptyState icon="layers" title={t("templates.empty")} description={t("templates.help")} className="rounded-card bg-surface-container-low !py-12" />
@@ -189,8 +189,10 @@ export default function OrgLibraryPage() {
                       </p>
                       <div className="mt-1 flex flex-wrap items-center gap-1.5">
                         {tpl.latest_version > 0 ? <Badge tone="primary">{t("templates.latest", { version: tpl.latest_version })}</Badge> : <Badge tone="neutral">{t("templates.draftOnly")}</Badge>}
-                        {tpl.skeleton && <Badge tone="info">{t("templates.skeleton")}</Badge>}
-                        {tpl.pending_count > 0 && <Badge tone="warning">{t("templates.pending", { count: tpl.pending_count })}</Badge>}
+                        {/* UC-85: mẫu lưu từ dự án hiện như mẫu tổ chức thường, kèm dòng nguồn */}
+                        {tpl.skeleton && tpl.skeleton_source_project_name && (
+                          <span className="text-caption text-on-surface-muted">{t("templates.savedFromProject", { project: tpl.skeleton_source_project_name })}</span>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -210,9 +212,6 @@ export default function OrgLibraryPage() {
                     <DropdownMenu
                       items={[
                         { label: t("templates.versions"), icon: "history" as const, onSelect: () => setVersionsOf(tpl.id) },
-                        ...(canReviewPending && tpl.pending_count > 0 && tpl.skeleton_source_project_id
-                          ? [{ label: t("templates.reviewPending"), icon: "check-circle" as const, onSelect: () => setPendingOf({ projectId: tpl.skeleton_source_project_id!, name: tpl.name }) }]
-                          : []),
                         ...(isLead
                           ? [
                               {
@@ -314,9 +313,6 @@ export default function OrgLibraryPage() {
           }}
         />
       )}
-      <Modal open={pendingOf !== null} onClose={() => setPendingOf(null)} title={t("templates.reviewPending")} size="lg">
-        {pendingOf && <PendingHeadingsReview projectId={pendingOf.projectId} canReview={canReviewPending} onChange={() => list.reload()} />}
-      </Modal>
     </>
   );
 }

@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import * as api from "@/lib/api/org-library";
-import type { OrgTemplateSummary } from "@/types/org-library";
+import type { OrgTemplateSummary, TemplateProposal } from "@/types/org-library";
 import OrgLibraryPage from "./page";
 
 const role = vi.hoisted(() => ({ value: "analyst" }));
@@ -21,9 +21,9 @@ vi.mock("@/lib/api/org-library", () => ({
   getTemplateVersion: vi.fn(),
   publishTemplateVersion: vi.fn(),
   deleteTemplateVersion: vi.fn(),
-  getSkeletonPending: vi.fn(async () => ({ template_id: "t1", name: "Khung", version: 1, pending_count: 1, headings: [], suggest_credit_cost: 1 })),
-  decideSkeletonPending: vi.fn(),
-  suggestSkeletonNames: vi.fn(),
+  listTemplateProposals: vi.fn(async () => []),
+  getOrgTemplateProposal: vi.fn(),
+  decideTemplateProposal: vi.fn(),
 }));
 
 const template: OrgTemplateSummary = {
@@ -76,7 +76,7 @@ describe("Thư viện mẫu của tổ chức", () => {
     vi.mocked(api.listOrgTemplatesPage).mockResolvedValue(onePage([]));
     renderWithIntl(<OrgLibraryPage />);
     expect(await screen.findByText("Tổ chức chưa lưu mẫu nào.")).toBeInTheDocument();
-    expect(screen.getByText(/Lưu làm mẫu của tổ chức/)).toBeInTheDocument();
+    expect(screen.getByText(/lưu cấu trúc của một dự án thành mẫu/)).toBeInTheDocument();
   });
 
   it("Lead: xoá mẫu qua menu ⋮ rồi xác nhận (kèm số dự án đang theo); tải lại danh sách", async () => {
@@ -122,13 +122,40 @@ describe("Thư viện mẫu của tổ chức", () => {
     }
   });
 
-  it("Analyst mở duyệt mục chờ của mẫu khung qua dự án nguồn", async () => {
-    vi.mocked(api.listOrgTemplatesPage).mockResolvedValue(onePage([{ ...template, skeleton: true, pending_count: 1, skeleton_source_project_id: "p9" }]));
+  it("UC-85: mẫu lưu từ dự án hiện như mẫu thường kèm dòng \"Lưu từ dự án <tên>\"", async () => {
+    vi.mocked(api.listOrgTemplatesPage).mockResolvedValue(onePage([{ ...template, skeleton: true, skeleton_source_project_id: "p9", skeleton_source_project_name: "Lumen" }]));
     renderWithIntl(<OrgLibraryPage />);
-    expect(await screen.findByText("1 mục chờ duyệt")).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Thao tác cho “IEEE ngân hàng”" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Duyệt mục chờ" }));
-    await waitFor(() => expect(api.getSkeletonPending).toHaveBeenCalledWith("p9"));
+    expect(await screen.findByText("Lưu từ dự án Lumen")).toBeInTheDocument();
+    // Analyst không thấy mục đề xuất (chỉ Lead duyệt)
+    expect(api.listTemplateProposals).not.toHaveBeenCalled();
+  });
+
+  it("UC-88: Lead xem đề xuất Analyst gửi rồi duyệt ⇒ tải lại danh sách mẫu", async () => {
+    role.value = "lead";
+    const proposal: TemplateProposal = {
+      id: "x1",
+      project_id: "p9",
+      project_name: "Lumen",
+      status: "sent",
+      headings: ["1 Introduction", "9 {Customer name} Integration"],
+      replaced_names: [{ key: "B0001", original: "9 Lumen Integration", generic: "9 {Customer name} Integration", reason: null }],
+      created_by: { id: "u2", name: "Bình" },
+      created_at: "2026-11-17T00:00:00.000Z",
+      template_id: null,
+      version: null,
+    };
+    vi.mocked(api.listTemplateProposals).mockResolvedValueOnce([proposal]).mockResolvedValue([]);
+    vi.mocked(api.decideTemplateProposal).mockResolvedValue({ ...proposal, status: "approved", version: 1 });
+    renderWithIntl(<OrgLibraryPage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Xem và duyệt" }));
+    const dialog = await screen.findByRole("dialog", { name: "Mẫu từ dự án \"Lumen\"" });
+    expect(dialog).toHaveTextContent("9 Lumen Integration");
+    expect(dialog).toHaveTextContent("9 {Customer name} Integration");
+    const loads = vi.mocked(api.listOrgTemplatesPage).mock.calls.length;
+    fireEvent.click(screen.getByRole("button", { name: "Duyệt" }));
+    expect(await screen.findByText("Đã đưa mẫu từ dự án \"Lumen\" vào thư viện.")).toBeInTheDocument();
+    expect(api.decideTemplateProposal).toHaveBeenCalledWith("o1", "x1", "approve");
+    await waitFor(() => expect(vi.mocked(api.listOrgTemplatesPage).mock.calls.length).toBeGreaterThan(loads));
   });
 
   it("tiếng Anh: không sót chuỗi tiếng Việt ngoài dữ liệu của tổ chức", async () => {

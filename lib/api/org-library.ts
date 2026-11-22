@@ -6,8 +6,7 @@ import type {
   DeleteTemplateResult,
   HeadingEdit,
   OrgTemplateSummary,
-  SkeletonDecision,
-  SkeletonPending,
+  TemplateProposal,
   TemplateVersionDetail,
 } from "@/types/org-library";
 import type { ImportedDocument } from "@/types/import";
@@ -74,15 +73,21 @@ export const importFromOrgTemplate = async (projectId: string, orgTemplateId: st
       json("POST", { org_template_id: orgTemplateId, ...(version ? { version } : {}) })
     )
   );
-/** Lưu file mẫu + mapping đã xác nhận của lần import gần nhất làm mẫu của tổ chức (chỉ Lead). */
-export const saveImportToOrg = async (projectId: string, name: string): Promise<OrgTemplateSummary> =>
-  unwrap(await apiCall<OrgTemplateSummary>(`${project(projectId)}/import/save-to-org`, json("POST", { name })));
+/** UC-85: đề xuất của dự án mà người đang xem là tác giả baseline; `null` = không có thẻ. */
+export const getTemplateProposal = async (projectId: string): Promise<TemplateProposal | null> =>
+  (await apiCall<TemplateProposal | null>(`${project(projectId)}/template-proposal`)).data;
+/** UC-85: Lead lưu cấu trúc dự án làm mẫu bất cứ lúc nào - dựng đề xuất từ bản mới nhất (AI đổi tên riêng, tốn credit). */
+export const createTemplateProposal = async (projectId: string): Promise<TemplateProposal> =>
+  unwrap(await apiCall<TemplateProposal>(`${project(projectId)}/template-proposal`, json("POST")));
+export type ProposalAction = "send" | "save" | "decline";
+/** Analyst: `send` (gửi Lead); Lead: `save` (lưu vào thư viện); ai cũng `decline` (không lưu). */
+export const actOnTemplateProposal = async (projectId: string, action: ProposalAction): Promise<TemplateProposal> =>
+  unwrap(await apiCall<TemplateProposal>(`${project(projectId)}/template-proposal/${action}`, json("POST")));
 
-/** Mục BA tự đặt của mẫu khung tự lưu; `null` = dự án không có khung riêng. */
-export const getSkeletonPending = async (projectId: string): Promise<SkeletonPending | null> =>
-  (await apiCall<SkeletonPending | null>(`${project(projectId)}/template-skeleton`)).data;
-export const decideSkeletonPending = async (projectId: string, decisions: SkeletonDecision[]): Promise<SkeletonPending> =>
-  unwrap(await apiCall<SkeletonPending>(`${project(projectId)}/template-skeleton/decisions`, json("POST", { decisions })));
-/** Một lượt AI cho mọi mục còn chờ — tốn credit, chỉ gọi khi người dùng bấm. */
-export const suggestSkeletonNames = async (projectId: string): Promise<SkeletonPending> =>
-  unwrap(await apiCall<SkeletonPending>(`${project(projectId)}/template-skeleton/suggest`, json("POST")));
+/** UC-88: đề xuất Analyst gửi đang chờ Lead duyệt. */
+export const listTemplateProposals = async (orgId: string): Promise<TemplateProposal[]> =>
+  unwrap(await apiCall<TemplateProposal[]>(`/orgs/${orgId}/template-proposals`));
+export const getOrgTemplateProposal = async (orgId: string, proposalId: string): Promise<TemplateProposal> =>
+  unwrap(await apiCall<TemplateProposal>(`/orgs/${orgId}/template-proposals/${proposalId}`));
+export const decideTemplateProposal = async (orgId: string, proposalId: string, decision: "approve" | "reject"): Promise<TemplateProposal> =>
+  unwrap(await apiCall<TemplateProposal>(`/orgs/${orgId}/template-proposals/${proposalId}/${decision}`, json("POST")));
