@@ -1251,6 +1251,10 @@
       "submit": "Đổi mật khẩu",
       "forgotCurrent": "Quên mật khẩu hiện tại?",
       "forgotNote": "Sau khi đặt lại, bạn sẽ cần đăng nhập lại.",
+      "notificationsTitle": "Thông báo",
+      "approvalEmailsLabel": "Email việc duyệt",
+      "approvalEmailsBody": "Nhận email khi có baseline hoặc gói thay đổi gửi bạn duyệt, và khi bản bạn gửi được duyệt, bị từ chối hoặc bị yêu cầu sửa. Tắt thì bạn vẫn thấy các việc này trong ứng dụng.",
+      "approvalEmailsFailed": "Không lưu được cài đặt này. Vui lòng thử lại.",
       "logoutAllTitle": "Đăng xuất mọi thiết bị",
       "logoutAllBody": "Kết thúc mọi phiên đăng nhập của tài khoản, kể cả thiết bị này. Dùng khi bạn quên đăng xuất ở máy khác hoặc nghi bị lộ mật khẩu. Các thiết bị khác sẽ bị đăng xuất trong vòng vài phút.",
       "logoutAllCta": "Đăng xuất mọi thiết bị",
@@ -3694,6 +3698,13 @@
     "eyebrow": "Bảo trì hệ thống",
     "title": "FlintFlow đang bảo trì",
     "body": "Chúng tôi đang nâng cấp hệ thống để phục vụ bạn tốt hơn. Vui lòng quay lại sau ít phút - dự án và tài liệu của bạn không bị ảnh hưởng.",
+    "home": "Về trang chủ"
+  },
+  "notFound": {
+    "metaTitle": "Không tìm thấy trang · FlintFlow",
+    "eyebrow": "Lỗi 404",
+    "title": "Trang này không tồn tại",
+    "body": "Đường dẫn có thể bị sai, hoặc trang đã được chuyển hoặc xoá.",
     "home": "Về trang chủ"
   },
   "admin": {

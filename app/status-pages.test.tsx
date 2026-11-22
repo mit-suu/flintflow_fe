@@ -1,10 +1,18 @@
 import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
+import { getTranslations } from "next-intl/server";
+import { MESSAGES, renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import ErrorPage from "./error";
 import MaintenancePage from "./maintenance/page";
+import NotFound from "./not-found";
 
 vi.mock("next-intl/server", () => ({ getTranslations: vi.fn() }));
+
+// Trang 404 đọc cookie phiên để chọn đích link về trang chủ
+const cookieJar = vi.hoisted(() => ({ values: new Map<string, string>() }));
+vi.mock("next/headers", () => ({
+  cookies: async () => ({ get: (name: string) => (cookieJar.values.has(name) ? { value: cookieJar.values.get(name) } : undefined) }),
+}));
 
 // Header có nút đổi ngôn ngữ (LocaleSwitcher) - dùng router để làm mới trang sau khi đổi
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
@@ -53,6 +61,36 @@ describe("/maintenance", () => {
   it("tiếng Anh: không sót chữ tiếng Việt", () => {
     const { container } = renderWithIntl(<MaintenancePage />, "en");
     expect(screen.getByRole("heading", { name: "FlintFlow is under maintenance" })).toBeInTheDocument();
+    expect(vietnameseLeftovers(container)).toEqual([]);
+  });
+});
+
+describe("app/not-found.tsx - trang 404", () => {
+  /** `getTranslations` của server component: dịch theo bộ chuỗi thật của ngôn ngữ cần test. */
+  const useLocale = (locale: "vi" | "en") =>
+    vi.mocked(getTranslations).mockResolvedValue(((key: string) => MESSAGES[locale].notFound[key as keyof (typeof MESSAGES)["vi"]["notFound"]]) as never);
+
+  beforeEach(() => cookieJar.values.clear());
+
+  it("khách: link về landing", async () => {
+    useLocale("vi");
+    renderWithIntl(await NotFound());
+    expect(screen.getByRole("heading", { name: "Trang này không tồn tại" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Về trang chủ" })).toHaveAttribute("href", "/");
+  });
+
+  it("đã đăng nhập: link về /home", async () => {
+    useLocale("vi");
+    cookieJar.values.set("userRole", "user");
+    renderWithIntl(await NotFound());
+    expect(screen.getByRole("link", { name: "Về trang chủ" })).toHaveAttribute("href", "/home");
+  });
+
+  it("tiếng Anh: không sót chữ tiếng Việt", async () => {
+    useLocale("en");
+    const { container } = renderWithIntl(await NotFound(), "en");
+    expect(screen.getByRole("heading", { name: "This page does not exist" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Back to Home" })).toBeInTheDocument();
     expect(vietnameseLeftovers(container)).toEqual([]);
   });
 });

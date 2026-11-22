@@ -1251,6 +1251,10 @@
       "submit": "Change password",
       "forgotCurrent": "Forgot your current password?",
       "forgotNote": "After resetting it you will need to sign in again.",
+      "notificationsTitle": "Notifications",
+      "approvalEmailsLabel": "Approval emails",
+      "approvalEmailsBody": "Get an email when a baseline or change package is sent to you for approval, and when your submission is approved, rejected or sent back for changes. You still see these in the app when this is off.",
+      "approvalEmailsFailed": "Could not save this setting. Please try again.",
       "logoutAllTitle": "Sign out of all devices",
       "logoutAllBody": "End every session of this account, including this device. Use it if you forgot to sign out elsewhere or suspect your password has leaked. Other devices are signed out within a few minutes.",
       "logoutAllCta": "Sign out of all devices",
@@ -3695,6 +3699,13 @@
     "title": "FlintFlow is under maintenance",
     "body": "We're upgrading the system to serve you better. Please check back in a few minutes - your projects and documents are not affected.",
     "home": "Go to home page"
+  },
+  "notFound": {
+    "metaTitle": "Page not found · FlintFlow",
+    "eyebrow": "Error 404",
+    "title": "This page does not exist",
+    "body": "The link may be wrong, or the page has been moved or deleted.",
+    "home": "Back to Home"
   },
   "admin": {
     "common": {

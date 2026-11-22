@@ -11,7 +11,7 @@ import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import GoogleConnectCard from "@/components/integrations/GoogleConnectCard";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { ApiClientError } from "../../../lib/api/client";
-import { changeMyPassword, fetchMe, logoutAllDevices, updateMyName } from "../../../lib/api/users";
+import { changeMyPassword, fetchMe, logoutAllDevices, updateApprovalEmails, updateMyName } from "../../../lib/api/users";
 import { logoutAndRedirect } from "../../../lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { User } from "../../../types/user";
@@ -340,6 +340,59 @@ function ChangePasswordCard({ user }: { user: User }) {
   );
 }
 
+/**
+ * UC-89: công tắc email việc duyệt. Lưu theo tài khoản (mọi tổ chức), mặc định bật; tắt vẫn nhận thông báo trong app.
+ * Đổi lạc quan, lỗi thì trả công tắc về trạng thái cũ và báo lỗi.
+ */
+function ApprovalEmailsCard({ user, onUpdated }: { user: User; onUpdated: (user: User) => void }) {
+  const t = useTranslations("app.profile");
+  const [enabled, setEnabled] = useState(user.approvalEmails !== false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = async () => {
+    const next = !enabled;
+    setEnabled(next);
+    setSaving(true);
+    setError(null);
+    try {
+      onUpdated(await updateApprovalEmails(next));
+    } catch (err) {
+      setEnabled(!next);
+      setError(userErrorMessage(err, t("approvalEmailsFailed")));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className={cardClass}>
+      <h2 className="text-heading font-bold text-on-surface">{t("notificationsTitle")}</h2>
+      <div className="flex items-start justify-between gap-4 rounded-control bg-surface-container-lowest px-3.5 py-3">
+        <div className="min-w-0">
+          <p id="approval-emails-label" className="text-body font-bold text-on-surface">{t("approvalEmailsLabel")}</p>
+          <p className="text-body text-on-surface-muted mt-0.5 leading-[1.6]">{t("approvalEmailsBody")}</p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-labelledby="approval-emails-label"
+          disabled={saving}
+          onClick={() => void toggle()}
+          className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 ${enabled ? "bg-primary" : "bg-outline"}`}
+        >
+          <span
+            aria-hidden
+            className={`inline-block h-5 w-5 rounded-full bg-surface-container-lowest shadow-sm transition-transform ${enabled ? "translate-x-[22px]" : "translate-x-0.5"}`}
+          />
+        </button>
+      </div>
+      {error && <p role="alert" className="text-body text-on-error-container">{error}</p>}
+    </section>
+  );
+}
+
 function LogoutAllCard() {
   const t = useTranslations("app.profile");
   const tc = useTranslations("app.common");
@@ -443,6 +496,7 @@ export default function ProfilePage() {
           <div className="flex flex-col gap-6 max-w-[760px]">
             <ProfileInfoCard user={user} onUpdated={setUser} hasOrg={hasOrg} />
             <ChangePasswordCard user={user} />
+            <ApprovalEmailsCard user={user} onUpdated={setUser} />
             <GoogleConnectCard className={cardClass} />
             <LogoutAllCard />
           </div>

@@ -613,7 +613,7 @@ const buildMockTraceability = (state: MockState, entity: TraceabilityEntity, id:
  * Khớp `updateMeSchema` của BE (strictObject): field lạ, sai kiểu hay body rỗng ⇒ 400 VALIDATION_ERROR. Mock từng
  * nhận mọi body trong khi BE từ chối `locale` — chính chỗ đó che bug FLF-259.
  */
-const USER_PATCH_KEYS = new Set(["name", "onboardedAt", "locale"]);
+const USER_PATCH_KEYS = new Set(["name", "onboardedAt", "locale", "approvalEmails"]);
 
 const invalidUserPatch = (path: string, message: string, userMessage = "Dữ liệu gửi lên không hợp lệ. Vui lòng tải lại trang rồi thử lại.") =>
   fail(400, "VALIDATION_ERROR", userMessage, { issues: [{ path, message }] });
@@ -624,7 +624,7 @@ const patchMockUser = (body: unknown) => {
   const unknownKeys = Object.keys(patch).filter((key) => !USER_PATCH_KEYS.has(key));
   if (unknownKeys.length) return invalidUserPatch("", `Unrecognized keys: ${unknownKeys.join(", ")}`);
 
-  const { name, onboardedAt, locale } = patch;
+  const { name, onboardedAt, locale, approvalEmails } = patch;
   if (name !== undefined && (typeof name !== "string" || !name.trim() || name.trim().length > 100)) {
     return invalidUserPatch("name", "Invalid name");
   }
@@ -632,12 +632,14 @@ const patchMockUser = (body: unknown) => {
     return invalidUserPatch("onboardedAt", "Invalid ISO datetime");
   }
   if (locale !== undefined && !isLocale(locale)) return invalidUserPatch("locale", 'Invalid option: expected one of "vi"|"en"');
-  if (name === undefined && onboardedAt === undefined && locale === undefined) {
+  if (approvalEmails !== undefined && typeof approvalEmails !== "boolean") return invalidUserPatch("approvalEmails", "Invalid input: expected boolean");
+  if (name === undefined && onboardedAt === undefined && locale === undefined && approvalEmails === undefined) {
     return invalidUserPatch("", "Chưa có thông tin nào để cập nhật.", "Chưa có thông tin nào để cập nhật.");
   }
 
   if (typeof name === "string") mockState.user.name = name.trim();
   if (onboardedAt !== undefined) mockState.user.onboardedAt = onboardedAt as string | null;
+  if (typeof approvalEmails === "boolean") mockState.user.approvalEmails = approvalEmails;
   if (isLocale(locale)) mockState.user.locale = locale;
   return ok(mockState.user);
 };
