@@ -39,15 +39,13 @@ describe("org-library API (FLF-278 trên FLF-335/336)", () => {
       { method: "POST", body: JSON.stringify({ headings: [{ index: 3, section_id: "fixed:2.1" }] }) },
     ],
     ["getTemplateVersion", () => api.getTemplateVersion("o1", "t1", 2), "/orgs/o1/templates/t1/versions/2", undefined],
-    ["getSkeletonPending", () => api.getSkeletonPending("p1"), "/projects/p1/template-skeleton", undefined],
-    [
-      "decideSkeletonPending",
-      () => api.decideSkeletonPending("p1", [{ key: "B0001", decision: "keep" }]),
-      "/projects/p1/template-skeleton/decisions",
-      { method: "POST", body: JSON.stringify({ decisions: [{ key: "B0001", decision: "keep" }] }) },
-    ],
-    ["suggestSkeletonNames", () => api.suggestSkeletonNames("p1"), "/projects/p1/template-skeleton/suggest", { method: "POST" }],
-    ["saveImportToOrg", () => api.saveImportToOrg("p1", "IEEE"), "/projects/p1/import/save-to-org", { method: "POST", body: JSON.stringify({ name: "IEEE" }) }],
+    ["getTemplateProposal", () => api.getTemplateProposal("p1"), "/projects/p1/template-proposal", undefined],
+    ["createTemplateProposal", () => api.createTemplateProposal("p1"), "/projects/p1/template-proposal", { method: "POST" }],
+    ["actOnTemplateProposal send", () => api.actOnTemplateProposal("p1", "send"), "/projects/p1/template-proposal/send", { method: "POST" }],
+    ["actOnTemplateProposal decline", () => api.actOnTemplateProposal("p1", "decline"), "/projects/p1/template-proposal/decline", { method: "POST" }],
+    ["listTemplateProposals", () => api.listTemplateProposals("o1"), "/orgs/o1/template-proposals", undefined],
+    ["getOrgTemplateProposal", () => api.getOrgTemplateProposal("o1", "x1"), "/orgs/o1/template-proposals/x1", undefined],
+    ["decideTemplateProposal", () => api.decideTemplateProposal("o1", "x1", "approve"), "/orgs/o1/template-proposals/x1/approve", { method: "POST" }],
   ] as const)("%s gọi đúng endpoint", async (_name, call, path, init) => {
     await call();
     if (init === undefined) expect(apiCall).toHaveBeenCalledWith(path);

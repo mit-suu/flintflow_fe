@@ -18,6 +18,8 @@ export interface OrgTemplateSummary {
   skeleton: boolean;
   /** Dự án nguồn của mẫu khung tự lưu (mở duyệt mục chờ); mẫu thường `null` / thiếu. */
   skeleton_source_project_id?: string | null;
+  /** Tên dự án nguồn - hiện "Lưu từ dự án <tên>" (UC-85). */
+  skeleton_source_project_name?: string | null;
   /** Mới nhất trước; bản nháp chỉ có với Lead. */
   versions: TemplateVersionSummary[];
 }
@@ -65,32 +67,27 @@ export interface DeleteTemplateResult {
   template_deleted?: boolean;
 }
 
-export type PendingDecision = "pending" | "keep" | "generic" | "drop";
+/** UC-85 / UC-88 - đề xuất lưu cấu trúc dự án thành mẫu tổ chức (`GET /projects/:id/template-proposal`, `/orgs/:orgId/template-proposals`). */
+export type TemplateProposalStatus = "proposed" | "sent" | "approved" | "rejected" | "declined" | "superseded";
 
-export interface PendingHeading {
+/** Một heading AI đổi tên riêng thành chỗ trống; `generic: null` = heading bị bỏ khỏi mẫu (chỉ dùng được cho dự án này). */
+export interface ProposalReplacedName {
   key: string;
-  heading_text: string;
-  level: number;
-  kind: "custom" | "wording";
-  standard_title: string | null;
-  suggestion: string | null;
-  suggestion_reason: string | null;
-  decision: PendingDecision;
-  generic_text: string | null;
+  original: string;
+  generic: string | null;
+  reason: string | null;
 }
 
-export interface SkeletonPending {
-  template_id: string;
-  name: string;
-  version: number;
-  pending_count: number;
-  headings: PendingHeading[];
-  /** Credit một lượt "Gợi ý tên chung". */
-  suggest_credit_cost: number;
-}
-
-export interface SkeletonDecision {
-  key: string;
-  decision: "keep" | "generic" | "drop";
-  generic_text?: string;
+export interface TemplateProposal {
+  id: string;
+  project_id: string;
+  project_name: string;
+  status: TemplateProposalStatus;
+  /** Heading của khung sau khi đổi tên. */
+  headings: string[];
+  replaced_names: ProposalReplacedName[];
+  created_by: { id: string; name: string | null };
+  created_at: string;
+  template_id: string | null;
+  version: number | null;
 }

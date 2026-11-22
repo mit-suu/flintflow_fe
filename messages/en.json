@@ -686,6 +686,18 @@
         "title": "The organization template has version {version}",
         "body": "{count, plural, one {# project is} other {# projects are}} on an older version. Open the project to update to the new template or leave it for later."
       },
+      "template_proposal_submitted": {
+        "title": "Template proposal from \"{project}\" awaits your approval",
+        "body": "{name} proposed saving the project structure as an organization template."
+      },
+      "template_proposal_approved": {
+        "title": "Your template from \"{project}\" was saved",
+        "body": "The project structure is now in the template library and the project follows it."
+      },
+      "template_proposal_rejected": {
+        "title": "Your template from \"{project}\" was not saved",
+        "body": "The project stays without a template; you can apply one later."
+      },
       "skeleton_headings_pending": {
         "title": "{count, plural, one {# section} other {# sections}} awaiting review for the skeleton template",
         "body": "Sections the BA added or named differently from the standard only enter the organization template once reviewed."
@@ -1399,9 +1411,10 @@
         "delete": "Delete",
         "confirmDelete": "Confirm delete",
         "templates": {
-          "help": "Each template has several versions. A Lead uploads a .docx file (or chooses “Save as organization template” on the document import screen of a customer-template project), reviews the heading mapping, then publishes it. Later projects pick the template and version in the SRS slot when created, without uploading and mapping again.",
+          "help": "Each template has several versions. A Lead uploads a .docx file, reviews the heading mapping, then publishes it; or saves a project's structure as a template (from the project itself, or when asked after signing the baseline). Later projects pick the template and version in the SRS slot when created, without uploading and mapping again.",
           "empty": "Your organization has not saved any templates yet.",
           "headingsCount": "{count, plural, one {# heading} other {# headings}}",
+          "savedFromProject": "Saved from project {project}",
           "customsCount": "{count} kept verbatim",
           "usesCount": "{count, plural, =0 {Not used yet} one {Used once} other {Used # times}}",
           "cols": {
@@ -1422,8 +1435,6 @@
           "results": "{count, plural, =0 {No results} one {# result} other {# results}}",
           "latest": "Latest: version {version}",
           "draftOnly": "Nothing published yet",
-          "skeleton": "Auto-saved skeleton",
-          "pending": "{count, plural, one {# section} other {# sections}} to review",
           "pendingHint": "Review them in the “sections to review” card of the project that produced this skeleton.",
           "newTemplate": "Upload a new template",
           "newNameLabel": "Template name",
@@ -1446,7 +1457,6 @@
           "reviewTitle": "Review mapping: {name} · version {version}",
           "contentWarning": "The template still has text in {count}/{total} sections (old content not deleted). Delete it before publishing; projects using this template drop that text by default.",
           "publish": "Publish this version",
-          "reviewPending": "Review pending sections",
           "hidePending": "Hide pending sections",
           "publishedBy": "published by {name}",
           "publishedByFormer": "published by a former member",
@@ -1464,34 +1474,38 @@
         "empty": "The template file has no headings.",
         "listLabel": "Headings of the template file"
       },
-      "pendingHeadings": {
-        "loading": "Loading the sections to review…",
-        "help": "The sections below only enter the organization template “{name}” once reviewed.",
-        "empty": "Nothing to review.",
-        "listLabel": "Sections to review",
-        "kindCustom": "Added by the BA",
-        "kindWording": "Differs from standard name",
-        "pending": "To review",
-        "decided": {
-          "keep": "Kept as is",
-          "generic": "Kept in generic form",
-          "drop": "Dropped"
-        },
-        "standardTitle": "Closest standard name: {title}",
-        "choiceLabel": "Choose what to do with “{heading}”",
-        "choice": {
-          "keep": "Keep as is",
-          "generic": "Keep in generic form",
-          "drop": "Drop"
-        },
-        "genericLabel": "Generic name (use '{'Customer name'}' in place of a specific name)",
-        "genericRequired": "Enter a generic name for every section set to “Keep in generic form”.",
-        "save": "Save decisions",
-        "suggest": "Suggest generic names ({credits, plural, one {# credit} other {# credits}})",
-        "cardTitle": "Skeleton template sections to review",
-        "cardSummary": "{count, plural, one {# section} other {# sections}} awaiting review for this project's skeleton template",
+      "templateProposal": {
+        "cardTitle": "Save this structure as an organization template?",
+        "cardBody": "The structure of this baseline (headings, table columns, guidance) can become a template for your organization. Content is never saved, and every proper name below was replaced.",
+        "replacedTitle": "{count, plural, one {# heading changed} other {# headings changed}}",
+        "noReplaced": "No proper names were found in the headings.",
+        "dropped": "Left out of the template",
+        "droppedReason": "Left out of the template: {reason}",
+        "showStructure": "Show structure ({count, plural, one {# heading} other {# headings}})",
+        "hideStructure": "Hide structure",
+        "sendToLead": "Send to Lead",
+        "saveToLibrary": "Save to library",
+        "dontSave": "Don't save",
+        "sentNotice": "This structure was sent to your Lead for approval.",
+        "savedNotice": "Saved to the template library. This project now follows that template.",
+        "declinedNotice": "Not saved. This structure will not be proposed again.",
+        "actionFailed": "Could not complete this. Please try again.",
+        "saveStructureTitle": "Save structure as template",
+        "saveStructureBody": "Turn the structure of the latest version into an organization template. Proper names are replaced first, which uses AI credits.",
+        "saveStructure": "Save structure as template",
+        "createFailed": "Could not prepare the template. Please try again.",
+        "sectionTitle": "Template proposals",
+        "rowTitle": "Template from project \"{project}\"",
+        "rowMeta": "Sent by {name} · {date}",
         "review": "Review",
-        "hide": "Collapse"
+        "reviewBody": "Approve to add this structure to the template library; the source project will follow it. Reject to leave the project without a template.",
+        "alreadyDecided": "This proposal has already been handled.",
+        "approve": "Approve",
+        "reject": "Reject",
+        "approvedNotice": "The template from project \"{project}\" was added to the library.",
+        "rejectedNotice": "The template from project \"{project}\" was rejected.",
+        "noneWaiting": "No proposals are waiting for you.",
+        "loadFailed": "Could not open this proposal."
       }
     },
     "screenMockup": {
@@ -3364,14 +3378,6 @@
           "body": "FlintFlow keeps the sections you wrote, drafts the missing ones with you in the workspace and rearranges the layout to the FlintFlow standard template.",
           "draft": "Draft the missing sections"
         }
-      },
-      "saveToOrg": {
-        "help": "Save this template file for your organization - later projects pick it in the SRS slot when created, and FlintFlow already knows its sections.",
-        "nameLabel": "Template name",
-        "action": "Save as organization template",
-        "saving": "Saving…",
-        "saved": "Saved. New projects in your organization will see this template in the SRS slot when created.",
-        "failed": "Could not save the template. Please try again."
       },
       "creating": {
         "title": "Preparing your project",
