@@ -8,11 +8,10 @@ import type { Flag } from "@/types/spine";
 import type { Migration, TemplateCurrent } from "@/types/template-migration";
 import { isOpenMigration } from "@/types/template-migration";
 import { useTemplateMigration } from "../../hooks/useTemplateMigration";
-import DecisionGroups from "./DecisionGroups";
 import type { MigrationTargetQuery } from "./href";
 import { migrationMissingLabel, openMigrationMissing } from "./missing-flags";
 import MissingSectionsCard from "./MissingSectionsCard";
-import PairTable from "./PairTable";
+import ReviewStep from "./ReviewStep";
 import RevertMigrationButton from "./RevertMigrationButton";
 import SummaryStep from "./SummaryStep";
 import TargetPicker from "./TargetPicker";
@@ -34,32 +33,36 @@ interface TemplateMigrationScreenProps {
   currentTemplate?: TemplateCurrent | null;
 }
 
-const STEPS = ["target", "pairs", "groups", "summary"] as const;
+const STEPS = ["target", "review", "apply"] as const;
 type Step = (typeof STEPS)[number];
 
-const stepOf = (m: Migration | null): Step | "applying" | "failed" | "applied" => {
+/** `mapping_review` / `decisions` cùng là bước Xem lại thay đổi; bấm Tiếp tục chỉ chuyển màn (`viewApply`), chốt `ready` lúc Áp dụng. */
+const stepOf = (m: Migration | null, viewApply: boolean): Step | "applying" | "failed" | "applied" => {
   if (!m || !isOpenMigration(m.state)) return m?.state === "applied" ? "applied" : "target";
-  if (m.state === "mapping_review") return "pairs";
-  if (m.state === "decisions") return "groups";
-  if (m.state === "ready") return "summary";
+  if (m.state === "mapping_review" || m.state === "decisions") return viewApply ? "apply" : "review";
+  if (m.state === "ready") return "apply";
   return m.state === "apply_failed" ? "failed" : "applying";
 };
 
 /**
- * Màn đổi mẫu (popup `panel=template`): chọn mẫu đích → ghép mục → quyết định theo nhóm (đổi ngược: Giữ / Hoàn tác) → tóm tắt + credit →
- * áp dụng. Mọi bước đọc/ghi qua `useTemplateMigration` (BE là nguồn sự thật); 409 dữ liệu đổi giữa chừng đưa về bước nhóm kèm thông báo.
+ * Màn đổi mẫu (popup `panel=template`), 3 bước: chọn mẫu đích → xem lại thay đổi (ghép cặp + quyết định, chọn sẵn phương án miễn phí;
+ * đổi ngược: Giữ / Hoàn tác) → áp dụng từ dàn tiêu đề tài liệu sau khi đổi. Mọi bước đọc/ghi qua `useTemplateMigration` (BE là nguồn sự
+ * thật); 409 dữ liệu đổi giữa chừng đưa về bước xem lại kèm thông báo.
  */
 export default function TemplateMigrationScreen({ projectId, orgId, orgRole, flags, sectionName, preselect = null, onChanged, currentTemplate = null }: TemplateMigrationScreenProps) {
   const t = useTranslations("mode1.templateMigration");
   const m = useTemplateMigration(projectId, { detail: true, fallbackError: t("actionFailed") });
   // Có đích điền sẵn (nút Cập nhật của thông báo) mà chưa có lần đổi mẫu mở ⇒ vào thẳng bước chọn mẫu, không hiện kết quả cũ
   const [pickAgain, setPickAgain] = useState(preselect !== null);
+  const [viewApply, setViewApply] = useState(false);
   const isLead = orgRole === "lead";
 
   if (m.loading) return <p className="text-body text-on-surface-muted">{t("loading")}</p>;
 
   const current = m.current;
-  const step = pickAgain && stepOf(current) === "applied" ? "target" : stepOf(current);
+  // 409 STALE đưa lần đổi mẫu về bước xem lại: không giữ màn Áp dụng
+  const base = stepOf(current, viewApply && !m.stale);
+  const step = pickAgain && base === "applied" ? "target" : base;
   const stepIndex = STEPS.indexOf(step as Step);
 
   /** Mọi thay đổi trạng thái đều báo ra ngoài để thẻ công cụ và project đọc lại (hai nơi giữ trạng thái riêng). */
@@ -67,6 +70,7 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
     const done = await run();
     if (done) {
       setPickAgain(false);
+      setViewApply(false);
       onChanged?.();
     }
   };
@@ -110,27 +114,39 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
         />
       )}
 
-      {step === "pairs" && current && (
-        <>
-          <PairTable migration={current} busy={m.busy !== null} onEdit={(edits) => void m.editPairs(edits)} onEditMapping={(edits) => void m.editMapping(edits)} onConfirm={() => void m.confirmMapping()} />
-          <CancelLink busy={m.busy !== null} onCancel={() => void afterChange(m.cancel)} />
-        </>
+      {step === "review" && current && (
+        <ReviewStep
+          migration={current}
+          busy={m.busy !== null}
+          // Mọi thao tác ở bước xem lại giữ người dùng ở bước này (kể cả sau khi 409 STALE đưa về đây)
+          onDecide={(change) => {
+            setViewApply(false);
+            void m.decide(change);
+          }}
+          onEditPairs={(edits) => {
+            setViewApply(false);
+            void m.editPairs(edits);
+          }}
+          onEditMapping={(edits) => {
+            setViewApply(false);
+            void m.editMapping(edits);
+          }}
+          onContinue={() => {
+            m.clearNotices();
+            setViewApply(true);
+          }}
+          onCancel={() => void afterChange(m.cancel)}
+        />
       )}
 
-      {step === "groups" && current && (
-        <>
-          <DecisionGroups migration={current} busy={m.busy !== null} onDecide={(change) => void m.decide(change)} onContinue={() => void m.markReady()} />
-          <CancelLink busy={m.busy !== null} onCancel={() => void afterChange(m.cancel)} />
-        </>
-      )}
-
-      {step === "summary" && current && (
+      {step === "apply" && current && (
         <SummaryStep
           migration={current}
           applying={m.busy === "apply"}
           busy={m.busy !== null}
           brokenLinks={m.brokenLinks}
-          onApply={() => void afterChange(m.apply)}
+          onApply={() => void afterChange(m.readyAndApply)}
+          onBack={current.state === "ready" ? undefined : () => setViewApply(false)}
           onCancel={() => void afterChange(m.cancel)}
         />
       )}
@@ -184,13 +200,3 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
   );
 }
 
-function CancelLink({ busy, onCancel }: { busy: boolean; onCancel: () => void }) {
-  const t = useTranslations("mode1.templateMigration");
-  return (
-    <div className="flex">
-      <Button size="sm" variant="ghost" disabled={busy} onClick={onCancel}>
-        {t("cancelMigration")}
-      </Button>
-    </div>
-  );
-}

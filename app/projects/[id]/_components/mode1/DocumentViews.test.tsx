@@ -114,11 +114,10 @@ describe("VersionsPanel - version & release (Flow 6, UC-57)", () => {
 });
 
 describe("VersionCompare (UC-55) và ReuploadDiffView (UC-24)", () => {
-  it("so sánh 0.1 → 0.2 liệt kê block sửa", async () => {
+  it("so sánh 0.1 → 0.2 (tự so khi mở) liệt kê block sửa", async () => {
     const versions = await withRevision();
     renderWithIntl(<VersionCompare projectId={P} versions={versions} />);
-    fireEvent.click(screen.getByRole("button", { name: "So sánh" }));
-    expect(await screen.findByText(/0.1 → 0.2: 0 thêm · 0 xoá · 1 sửa/)).toBeInTheDocument();
+    expect(await screen.findByText(/0 thêm · 0 xoá · 1 sửa/)).toBeInTheDocument();
   });
 
   it("tải lại file ⇒ diff, không tạo version, nút tạo CR nguồn reupload", async () => {

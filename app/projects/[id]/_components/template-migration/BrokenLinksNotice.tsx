@@ -10,7 +10,7 @@ interface BrokenLinksNoticeProps {
 
 /** Đổi ngược mà bỏ sửa làm gãy liên kết giữa các mục: hiện trước khi áp dụng, nút Áp dụng khoá tới khi hết. */
 export default function BrokenLinksNotice({ links }: BrokenLinksNoticeProps) {
-  const t = useTranslations("mode1.templateMigration.summary");
+  const t = useTranslations("mode1.templateMigration.apply");
   if (links.length === 0) return null;
   return (
     <div role="alert" className="rounded-card bg-error-container p-3 text-body text-on-error-container flex flex-col gap-1.5">
