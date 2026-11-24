@@ -966,7 +966,8 @@
           "keep": "Giữ làm tham khảo",
           "drop": "Bỏ file này",
           "maybeSrs": "Nếu đây là SRS bạn muốn FlintFlow hoàn thiện, hãy chuyển sang ô SRS."
-        }
+        },
+        "pdfWarning": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx."
       },
       "slots": {
         "drop": "Kéo thả file vào đây hoặc bấm để chọn",
@@ -2889,7 +2890,8 @@
       "cancel": "Huỷ",
       "pipelineTitle": "Soạn phần còn lại của SRS",
       "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
-      "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}"
+      "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}",
+      "pdfNote": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx."
     },
     "aiError": {
       "title": "{what}: AI lỗi{retried, select, yes {, đã thử lại 2 lần} other {}} - credit đã hoàn",
@@ -5256,7 +5258,10 @@
       "confirmUnknown": "AI đọc cả tài liệu một lần và tốn credit. Chạy chứ?",
       "cancel": "Huỷ",
       "run": "Chạy",
-      "view": "Xem"
+      "view": "Xem",
+      "noText": "Không đọc được chữ trong file",
+      "legacyDoc": "Chưa đọc được file .doc, hãy lưu lại thành .docx",
+      "imagesSkipped": "Hình / sơ đồ trong file không được đọc"
     },
     "extraction": {
       "aria": "Danh sách yêu cầu rút từ {name}",

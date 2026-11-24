@@ -12,6 +12,7 @@ import ScreenMockupDialog from "@/components/project/ScreenMockupDialog";
 import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
 import { setStepScreenNames } from "@/lib/constants/step-registry";
 import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
+import { hasPdfFile } from "@/lib/reference-upload";
 import { ApiClientError } from "@/lib/api/client";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import { createBaseline, rejectBaseline, submitBaseline } from "@/lib/api/export";
@@ -317,6 +318,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         lines: files.map((f) => ({ label: f.name, credits: cost })),
         total,
         available: balance,
+        // FLF-449 (AC-21.2): PDF cảnh báo trước khi tải - bảng nhiều cột / bản scan
+        notes: hasPdfFile(files) ? [t("creditGate.pdfNote")] : undefined,
       });
     },
     [confirmCredits, t]
