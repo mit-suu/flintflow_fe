@@ -24,6 +24,7 @@ interface ImportProgressProps {
   /**
    * FLF-411 U1-2: chế độ thật (BE `target_structure.resolved_mode`) và loại file (`structure_preview.summary.kind`). Chỉ chế độ 1
    * ghép thành bản gốc 0.1; chế độ 3 / 4 bắt đầu baseline 1.0 sau khi soạn (BF §2). Khung mẫu không có nội dung để trích.
+   * FLF-463: `template` = file chưa có mục nào viết (nhãn "Khung mẫu" mà còn mục đã viết thì vẫn đọc mục đó như SRS đã viết).
    */
   resolvedMode?: 1 | 3 | 4 | null;
   fileKind?: "written" | "template" | null;

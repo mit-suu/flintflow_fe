@@ -88,6 +88,14 @@ describe("StructurePreview - màn đọc khung (business-flow §3.1.2)", () => {
     expect(screen.getByText("Mục riêng")).toBeInTheDocument();
   });
 
+  it("FLF-463: nhãn Khung mẫu mà còn mục đã viết ⇒ vẫn nói đọc phần đã có rồi soạn mục còn thiếu, không nói \"chưa có nội dung để đọc\"", () => {
+    const partial: Preview = { ...preview, summary: { present: 1, missing: 5, out_of_scope: 0, kind: "template" }, resolved_mode: 3 };
+    const { container } = renderWithIntl(<StructurePreview fileName="Mau_SRS_SoXD.docx" preview={partial} estimate={null} credits={5} {...handlers()} />);
+    expect(screen.getByRole("heading", { name: /Khung mẫu · 1\/6/ })).toBeInTheDocument();
+    expect(container.textContent).toContain("Còn 5 mục trống. FlintFlow đọc phần đã có");
+    expect(container.textContent).not.toMatch(/chưa có nội dung để đọc/);
+  });
+
   it("chữ trên màn không còn thuật ngữ nội bộ; bản tiếng Anh không sót tiếng Việt", () => {
     const { container, unmount } = renderWithIntl(<StructurePreview fileName="SRS.docx" preview={preview} estimate={estimate(12, 100)} credits={100} {...handlers()} />);
     expect(container.textContent).not.toMatch(/\b(block|field|section|mapping|baseline|v0)\b|tất định|quyết toán|S-\d/i);
