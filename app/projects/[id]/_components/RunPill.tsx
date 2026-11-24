@@ -1,9 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { runnerDetailText, type RunnerState } from "../hooks/useStepRunner";
-import { formatDuration } from "./StepProgress";
+import { ElapsedTimer } from "@/components/ui/ai-activity";
 import { phaseNavLabel, workspaceStepLabel } from "./phase-labels";
 
 /**
@@ -24,15 +23,8 @@ export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
   const t = useTranslations("workspace.runPill");
   const tDetail = useTranslations("workspace.runnerDetail");
   const locale = useLocale();
-  const [now, setNow] = useState(() => Date.now());
-  useEffect(() => {
-    const timer = setInterval(() => setNow(Date.now()), 1000);
-    return () => clearInterval(timer);
-  }, []);
-
   if (!state.stepId) return null;
   const needsUser = state.status === "needs_input" || state.status === "gate_ready" || state.status === "error";
-  const elapsed = state.startedAt ? now - state.startedAt : 0;
   // Tên giai đoạn đời thường — pill không hiện mã `S-5@S03` / `S-4.2` (FLF-247)
   const phase = state.phase ? (phaseNavLabel(state.phase.split("@")[0], locale) ?? t("currentPhase")) : null;
   const label = phase
@@ -54,7 +46,7 @@ export default function RunPill({ state, onOpen, onCancel }: RunPillProps) {
       <span>
         {label} · {needsUser ? t("yourTurn") : state.detail ? runnerDetailText(state.detail, tDetail) : t("running")}
       </span>
-      <span className="font-mono opacity-80">{formatDuration(elapsed)}</span>
+      {state.startedAt && <ElapsedTimer since={state.startedAt} className="font-mono opacity-80" />}
       {!needsUser && onCancel && (
         <span
           role="button"

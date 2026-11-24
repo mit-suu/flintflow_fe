@@ -7,6 +7,7 @@ import { workspaceStepLabel } from "./phase-labels";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 import Icon from "@/components/ui/Icon";
+import { ShimmerText } from "@/components/ui/ai-activity";
 import { useMode1Labels } from "./mode1/i18n";
 import { WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isRedrawable, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup, type RedrawReport } from "./flag-rules";
 import { userErrorMessage } from "@/lib/api/error-messages";
@@ -558,7 +559,14 @@ export default function FlagsPanel({
                   </p>
                 </div>
                 <button type="button" onClick={onRewriteOutdated} disabled={rewriting} className={`${pillButton} bg-primary text-on-primary hover:bg-primary-hover`}>
-                  {rewriting ? t("rewriteChecking") : t("rewrite")}
+                  {rewriting ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Icon name="spinner" size={12} className="animate-spin motion-reduce:animate-none" />
+                      <ShimmerText className="[--ff-shimmer-base:rgb(255_255_255/0.6)] [--ff-shimmer-peak:#fff]">{t("rewriteChecking")}</ShimmerText>
+                    </span>
+                  ) : (
+                    t("rewrite")
+                  )}
                 </button>
               </section>
             )}

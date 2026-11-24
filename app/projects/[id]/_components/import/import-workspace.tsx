@@ -17,6 +17,7 @@ import PreflightIssues from "../mode1/PreflightIssues";
 import UploadStep from "../mode1/UploadStep";
 import { useErrorText } from "../mode1/i18n";
 import { useImport } from "../../hooks/mode1/useImport";
+import { useImportSource } from "../../hooks/mode1/useImportSource";
 import { useMode1Project } from "../../hooks/mode1/useMode1Project";
 import ImportProgress from "./import-progress";
 import StructurePreview, { StructureReading } from "./structure-preview";
@@ -63,6 +64,9 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const doc = imp.doc;
   const status = doc?.status ?? null;
+  // Chữ gốc của file cho khung tài liệu ở màn đọc: tải một lần khi lượt đọc chạy / đang dừng, không theo poll
+  const showingProgress = !!doc && !!status && (RUN_STATUSES.includes(status) || !!doc.paused);
+  const source = useImportSource(projectId, doc?.id ?? null, showingProgress);
   // File từ hộp Tạo dự án đang tải nền ⇒ hiện các bước tích dần; SRS tải xong ⇒ đọc lại lần import để mở màn đọc khung
   const uploads = useProjectUploads(projectId);
   const srsUpload = uploads?.items.find((i) => i.kind === "srs") ?? null;
@@ -194,7 +198,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       );
     }
     if (doc && status && (RUN_STATUSES.includes(status) || doc.paused)) {
-      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview?.summary.kind ?? null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
+      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview?.summary.kind ?? null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} source={source.sections} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
       // Bản ghi cũ (trước khi đọc chạy một mạch) dừng ở bước xác nhận ⇒ Tiếp tục = đọc nốt một mạch

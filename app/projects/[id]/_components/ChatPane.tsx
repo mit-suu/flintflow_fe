@@ -13,6 +13,7 @@ import type { ChatMessage, DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
 import { workspaceStepLabel as stepLabelOf } from "./phase-labels";
 import Icon from "@/components/ui/Icon";
+import { AiWaitLine } from "@/components/ui/ai-activity";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput, { formatAnswers } from "./QuestionStepperInput";
@@ -188,6 +189,7 @@ export default function ChatPane({
   onStop
 }: ChatPaneProps) {
   const t = useTranslations("workspace.chatPane");
+  const tSteps = useTranslations("aiActivity.steps");
   const locale = useLocale() as Locale;
   const dividerLabel = (step: string) => stepLabelOf(step, locale);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -362,10 +364,7 @@ export default function ChatPane({
             {/* Lượt tri thức thắng: nó không có chữ để chạy, nên bong bóng streaming sẽ rỗng — hai khối
                 chờ cùng lúc chỉ làm người đọc tưởng có hai lượt đang chạy. */}
             {knowledgePending ? (
-              <div className="flex items-center gap-2 text-body text-on-surface-muted px-1" role="status">
-                <span aria-hidden className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
-                {t("knowledgePending")}
-              </div>
+              <AiWaitLine label={tSteps("searchKnowledge")} kind="reference" className="px-1" />
             ) : (
               isStreaming && (
                 <ChatBubble

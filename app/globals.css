@@ -470,6 +470,117 @@ body {
   }
 }
 
+/* ── Chờ AI kiểu agent (components/ui/ai-activity.tsx) ──
+   Chữ đang làm có vệt sáng quét một chiều (~2s/lượt). Giảm chuyển động ⇒ chữ tĩnh, không quét. */
+/* Màu đổi được cho nền tối/đậm: đặt --ff-shimmer-base / --ff-shimmer-peak ở chỗ dùng. */
+.ff-ai-shimmer {
+  color: var(--ff-shimmer-base, var(--color-on-surface));
+}
+/* Vệt sáng chạy qua chữ rồi nghỉ một nhịp (70% quét, 30% nghỉ) - đều như nhịp thở, không giật liên tục */
+@keyframes ff-ai-sweep {
+  0% {
+    background-position: 120% 0;
+  }
+  70%,
+  100% {
+    background-position: -20% 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ff-ai-shimmer {
+    color: transparent;
+    background-image: linear-gradient(
+      100deg,
+      var(--ff-shimmer-base, var(--color-on-surface)) 0%,
+      var(--ff-shimmer-base, var(--color-on-surface)) 40%,
+      var(--ff-shimmer-peak, color-mix(in oklab, var(--color-primary) 75%, white)) 50%,
+      var(--ff-shimmer-base, var(--color-on-surface)) 60%,
+      var(--ff-shimmer-base, var(--color-on-surface)) 100%
+    );
+    background-size: 250% 100%;
+    background-clip: text;
+    -webkit-background-clip: text;
+    animation: ff-ai-sweep 2.4s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  }
+}
+
+/* ── Dải quét trên mục AI đang đọc (app/projects/[id]/_components/import/import-source-pane.tsx) ──
+   Một dải sáng mờ trượt trái → phải qua mục, rồi nghỉ một nhịp (~2.4s quét + nghỉ ⇒ chu kỳ 2.8s). Chỉ đổi `transform`
+   (không đụng background-position / width) nên không buộc layout; hai mép dải mờ dần về trong suốt. Nền tĩnh của mục
+   (`bg-primary-soft`) do nơi dùng đặt, nên giảm chuyển động ⇒ chỉ còn nền tĩnh, không dải. */
+@keyframes ff-read-sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  85%,
+  to {
+    transform: translateX(170%);
+  }
+}
+.ff-read-sweep {
+  position: relative;
+  overflow: hidden;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ff-read-sweep::before {
+    content: "";
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 60%;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      color-mix(in oklab, var(--color-primary) 14%, transparent) 50%,
+      transparent 100%
+    );
+    transform: translateX(-100%);
+    animation: ff-read-sweep 2.8s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+    will-change: transform;
+  }
+}
+
+/* Ba chấm của việc AI đang làm (`TypingDots`): chấm nhảy nhẹ lần lượt rồi nghỉ — như lúc người ta đang gõ.
+   Chỉ animate transform + opacity. Giảm chuyển động ⇒ ba chấm đứng yên, mờ vừa. */
+.ff-dots {
+  display: inline-flex;
+  align-items: flex-end;
+  gap: 2px;
+  height: 0.75em;
+  vertical-align: baseline;
+}
+.ff-dots > span {
+  width: 3px;
+  height: 3px;
+  border-radius: 9999px;
+  background: var(--color-primary);
+  opacity: 0.55;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .ff-dots > span {
+    animation: ff-dot 1.2s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  }
+  .ff-dots > span:nth-child(2) {
+    animation-delay: 0.15s;
+  }
+  .ff-dots > span:nth-child(3) {
+    animation-delay: 0.3s;
+  }
+}
+@keyframes ff-dot {
+  0%,
+  60%,
+  100% {
+    transform: translateY(0);
+    opacity: 0.35;
+  }
+  30% {
+    transform: translateY(-3px);
+    opacity: 1;
+  }
+}
+
 /* ── Grid Pattern Background ── */
 .grid-pattern {
   background-size: 44px 44px;
@@ -630,13 +741,47 @@ body {
     opacity: 1;
   }
 }
+/* `writing`: AI đang soạn mục này — nền + vạch như `pending`, nhưng `::after` phủ cả mục và một dải sáng tím mờ quét
+   ngang (chạy rồi nghỉ một nhịp). Dải nằm trong khung của mục (background-position, không transform) nên không tràn
+   sang mục bên cạnh. */
+.ff-upd[data-update="writing"]::before {
+  opacity: 1;
+  transition-duration: 150ms;
+}
+.ff-upd[data-update="writing"]::after {
+  inset: calc(var(--ff-upd-y) * -1) calc(var(--ff-upd-x) * -1);
+  width: auto;
+  height: auto;
+  border-radius: 8px;
+  opacity: 1;
+  background: linear-gradient(
+    100deg,
+    transparent 0%,
+    transparent 35%,
+    color-mix(in oklab, var(--color-primary) 16%, transparent) 50%,
+    transparent 65%,
+    transparent 100%
+  );
+  background-size: 250% 100%;
+  animation: ff-upd-write 2.8s cubic-bezier(0.45, 0, 0.25, 1) infinite;
+}
+@keyframes ff-upd-write {
+  0% {
+    background-position: 120% 0;
+  }
+  80%,
+  100% {
+    background-position: -20% 0;
+  }
+}
 /* "Giảm chuyển động": bỏ dải sáng + crossfade, giữ nền và vạch đứng yên */
 @media (prefers-reduced-motion: reduce) {
   .ff-upd::before,
   .ff-upd::after {
     transition: none;
   }
-  .ff-upd[data-update="pending"]::after {
+  .ff-upd[data-update="pending"]::after,
+  .ff-upd[data-update="writing"]::after {
     animation: none;
     opacity: 0;
   }
