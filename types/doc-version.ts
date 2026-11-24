@@ -2,7 +2,7 @@
  * Version tài liệu + release mode 1 — bám `flintflow_be/src/modules/doc-version/doc-version.dto.ts` (FLF-171).
  * Import `0.1`; mỗi CR ghi xong lên minor (`0.2`…); release lên major (`1.0`…).
  */
-import type { BlockDiffEntry, BlockDiffSummary } from "./import";
+import type { BlockDiffEntry, BlockDiffSummary, DiffSectionStat } from "./import";
 import type { Baseline, IsoDateTime } from "./spine";
 
 export type DocVersionKind = "imported" | "cr_revision" | "release";
@@ -40,6 +40,7 @@ export interface CompareResponse {
   to: string;
   summary: BlockDiffSummary;
   blocks: BlockDiffEntry[];
+  sections?: DiffSectionStat[];
 }
 
 /** FLF-330 (C-7): gói duyệt — mọi CR đã ghi kể từ lần phát hành trước; bám `doc-version.dto.ts reviewPackageSchema`. */

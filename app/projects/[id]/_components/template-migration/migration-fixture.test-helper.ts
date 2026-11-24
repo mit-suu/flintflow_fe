@@ -15,7 +15,7 @@ export const emptyGroups = (over: Partial<MigrationGroups> = {}): MigrationGroup
 export const migrationFixture = (over: Partial<Migration> = {}): Migration => ({
   id: "m1",
   project_id: "p1",
-  state: "decisions",
+  state: "mapping_review",
   direction: "forward",
   reverse_of: null,
   from: {
@@ -52,10 +52,15 @@ export const migrationFixture = (over: Partial<Migration> = {}): Migration => ({
   groups: emptyGroups({
     matched: [{ id: "m:o0", old_key: "o0", new_key: "n0", by: "section_id", needs_review: false }],
     missing: [{ id: "x:n1", new_key: "n1", heading_text: "Phạm vi", section_id: "custom:new", needs_content: true, guidance: "[Nêu phạm vi]" }],
-    extra: [{ id: "e:o1", old_key: "o1", heading_text: "Ghi chú triển khai", section_id: "custom:c1", follower_keys: [], choices: ["keep_custom", "delete", "move_to:n1"], ai_choices: [], decision_required: true }],
+    extra: [{ id: "e:o1", old_key: "o1", heading_text: "Ghi chú triển khai", section_id: "custom:c1", follower_keys: [], choices: ["keep_custom", "drop_from_print", "delete", "move_to:n1"], ai_choices: [], decision_required: true, suggested: "move_to:n1", suggested_reason: "close_name", confidence: "guess" }],
   }),
   decisions: [],
   undecided: ["e:o1"],
+  outline: [
+    { heading_text: "1 Introduction", level: 1, status: "kept" },
+    { heading_text: "Phạm vi", level: 1, status: "receives", from_heading: ["Ghi chú triển khai"] },
+    { heading_text: "Phụ lục", level: 1, status: "needs_content" },
+  ],
   language: { source: "vi", target: "vi", needs_translation: false, switches_document_language: false },
   credit_estimate: { translation: { chars: 0, batches: 0, credits: 0 }, structural_moves: { count: 0, credits: 0 }, ai_resolve: { count: 0, credits: 0 }, total: 0 },
   warnings: [],

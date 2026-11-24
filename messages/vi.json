@@ -4387,14 +4387,7 @@
       "aria": "Thay đổi theo field"
     },
     "blockDiff": {
-      "change": {
-        "added": "Thêm",
-        "removed": "Xoá",
-        "modified": "Sửa",
-        "moved": "Di chuyển"
-      },
-      "summary": "{added} thêm · {removed} xoá · {modified} sửa · {moved} di chuyển",
-      "none": "Không có khác biệt."
+      "summary": "{added} thêm · {removed} xoá · {modified} sửa · {moved} di chuyển"
     },
     "originalDiagram": {
       "kinds": {
@@ -5000,7 +4993,12 @@
       "title": "Tải lên bản đã sửa ngoài FlintFlow",
       "hint": "So từng đoạn với phiên bản mới nhất, không tạo phiên bản mới. Muốn áp thay đổi thì tạo change request từ khác biệt.",
       "summary": "<name></name> so với bản {version} ({at}): <summary></summary>",
-      "createCr": "Tạo CR từ khác biệt"
+      "createCr": "Tạo CR từ khác biệt",
+      "lineSection": "{section}:",
+      "lineRowsAdded": "- Thêm {count} hàng: {rows}",
+      "lineRowsRemoved": "- Xoá {count} hàng: {rows}",
+      "lineRowsChanged": "- Sửa {count} hàng: {rows}",
+      "lineRowsMoved": "- Đổi chỗ {count} hàng"
     },
     "uploadStep": {
       "title": "Tải lên SRS có sẵn (.docx)",
@@ -5079,8 +5077,25 @@
       "failed": "Không so sánh được",
       "from": "Từ",
       "to": "Đến",
-      "compare": "So sánh",
-      "pickDifferent": "Chọn hai version khác nhau."
+      "pickDifferent": "Chọn hai version khác nhau.",
+      "viewMode": "Kiểu xem",
+      "oneColumn": "Một cột",
+      "twoColumns": "Hai cột",
+      "noChanges": "Không có khác biệt.",
+      "changedSections": "Mục có thay đổi",
+      "other": "Khác",
+      "unchangedParagraphs": "⋯ {count} đoạn không đổi",
+      "unchangedRows": "⋯ {count} hàng",
+      "moved": "đổi chỗ",
+      "imageChanged": "Hình đã đổi",
+      "tableLabel": "Bảng so theo hàng",
+      "loading": "Đang so sánh…",
+      "row": {
+        "added": "Hàng thêm",
+        "removed": "Hàng xoá",
+        "modified": "Hàng sửa",
+        "moved": "Hàng đổi chỗ"
+      }
     },
     "referenceDocs": {
       "aria": "Tài liệu tham khảo",
@@ -5142,9 +5157,8 @@
       "stepsLabel": "Các bước đổi mẫu",
       "steps": {
         "target": "Chọn mẫu",
-        "pairs": "Ghép mục",
-        "groups": "Quyết định",
-        "summary": "Áp dụng"
+        "review": "Xem lại thay đổi",
+        "apply": "Áp dụng"
       },
       "stale": "Dữ liệu tài liệu vừa thay đổi trong lúc chuẩn bị nên chưa áp dụng. Kiểm lại các lựa chọn ở bước này rồi tiếp tục.",
       "applyingElsewhere": "Lần đổi mẫu này đang được áp dụng ở một phiên khác. Chờ xong rồi tải lại.",
@@ -5209,52 +5223,6 @@
         "familyNext": "Bản mới của {name}",
         "previousPrivate": "Quay về mẫu {name} (bản {version}): bản riêng của dự án, lưu từ file mẫu dự án dùng trước lần đổi gần nhất. Mục chưa sửa trở lại nguyên bản, mục đã sửa bạn chọn giữ hay bỏ."
       },
-      "pairs": {
-        "help": "Mỗi mục của tài liệu hiện tại được ghép với một mục của mẫu mới. Sửa cặp nếu hệ thống ghép chưa đúng. Heading của từng use case, chức năng, màn hình đi theo mục cha nên không hiện riêng.",
-        "mappingSummary": "Cách đọc heading của mẫu mới",
-        "reviewCount": "{count} cặp cần xem lại",
-        "listLabel": "Ghép mục cũ với mục mới",
-        "needsReview": "Cần xem",
-        "manual": "Bạn sửa",
-        "noPair": "Không ghép",
-        "confirm": "Xác nhận ghép mục",
-        "mappingEditable": "File mẫu này là của riêng dự án: sửa mục FlintFlow mà mỗi heading của mẫu mới thuộc về, hệ thống ghép và phân nhóm lại ngay.",
-        "mappingLocked": "Mẫu của tổ chức đã được Lead rà ở thư viện nên chỉ xem ở đây. Sửa cặp ở danh sách bên dưới."
-      },
-      "groups": {
-        "restored": "{count} mục chưa sửa sẽ trở lại nguyên bản",
-        "conflictTitle": "Cần chọn cách đặt ({count})",
-        "conflictHelp": "Bảng đổi cột, mục bị tách hoặc bảng Record of Changes khác mẫu cũ. Chọn một cách, hoặc để AI sắp xếp (tính credit).",
-        "conflictKind": {
-          "table_columns": "Bảng đổi cột",
-          "split_section": "Mục bị tách",
-          "record_of_changes": "Record of Changes"
-        },
-        "columnsOld": "Cột cũ: {columns}",
-        "columnsNew": "Cột mới: {columns}",
-        "extraTitle": "Mục không có chỗ trong mẫu mới ({count})",
-        "extraHelp": "Không tự xoá: giữ thành mục riêng, chuyển vào một mục thiếu của mẫu mới hoặc xoá.",
-        "followers": "kèm {count} mục con - dữ liệu của mục con không bị xoá theo",
-        "missingTitle": "Mục mẫu mới có, tài liệu chưa có ({count})",
-        "missingHelp": "Thêm vào trống kèm chữ hướng dẫn của mẫu. Mục cần nội dung bị cờ đỏ và chặn phát hành cho tới khi bạn viết xong.",
-        "needsContent": "Cần viết",
-        "matchedTitle": "Mục khớp, chép nguyên ({count})",
-        "droppedNote": "{count} heading nhóm không có nội dung nên được bỏ.",
-        "needsReview": "Cần xem",
-        "editedTitle": "Đã sửa sau lần đổi mẫu trước ({count})",
-        "editedHelp": "Giữ: giữ nội dung đang có theo mẫu cũ. Bỏ: trả về nội dung nguyên bản trước khi sửa (lịch sử change request vẫn giữ).",
-        "editedMeta": "{count} lần sửa",
-        "keep": "Giữ",
-        "discard": "Bỏ",
-        "keepAll": "Giữ hết",
-        "discardAll": "Hoàn tác hết",
-        "choose": "Cần chọn",
-        "pick": "Chọn cách xử lý…",
-        "aiSuffix": "(dùng AI)",
-        "undecided": "Còn {count} mục cần chọn",
-        "continue": "Tiếp tục",
-        "dropFromPrintHelp": "Bỏ khỏi bản in: dữ liệu vẫn được giữ trong tài liệu và trở lại khi hoàn tác. Chỉ mục văn bản tự do mới xoá được."
-      },
       "choices": {
         "keep_custom": "Giữ thành mục riêng",
         "delete": "Xoá",
@@ -5263,37 +5231,7 @@
         "ai_resolve": "Để AI sắp xếp",
         "move_to": "Chuyển vào “{target}”",
         "to": "Đặt vào “{target}”",
-        "drop_from_print": "Bỏ khỏi bản in"
-      },
-      "summary": {
-        "intro": "Tài liệu sẽ chuyển sang mẫu {name} (bản {version}). Xem lại rồi áp dụng.",
-        "countsLabel": "Số mục theo nhóm",
-        "rows": {
-          "matched": "Mục khớp",
-          "missing": "Mục thiếu",
-          "extra": "Mục thừa",
-          "conflict": "Cần chọn cách đặt",
-          "restored": "Trở lại nguyên bản",
-          "edited": "Đã sửa sau lần đổi"
-        },
-        "creditTitle": "Credit ước tính",
-        "creditTranslation": "Dịch ({batches} lô)",
-        "creditMoves": "Chuyển mục cấu trúc ({count})",
-        "creditAi": "AI sắp xếp ({count})",
-        "creditTotal": "Tổng",
-        "creditNote": "Chỉ là ước tính, chốt và trừ khi áp dụng.",
-        "languageChange": "Mẫu mới dùng ngôn ngữ khác: nội dung sẽ được dịch từ {from} sang {to} và ghi đè vào tài liệu. Ngôn ngữ tài liệu đổi theo mẫu. Các version đã phát hành vẫn tải đúng ngôn ngữ cũ.",
-        "language": {
-          "vi": "tiếng Việt",
-          "en": "tiếng Anh"
-        },
-        "linksNote": "Bỏ sửa có thể làm gãy liên kết giữa các mục. Hệ thống kiểm trước khi ghi và báo nếu có.",
-        "linksBroken": "Chưa áp dụng được vì liên kết giữa các mục sẽ bị gãy:",
-        "cancel": "Huỷ đổi mẫu",
-        "apply": "Áp dụng",
-        "applying": "Đang áp dụng…",
-        "languageChangeNoTranslation": "Mẫu mới dùng ngôn ngữ khác: ngôn ngữ tài liệu sẽ đổi từ {from} sang {to}. Nội dung không bị dịch lại và không tốn credit dịch.",
-        "linksBrokenHelp": "Bỏ sửa các mục này làm gãy liên kết. Chọn Giữ cho mục liên quan (hoặc Giữ hết) để áp dụng được."
+        "drop_from_print": "Không in ra"
       },
       "missing": {
         "aria": "Mục thiếu sau khi đổi mẫu",
@@ -5318,7 +5256,98 @@
       },
       "revertingElsewhere": "Lần đổi mẫu này đang được hoàn tác. Chờ xong rồi tải lại.",
       "applyFailed": "Áp dụng đổi mẫu bị kẹt sau nhiều lần phục hồi. Bản nháp vẫn giữ nguyên như trước lần đổi mẫu; bấm Khôi phục để đóng lần đổi mẫu này rồi thử lại.",
-      "restore": "Khôi phục"
+      "restore": "Khôi phục",
+      "review": {
+        "stats": {
+          "matched": "chuyển nguyên",
+          "chosen": "đã chọn sẵn",
+          "toWrite": "cần viết"
+        },
+        "free": "Lựa chọn sẵn đều miễn phí. Không dữ liệu nào bị xoá.",
+        "reviewTitle": "Đã chọn sẵn ({count})",
+        "compactTitle": "Bảng đổi cột ({count})",
+        "colSection": "Mục",
+        "colReason": "Vì sao",
+        "colChoice": "Lựa chọn",
+        "suggested": "Gợi ý",
+        "guess": "Đoán",
+        "correct": "Đúng",
+        "pairWith": "Ghép với “{target}”",
+        "aiSuffix": "(dùng AI)",
+        "pick": "Chọn cách xử lý…",
+        "columnsOld": "Cũ: {columns}",
+        "columnsNew": "Mới: {columns}",
+        "toWriteTitle": "Cần viết sau khi đổi ({count})",
+        "matchedTitle": "Chuyển nguyên ({count})",
+        "followers": "kèm {count} mục",
+        "editMapping": "Sửa cách đọc file mẫu",
+        "mappingLocked": "Mẫu của tổ chức đã được Lead rà ở thư viện nên chỉ xem.",
+        "needsReview": "Cần xem",
+        "restored": "{count} mục chưa sửa trở lại nguyên bản",
+        "editedTitle": "Đã sửa sau lần đổi trước ({count})",
+        "editedMeta": "{count} lần sửa",
+        "keep": "Giữ",
+        "discard": "Bỏ",
+        "keepAll": "Giữ hết",
+        "discardAll": "Hoàn tác hết",
+        "undecided": "Còn {count} mục cần xác nhận",
+        "continue": "Tiếp tục",
+        "split": "Mục bị tách",
+        "unpair": "Không ghép"
+      },
+      "reasons": {
+        "no_place": "Mẫu mới không có chỗ cho mục này",
+        "close_name": "Tên gần giống “{target}”, mục này đang trống",
+        "map_columns": "Bảng của mẫu mới có cột khác",
+        "no_table_in_new": "Mục này trong mẫu mới không có bảng",
+        "keep_history": "Bảng lịch sử của mẫu mới có cột khác",
+        "first_heading": "Mẫu mới chia mục này làm {count}"
+      },
+      "consequence": {
+        "drop_from_print": "Bản xuất không còn mục này. Dữ liệu vẫn lưu, hiện lại khi hoàn tác.",
+        "keep_custom": "In thành mục riêng ở cuối phần gần nhất.",
+        "delete": "Xoá hẳn nội dung mục này khỏi tài liệu.",
+        "move_to": "Nội dung in dưới “{target}”.",
+        "to": "Nội dung in dưới “{target}”.",
+        "map_by_header": "Xếp lại theo cột của mẫu mới, cột chưa có dữ liệu để trống.",
+        "keep_old_table": "Giữ nguyên bảng cũ.",
+        "ai_resolve": "AI sắp xếp, tính credit khi áp dụng.",
+        "pair": "Mục này ghép với “{target}”."
+      },
+      "apply": {
+        "title": "Tài liệu sau khi đổi mẫu",
+        "legend": {
+          "kept": "Giữ nguyên",
+          "receives": "Nhận nội dung",
+          "needs_content": "Cần viết",
+          "dropped": "Không in ra"
+        },
+        "table": "Bảng",
+        "tableChange": {
+          "map": "Bảng xếp theo cột mới",
+          "keep": "Giữ bảng cũ",
+          "drop": "Không in bảng"
+        },
+        "from": "từ “{from}”",
+        "droppedMore": "và {count} mục khác",
+        "credit": "Chi phí",
+        "creditTranslation": "Dịch ({batches} lô)",
+        "creditAi": "AI sắp xếp",
+        "creditTotal": "{count} credit",
+        "noCredit": "Không tốn credit",
+        "back": "Quay lại",
+        "apply": "Áp dụng mẫu mới",
+        "applying": "Đang áp dụng…",
+        "language": {
+          "vi": "tiếng Việt",
+          "en": "tiếng Anh"
+        },
+        "languageChange": "Nội dung sẽ được dịch từ {from} sang {to}. Version đã phát hành giữ ngôn ngữ cũ.",
+        "languageChangeNoTranslation": "Ngôn ngữ tài liệu đổi từ {from} sang {to}, không dịch lại nội dung.",
+        "linksNote": "Bỏ sửa có thể làm gãy liên kết; hệ thống kiểm trước khi ghi.",
+        "linksBroken": "Chưa áp dụng được vì liên kết giữa các mục sẽ bị gãy:",
+        "linksBrokenHelp": "Chọn Giữ cho mục liên quan (hoặc Giữ hết) để áp dụng được."
+      }
     }
   }
 }
