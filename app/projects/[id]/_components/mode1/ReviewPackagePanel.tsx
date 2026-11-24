@@ -111,10 +111,11 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
 
   return (
     <section className="flex flex-col gap-2.5" aria-label={t("aria")}>
-      <div className="flex items-center justify-between gap-2">
+      {/* Panel hẹp ⇒ pill trạng thái xuống dòng chứ không bị ép/cắt ở mép phải */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-extrabold text-[#191817] text-body">{t("title")}</h3>
         <span
-          className={`px-2 py-0.5 rounded-full text-caption font-bold ${
+          className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-caption font-bold ${
             pending ? "bg-[#F2F1FB] text-[#554DB0]" : pkg.status === "changes_requested" ? "bg-[#FDEDED] text-[#B03030]" : "bg-[#F0EEEA] text-[#4B4842]"
           }`}
         >
@@ -170,7 +171,7 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
             {t("reasonLabel", { min: REASON_MIN })}
           </label>
           <textarea id="pkg-reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="w-full px-3 py-2 rounded-[8px] bg-white border border-[#ECEAE5] text-body outline-none resize-none" />
-          <div className="flex gap-2 justify-end">
+          <div className="flex flex-wrap gap-2 justify-end">
             <button type="button" onClick={() => setAsking(null)} disabled={busy !== null} className={`${btn} border border-[#ECEAE5] bg-white text-[#4B4842]`}>
               {t("cancel")}
             </button>
@@ -189,7 +190,7 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
       {asking === "release" && (
         <div className="flex flex-col gap-2 bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] p-3 text-body text-[#554DB0]">
           <p>{t("confirmReleaseQuestion", { version: pkg.next_version ?? "", count })}</p>
-          <div className="flex gap-2 justify-end">
+          <div className="flex flex-wrap gap-2 justify-end">
             <button type="button" onClick={() => setAsking(null)} disabled={busy !== null} className={`${btn} border border-[#DCD8F0] bg-white text-[#4B4842]`}>
               {t("cancel")}
             </button>
