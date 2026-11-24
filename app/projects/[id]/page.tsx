@@ -347,6 +347,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     ws.user?.id ?? null
   );
+  // E2E 24/11 #3: "Mở trong khung chat" ở trang một CR ⇒ `?openCr=CR-007` ⇒ khung chat mở đúng CR đó (nếu là CR đang mở của mình)
+  const { reloadOpen } = crChat;
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    const wanted = url.searchParams.get("openCr");
+    if (!wanted) return;
+    reloadOpen(wanted);
+    url.searchParams.delete("openCr");
+    router.replace(`${url.pathname}${url.search}`, { scroll: false });
+  }, [reloadOpen, router]);
   // FLF-411 U2-4: dự án mode 1 (import) không có step ⇒ BE từ chối `POST /resume` (409); chỉ đọc Spine, không gọi resume
   const spineState = useSpine(projectId, ws.ready, ws.canEdit && !mode1);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
@@ -2255,7 +2266,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 refreshToken={ws.documentsVersion}
                 creditConfirm={creditGate.pending ? { ...creditGate.pending, onRun: creditGate.run, onCancel: creditGate.cancel } : null}
                 // Duyệt danh sách rút (mode 1) tạo change request ⇒ tải lại tài liệu, gói thay đổi (pill), mục đang chờ
-                onCrsCreated={() => onSpineChanged()}
+                onCrsCreated={() => {
+                  onSpineChanged();
+                  // E2E 24/11 #3: CR vừa tạo từ danh sách rút hiện ngay trong khung chat, không phải tải lại trang
+                  crChat.reloadOpen();
+                }}
                 onAdd={async (files) => {
                   if (!(await confirmAttachments(files))) return { cancelled: true };
                   const uploaded = await ws.uploadDocuments(files);

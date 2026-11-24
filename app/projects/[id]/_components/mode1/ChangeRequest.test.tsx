@@ -43,7 +43,7 @@ describe("CrWorkspace - popup chỉ xem (FLF-375: CR làm trong khung chat)", ()
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
 
     expect(await screen.findByText(/Mọi việc .* làm trong khung chat/)).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Mở trong khung chat" })).toHaveAttribute("href", `/projects/${P}`);
+    expect(screen.getByRole("link", { name: "Mở trong khung chat" })).toHaveAttribute("href", `/projects/${P}?openCr=${encodeURIComponent(change_request.cr_id)}`);
     for (const name of STEP_BUTTONS) expect(screen.queryByRole("button", { name })).not.toBeInTheDocument();
     // không sửa tay trong popup
     expect(screen.queryByRole("button", { name: /Sửa tay|Sửa trực tiếp/ })).not.toBeInTheDocument();

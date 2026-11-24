@@ -162,3 +162,38 @@ describe("useCrChat - tạo CR từ nhóm cờ (FLF-445)", () => {
     expect(result.current.busy).toBeNull();
   });
 });
+
+describe("useCrChat - nạp lại CR đang mở (E2E 24/11 #3)", () => {
+  const d = (cr_id: string) => ({ ...detail, change_request: { ...detail.change_request, cr_id } }) as unknown as CrDetail;
+
+  it("reloadOpen() sau khi tạo CR mới ⇒ khung chat nhận CR mới nhất, không cần tải lại trang", async () => {
+    api.listCrs.mockResolvedValue({ data: [] });
+    api.getCr.mockImplementation(async (_p: string, id: string) => ({ data: d(id) }));
+    const { result } = renderHookWithIntl(() => useCrChat("p-reload", true, undefined, "u1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.detail).toBeNull();
+
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-010", status: "draft", created_by: "u1" }, { cr_id: "CR-009", status: "draft", created_by: "u1" }] });
+    act(() => result.current.reloadOpen());
+    await waitFor(() => expect(result.current.detail?.change_request.cr_id).toBe("CR-010"));
+  });
+
+  it("reloadOpen('CR-007') ⇒ mở đúng CR đó nếu là CR đang mở của mình; CR của người khác thì giữ CR mới nhất của mình", async () => {
+    api.listCrs.mockResolvedValue({
+      data: [
+        { cr_id: "CR-010", status: "draft", created_by: "u1" },
+        { cr_id: "CR-008", status: "draft", created_by: "u2" },
+        { cr_id: "CR-007", status: "draft", created_by: "u1" },
+      ],
+    });
+    api.getCr.mockImplementation(async (_p: string, id: string) => ({ data: d(id) }));
+    const { result } = renderHookWithIntl(() => useCrChat("p-prefer", true, undefined, "u1"));
+    await waitFor(() => expect(result.current.detail?.change_request.cr_id).toBe("CR-010"));
+
+    act(() => result.current.reloadOpen("CR-007"));
+    await waitFor(() => expect(result.current.detail?.change_request.cr_id).toBe("CR-007"));
+
+    act(() => result.current.reloadOpen("CR-008"));
+    await waitFor(() => expect(result.current.detail?.change_request.cr_id).toBe("CR-010"));
+  });
+});

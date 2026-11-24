@@ -86,7 +86,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
   } else if (c.paused || (!terminal && c.status !== "in_review")) {
     next = (
       <Step text={t("inChatText", { status: L.crStatus(c.status) })}>
-        <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-body font-bold">
+        <Link href={`/projects/${projectId}?openCr=${encodeURIComponent(c.cr_id)}`} className="px-4 py-2 rounded-[10px] btn-gradient-primary text-white text-body font-bold">
           {t("openInChat")}
         </Link>
       </Step>
