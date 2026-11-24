@@ -252,3 +252,49 @@ describe("useChanges - cổng đồng bộ trước khi gửi và 409", () => {
     previewSpy.mockRestore();
   });
 });
+
+describe("useChanges - mức duyệt và lệnh nhiều ý", () => {
+  const change = { op: "set", path: "actors[id=A01].description", before: "a", value: "b", reason: null };
+  const base = { ok: true, txn: "t1", base_version: 1, ops: [], changes: [change], violations: [], referrers: [] };
+  const mockPreview = (data: Record<string, unknown>) =>
+    vi.spyOn(spineApi, "previewChanges").mockResolvedValue({ data: { ...base, ...data } } as unknown as Awaited<ReturnType<typeof spineApi.previewChanges>>);
+
+  it("auto_applied ⇒ gọi onAutoApplied, không giữ bản xem trước để xác nhận", async () => {
+    const spy = mockPreview({ auto_applied: true, applied_version: 5 });
+    const onAutoApplied = vi.fn();
+    const { result } = renderHook(() => useChanges(P, () => 1, () => null, vi.fn(), () => null, { onAutoApplied }));
+    let outcome = "";
+    await act(async () => {
+      outcome = await result.current.requestPreview("  đổi mô tả  ");
+    });
+    expect(outcome).toBe("auto_applied");
+    expect(onAutoApplied).toHaveBeenCalledWith(expect.objectContaining({ auto_applied: true, applied_version: 5 }), "đổi mô tả");
+    expect(result.current.preview).toBeNull();
+    spy.mockRestore();
+  });
+
+  it("op rõ + câu hỏi cho ý mơ hồ ⇒ giữ cả bản xem trước lẫn câu hỏi", async () => {
+    const spy = mockPreview({ preview_id: "pv-1", clarification: "Bạn muốn màn nào?" });
+    const { result } = renderHook(() => useChanges(P, () => 1, () => null, vi.fn()));
+    let outcome = "";
+    await act(async () => {
+      outcome = await result.current.requestPreview("đổi A và sửa màn kia");
+    });
+    expect(outcome).toBe("preview");
+    expect(result.current.preview?.preview_id).toBe("pv-1");
+    expect(result.current.clarification).toBe("Bạn muốn màn nào?");
+    spy.mockRestore();
+  });
+
+  it("chỉ có câu hỏi (không op) ⇒ vẫn là clarification, không có bản xem trước", async () => {
+    const spy = mockPreview({ changes: [], clarification: "Bạn muốn màn nào?" });
+    const { result } = renderHook(() => useChanges(P, () => 1, () => null, vi.fn()));
+    let outcome = "";
+    await act(async () => {
+      outcome = await result.current.requestPreview("sửa màn kia");
+    });
+    expect(outcome).toBe("clarification");
+    expect(result.current.preview).toBeNull();
+    spy.mockRestore();
+  });
+});

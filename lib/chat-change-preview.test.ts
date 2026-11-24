@@ -17,3 +17,14 @@ describe("chatChangePreview - tin chat bị nhận là lệnh sửa phải có n
     expect(chatChangePreview({ kind: "change_preview", preview_id: "p1", change_count: 2 })).toBeNull();
   });
 });
+
+describe("chatChangePreview - tự ghi và lệnh nhiều ý", () => {
+  const auto = { ...preview, preview_id: undefined, auto_applied: true };
+  it("change_applied kèm bản xem trước đã tự ghi ⇒ trả bản đó", () => {
+    expect(chatChangePreview({ kind: "change_applied", preview: auto })).toBe(auto);
+  });
+  it("change_clarification kèm phần rõ có preview_id ⇒ trả bản xem trước; không có preview_id ⇒ null", () => {
+    expect(chatChangePreview({ kind: "change_clarification", preview })).toBe(preview);
+    expect(chatChangePreview({ kind: "change_clarification", preview: { ...preview, preview_id: undefined } })).toBeNull();
+  });
+});

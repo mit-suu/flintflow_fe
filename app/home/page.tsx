@@ -241,9 +241,6 @@ export default function HomePage() {
     onHardDelete: openAction("delete"),
     onMoveToFolder: (project: Project) => setFolderTarget({ kind: "move", projects: [project] }),
     onChangeDocumentLanguage: openAction("documentLanguage"),
-    onChangeErdNotation: openAction("erdNotation"),
-    onChangeSequenceLevel: openAction("sequenceLevel"),
-    onChangeScreenTheme: openAction("screenTheme"),
     selectable: selectMode,
     selectedIds,
     onToggleSelect: (project: Project) =>
@@ -312,7 +309,12 @@ export default function HomePage() {
           </Button>
         )}
       </div>
-      {canAuthor && <CreateProjectForm variant="inline" onCreated={handleCreated} folderId={openFolder?._id} />}
+      {/* Form là phần con của khối rỗng: thụt hai bên để không tràn bằng tiêu đề, nhìn ra tầng cha / con */}
+      {canAuthor && (
+        <div className="sm:px-10 lg:px-16">
+          <CreateProjectForm variant="inline" onCreated={handleCreated} folderId={openFolder?._id} />
+        </div>
+      )}
     </div>
   );
 

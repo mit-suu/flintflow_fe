@@ -32,12 +32,6 @@ interface Props {
   onMoveToFolder?: (p: Project) => void;
   /** Có ⇒ menu thêm "Ngôn ngữ tài liệu" (FLF-265) — trừ dự án mode `import` (ngôn ngữ theo file). */
   onChangeDocumentLanguage?: (p: Project) => void;
-  /** Có ⇒ menu thêm "Ký pháp ERD" (FLF-324) — mọi mode đều đổi được. */
-  onChangeErdNotation?: (p: Project) => void;
-  /** FLF-418: mức vẽ Sequence Diagram. */
-  onChangeSequenceLevel?: (p: Project) => void;
-  /** Có ⇒ menu thêm "Giao diện màn hình" (FLF-410): theme mockup + vẽ lại ảnh gốc (dự án import). */
-  onChangeScreenTheme?: (p: Project) => void;
   /** Tên thư mục chứa dự án — hiện chip ở tab "Dự án" (nơi hiện cả dự án trong thư mục). */
   folderName?: string | null;
   /** Cho kéo card thả vào thẻ thư mục. */
@@ -218,9 +212,6 @@ export default function ProjectCard({
   onHardDelete,
   onMoveToFolder,
   onChangeDocumentLanguage,
-  onChangeErdNotation,
-  onChangeSequenceLevel,
-  onChangeScreenTheme,
   folderName,
   draggable = false,
   selectable = false,
@@ -260,33 +251,6 @@ export default function ProjectCard({
             label: t("menu.documentLanguage"),
             icon: "translate",
             onSelect: () => onChangeDocumentLanguage(project)
-          } as const
-        ]
-      : []),
-    ...(onChangeErdNotation
-      ? [
-          {
-            label: t("menu.erdNotation"),
-            icon: "layers",
-            onSelect: () => onChangeErdNotation(project)
-          } as const
-        ]
-      : []),
-    ...(onChangeSequenceLevel
-      ? [
-          {
-            label: t("menu.sequenceLevel"),
-            icon: "layers",
-            onSelect: () => onChangeSequenceLevel(project)
-          } as const
-        ]
-      : []),
-    ...(onChangeScreenTheme
-      ? [
-          {
-            label: t("menu.screenTheme"),
-            icon: "eye",
-            onSelect: () => onChangeScreenTheme(project)
           } as const
         ]
       : []),

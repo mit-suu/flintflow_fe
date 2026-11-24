@@ -15,6 +15,12 @@ describe("editUseCaseIntent (FLF-318) - cùng luật BE", () => {
     expect(editUseCaseIntent("rename use case UC26 to Submit Grade Appeal")).toBe("edit");
     expect(editUseCaseIntent("thêm use case X, sửa màn Y")).toBe("add");
   });
+
+  it("động từ bị phủ định không tính (cùng bộ ca với useCaseIntent của BE)", () => {
+    expect(editUseCaseIntent("không thêm UC nữa, chỉ sửa UC-3 cho đúng actor")).toBe("edit");
+    expect(editUseCaseIntent("đừng xoá use case Login, đổi tên nó thành Sign In")).toBe("edit");
+    expect(editUseCaseIntent("don't remove the use case, rename it to Sign In")).toBe("edit");
+  });
 });
 
 describe("describeConversation", () => {

@@ -1,6 +1,9 @@
 import type { CSSProperties } from "react";
 import {
   Archive,
+  ArrowRightLeft,
+  Database,
+  Palette,
   ArrowRight,
   ArrowUp,
   Bell,
@@ -111,6 +114,10 @@ const ICONS = {
   "file-template": FilePlus,
   folder: Folder,
   layers: Layers,
+  /** Cài đặt sơ đồ trong menu ⋯ của workspace: mỗi mục một icon riêng (ERD, sequence, giao diện màn hình). */
+  database: Database,
+  "arrow-right-left": ArrowRightLeft,
+  palette: Palette,
   mail: Mail,
   logout: LogOut,
   menu: Menu,

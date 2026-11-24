@@ -13,18 +13,22 @@ import {
   getCr,
   listCrs,
   patchLocation,
+  revertCr,
   runCrAction,
   sendCrMessage,
   type CrAction,
 } from "@/lib/api/change-requests";
+import { ApiClientError } from "@/lib/api/client";
 import { getReviewPackage } from "@/lib/api/versions";
 import {
   CR_AMENDABLE_STATUSES,
   CR_OPEN_STATUSES,
   CR_REDRAFT_STATUSES,
+  KEEPABLE_VIOLATION_RULES,
   type CreateCrRequest,
   type CrDetail,
   type CrLocation,
+  type CrOwnOpenMeta,
   type NEW_CR_SOURCE_KINDS,
 } from "@/types/change-request";
 import { useErrorText } from "../../_components/mode1/i18n";
@@ -50,7 +54,7 @@ export interface CrChatPrefill {
 }
 
 /** Việc đang chạy — để luồng chat nói "AI đang …". */
-export type CrChatBusy = "create" | CrAction | "amend" | "answers" | "material" | "reject" | "redraft" | "cancel";
+export type CrChatBusy = "create" | CrAction | "amend" | "answers" | "material" | "reject" | "redraft" | "cancel" | "revert" | "decide";
 
 /** Đề xuất đã đổi (AI làm lại / soạn lại) ⇒ khoá khác ⇒ người dùng phải đồng ý lại. */
 export const proposalKey = (l: CrLocation): string =>
@@ -73,6 +77,29 @@ export const fromApprovedPreview = (d: CrDetail): boolean => (d.change_request.s
  * (văn xuôi còn nhắc phần tử vừa xoá, sơ đồ gốc vẽ lại…) là đề xuất mới của AI ⇒ người dùng phải quyết (BF C-4, C-6).
  */
 export const inApprovedBatch = (d: CrDetail, l: CrLocation): boolean => fromApprovedPreview(d) && l.found_by.includes("preview") && !isFailing(l);
+
+/**
+ * C-4: AI cảnh báo yêu cầu ở chỗ này và BA chưa chọn - chặn Gửi duyệt tới khi "Vẫn làm" hoặc bỏ chỗ này (BE `CR_WARNING_PENDING`).
+ * Chỗ đã bỏ (`not_related`) hay đã "Vẫn làm" (`kept_intent`) thì không còn chờ.
+ */
+export const isWarningPending = (l: CrLocation): boolean => !!l.warning && !l.kept_intent && l.conclusion !== "not_related";
+
+/**
+ * C-5: "Giữ theo ý mình" chỉ cho CR `manual_fix`, chỗ trượt kiểm mà MỌI lỗi là lỗi luật cờ đỏ mới. Lỗi "chữ cũ không còn khớp"
+ * (`value_changed`), thiếu / sai cấu trúc thì không giữ được (BE `CR_CANNOT_KEEP`).
+ */
+export const canKeepViolations = (d: CrDetail, l: CrLocation): boolean => {
+  const violations = l.verify?.violations ?? [];
+  return d.change_request.status === "manual_fix" && !!l.verify && !l.verify.code_ok && violations.length > 0 && violations.every((v) => KEEPABLE_VIOLATION_RULES.includes(v.rule));
+};
+
+/** CR chưa nộp mới nhất của chính `myUserId` (danh sách BE trả mới nhất trước) - `null` nếu không có. */
+const fetchOwnOpenCr = async (projectId: string, myUserId: string): Promise<CrDetail | null> => {
+  const res = await listCrs(projectId);
+  const open = (res.data ?? []).find((c) => CR_OPEN_STATUSES.includes(c.status) && c.created_by === myUserId);
+  if (!open) return null;
+  return (await getCr(projectId, open.cr_id)).data;
+};
 
 const storageKey = (projectId: string, crId: string, what: "accepted" | "impact") => `ff-cr-chat:${projectId}:${crId}:${what}`;
 const readStore = (key: string): string | null => {
@@ -127,6 +154,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   const [sent, setSent] = useState<string | null>(null);
   const [busy, setBusy] = useState<CrChatBusy | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** 409 `CR_OWN_OPEN`: người này còn CR dở - `crId` là mã BE báo (`null` => tự tìm trong danh sách). Đi kèm `error`. */
+  const [ownOpen, setOwnOpen] = useState<{ crId: string | null } | null>(null);
   /** Vị trí đang chờ người dùng gõ hướng "Sửa lại". */
   const [redraftFor, setRedraftFor] = useState<string | null>(null);
   /** FLF-375: câu hỏi giữa chừng + câu AI trả lời (chỉ trong phiên xem, không ghi vào CR). */
@@ -138,6 +167,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
    * để "Gửi như câu trả lời" khi người dùng thật ra đang trả lời. Không tự huỷ: huỷ CR không quay lại được.
    */
   const [withdrawAsk, setWithdrawAsk] = useState<string[] | null>(null);
+  /**
+   * Câu trả lời ĐÃ gửi mà AI đọc là lời rút lại (`withdraw_suggested`, câu luật trên không bắt được) ⇒ dừng, chưa tự chạy
+   * bước kế; giữ chi tiết CR để "Gửi như câu trả lời" chỉ việc đi tiếp, không gửi lại.
+   */
+  const [withdrawSent, setWithdrawSent] = useState<CrDetail | null>(null);
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
   const alive = useRef(true);
@@ -185,12 +219,9 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     getReviewPackage(projectId)
       .then((r) => !cancelled && alive.current && setDraftLocked(r.data?.status === "pending"))
       .catch(() => undefined);
-    listCrs(projectId)
-      .then(async (res) => {
-        const open = (res.data ?? []).find((c) => CR_OPEN_STATUSES.includes(c.status) && c.created_by === myUserId);
-        if (!open) return;
-        const full = await getCr(projectId, open.cr_id);
-        if (!cancelled && alive.current && full.data) setDetail(full.data);
+    fetchOwnOpenCr(projectId, myUserId)
+      .then((full) => {
+        if (!cancelled && alive.current && full) setDetail(full);
       })
       .catch(() => undefined)
       .finally(() => !cancelled && alive.current && setLoading(false));
@@ -228,7 +259,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (needImpact(d)) return "impact";
       // P08 (CR #6): người dùng vừa trả lời câu làm rõ ⇒ đã quyết xong phần cần hỏi, chạy tiếp đề xuất luôn (không bắt bấm
       // "Tiếp tục - AI đề xuất sửa"); danh sách phần liên quan vẫn hiện trong chat
-      if (afterAnswer && c.status === "impact_review" && d.locations.length > 0) return "propose";
+      // ... trừ khi BE báo ước tính credit (CR lớn): dừng để người dùng thấy số credit rồi tự bấm "Tiếp tục"
+      if (afterAnswer && c.status === "impact_review" && d.locations.length > 0 && !d.propose_estimate) return "propose";
       // Lô đã duyệt ở bản xem trước: phần liên quan là đúng phần lô chạm tới ⇒ không dừng chờ "AI đề xuất sửa"
       if (c.status === "impact_review" && d.locations.length > 0 && fromApprovedPreview(d)) return "propose";
       if (c.status === "proposing" && d.locations.some(needsProposal)) return "propose";
@@ -245,6 +277,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     async <D extends CrDetail>(kind: CrChatBusy, fn: () => Promise<{ data: D | null }>): Promise<D | null> => {
       setBusy(kind);
       setError(null);
+      setOwnOpen(null);
       try {
         const res = await fn();
         if (alive.current && res.data) setDetail(res.data);
@@ -252,6 +285,10 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       } catch (err) {
         if (!alive.current) return null;
         setError(errorText(err));
+        if (err instanceof ApiClientError && err.code === "CR_OWN_OPEN") {
+          const id = (err.meta as Partial<CrOwnOpenMeta> | undefined)?.cr_id;
+          setOwnOpen({ crId: typeof id === "string" ? id : null });
+        }
         if (crId) void getCr(projectId, crId).then((r) => alive.current && r.data && setDetail(r.data)).catch(() => undefined);
         return null;
       } finally {
@@ -324,6 +361,10 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         if (detail.pending_questions.length === 1) {
           if (answersWithdraw([value])) return setWithdrawAsk([value]);
           const d = await call("answers", () => answerClarifications(projectId, c.cr_id, [value]));
+          if (d?.change_request.withdraw_suggested) {
+            setWithdrawSent(d);
+            return setWithdrawAsk([value]);
+          }
           await advance(d, accepted, null, true);
         } else {
           setError(t("multiQuestion"));
@@ -437,7 +478,32 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         : detail.change_request.status === "awaiting_answers"
           ? t("hintAnswer")
           : t("hintAmend", { crId: detail.change_request.cr_id }),
-    clearError: () => setError(null),
+    clearError: () => {
+      setError(null);
+      setOwnOpen(null);
+    },
+    ownOpen,
+    /** `CR_OWN_OPEN`: mở lại CR đang dở của chính mình (thay vì tạo CR mới). */
+    openOwn: async () => {
+      const id = ownOpen?.crId;
+      setBusy("create");
+      try {
+        const full = id ? (await getCr(projectId, id)).data : myUserId ? await fetchOwnOpenCr(projectId, myUserId) : null;
+        if (!alive.current) return;
+        if (!full) throw new Error("CR_OWN_OPEN_NOT_FOUND");
+        setDetail(full);
+        setPending(null);
+        setPendingSeed(null);
+        setPrefill(null);
+        setSent(null);
+        setError(null);
+        setOwnOpen(null);
+      } catch (err) {
+        if (alive.current) setError(errorText(err));
+      } finally {
+        if (alive.current) setBusy(null);
+      }
+    },
     /**
      * Ẩn thẻ "CR-xxx đã ghi vào bản nháp" khi người dùng bắt đầu một lệnh sửa mới. Lệnh thêm / xoá use case đi vòng hỏi đáp +
      * bản xem trước riêng (FLF-318) không qua `send`, nên trang gọi hàm này ngay đầu mọi lệnh sửa.
@@ -482,27 +548,44 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       void withCr(async (id) => {
         if (answersWithdraw(answers)) return setWithdrawAsk(answers);
         const d = await call("answers", () => answerClarifications(projectId, id, answers));
+        if (d?.change_request.withdraw_suggested) {
+          setWithdrawSent(d);
+          return setWithdrawAsk(answers);
+        }
         await advance(d, accepted, null, true);
       }),
     /** FLF-439: câu trả lời đang chờ xác nhận là rút lại (`null` = không hỏi). */
     withdrawAsk,
+    /** Câu hỏi "huỷ CR?" đến từ AI đọc câu trả lời đã gửi (CR có thể đã qua bước làm rõ). */
+    withdrawAfterAnswer: withdrawSent !== null,
     /** Đúng là rút lại ⇒ huỷ CR, lý do ghi nguyên câu người dùng gõ. */
     confirmWithdraw: () =>
       void withCr(async (id) => {
         const text = (withdrawAsk ?? []).map((a) => a.trim()).filter(Boolean).join(" / ");
         const d = await call("cancel", () => cancelCr(projectId, id, t("withdrawReason", { text })));
-        if (d) setWithdrawAsk(null);
+        if (d) {
+          setWithdrawAsk(null);
+          setWithdrawSent(null);
+        }
       }),
-    /** Không phải rút lại ⇒ gửi đúng các câu đó làm câu trả lời như bình thường. */
+    /** Không phải rút lại ⇒ gửi đúng các câu đó làm câu trả lời như bình thường (đã gửi rồi thì chỉ đi tiếp). */
     answerAnyway: () =>
       void withCr(async (id) => {
         const answers = withdrawAsk;
         if (!answers) return;
         setWithdrawAsk(null);
+        if (withdrawSent) {
+          const sent = withdrawSent;
+          setWithdrawSent(null);
+          return advance(sent, accepted, null, true);
+        }
         const d = await call("answers", () => answerClarifications(projectId, id, answers));
         await advance(d);
       }),
-    dismissWithdraw: () => setWithdrawAsk(null),
+    dismissWithdraw: () => {
+      setWithdrawAsk(null);
+      setWithdrawSent(null);
+    },
     addMaterialText: (name: string, text: string) => withCr((id) => call("material", () => addCrMaterialText(projectId, id, { name, text })).then((d) => d !== null)),
     addMaterialFile: (file: File) => withCr((id) => call("material", () => addCrMaterialFile(projectId, id, file))),
     removeMaterial: (materialId: string) => withCr((id) => call("material", () => deleteCrMaterial(projectId, id, materialId))),
@@ -558,6 +641,35 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         );
         await advance(d);
       }),
+    /** C-4 "Vẫn làm": ghi ý định giữ yêu cầu, AI soạn lại theo đúng yêu cầu (BE soạn ngay trong request, tốn credit). */
+    proceed: (loc: CrLocation) =>
+      void withCr(async (id) => {
+        const d = await call("decide", () => patchLocation(projectId, id, loc.location_id, { action: "proceed" }));
+        await advance(d);
+      }),
+    /**
+     * C-5 "Giữ theo ý mình": chấp nhận cờ đỏ mới của chỗ này. Lựa chọn này cũng là sự đồng ý với đề xuất => ghi nhận luôn, rồi
+     * kiểm lại - cờ đỏ còn lại chặn Gửi duyệt ở gói.
+     */
+    keep: (loc: CrLocation) =>
+      void withCr(async (id) => {
+        const d = await call("decide", () => patchLocation(projectId, id, loc.location_id, { action: "keep" }));
+        if (!d) return;
+        const next = new Set(accepted);
+        const kept = d.locations.find((l) => l.location_id === loc.location_id);
+        if (kept) next.add(proposalKey(kept));
+        saveAccepted(id, next);
+        await advance(d, next);
+      }),
+    /** "Hoàn tác" CR đã ghi: BE tạo CR mới (nguồn hoàn tác, đã kiểm) => mở luôn trong khung chat. */
+    revert: async (fromCrId: string, requester: string) => {
+      const d = await call("revert", () => revertCr(projectId, fromCrId, { requester: requester.trim() }));
+      if (!d) return false;
+      setSent(null);
+      setRedraftFor(null);
+      await advance(d, new Set());
+      return true;
+    },
     canRedraft: detail ? CR_REDRAFT_STATUSES.includes(detail.change_request.status) && !detail.change_request.paused : false,
     startRedraft: (locId: string) => setRedraftFor(locId),
     cancelRedraft: () => setRedraftFor(null),
@@ -573,6 +685,9 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
           setRedraftFor(null);
           // Cờ của nhóm chỉ đóng khi CR thật sự ghi vào bản nháp (`in_review` cũ chưa ghi gì)
           onWrittenRef.current?.(id, d.change_request.status === "written" ? (before.change_request.flag_ids ?? []) : []);
+        } else if (d && d.change_request.status === "manual_fix") {
+          // Kiểm lại lúc xác nhận thấy lỗi mới => chưa ghi gì; không báo thành công, chỉ ra chỗ phải xử lý
+          setError(t("submitManual"));
         }
       }),
   };

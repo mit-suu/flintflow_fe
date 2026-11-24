@@ -54,7 +54,7 @@ describe("flag-rules", () => {
       ],
       2
     );
-    expect(counts).toEqual({ blocking: 1 + 3, suggestions: 1, later: 1 });
+    expect(counts).toEqual({ blocking: 2, suggestions: 1 + 2, later: 1 }); // 2 mục cần viết lại là cờ vàng (BE), tính vào gợi ý
   });
 
   it("FLF-248: cờ 'rỗng' của bước đã chốt chuyển sang 'fill' và tính là chặn", () => {
