@@ -107,7 +107,7 @@ import TemplateUpdateBanner from "./_components/template-migration/TemplateUpdat
 import TemplateChangeEntry from "./_components/template-migration/TemplateChangeEntry";
 import { templateMigrationHref } from "./_components/template-migration/href";
 import { useTemplateChangeAvailability } from "./_components/template-migration/useTemplateChangeAvailability";
-import { crListHref, gapReportHref, readChatCrDraft, reuploadHref } from "./_components/mode1/prefill";
+import { crListHref, gapReportHref, readChatCrDraft, reuploadHref, type ChatCrDraft } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
@@ -1426,12 +1426,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // ngay trong dự án chỉ đổi query (không mở lại trang), đọc một lần lúc mở trang thì link đó không làm gì.
   const searchParams = useSearchParams();
   const crDraftQuery = searchParams.get("crdraft") === "1" || searchParams.get("new") === "1" ? searchParams.toString() : null;
+  // FLF-480 (B12): tách phần áp dụng draft để "Tạo CR" trong hộp xem trước gọi trực tiếp, không phải vòng qua URL
+  // (router.push về chính trang đang mở không mount lại trang nên effect đọc URL không chạy).
+  const applyChatCrDraft = (draft: ChatCrDraft) => {
+    crChat.setPrefill({ kind: draft.source, ref: draft.ref, requester: draft.requester, previewId: draft.preview_id, commentId: draft.comment_id });
+    startEditing(draft.text);
+  };
   useEffect(() => {
     if (!mode1 || !ws.ready || !crDraftQuery) return;
     const draft = readChatCrDraft(new URLSearchParams(crDraftQuery));
     if (!draft) return;
-    crChat.setPrefill({ kind: draft.source, ref: draft.ref, requester: draft.requester, previewId: draft.preview_id, commentId: draft.comment_id });
-    startEditing(draft.text);
+    applyChatCrDraft(draft);
     router.replace(`/projects/${projectId}`, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy khi link điền sẵn đổi (router.replace xoá query ngay sau)
   }, [mode1, ws.ready, crDraftQuery]);
@@ -2985,11 +2990,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       {/* Diff đầy đủ: lệnh sửa (bấm "Xem chi tiết") hoặc lượt cập nhật mục đã cũ (nút trên header tài liệu) */}
       {changes.preview && changes.previewSource === "instruction" && editDetailOpen && mode1 && (
         <CreateCrPreviewModal
-          projectId={projectId}
           preview={changes.preview}
           instruction={changes.pendingInstruction}
           spine={spineState.spine}
           onCancel={() => setEditDetailOpen(false)}
+          onCreate={(draft) => {
+            applyChatCrDraft(draft);
+            setEditDetailOpen(false);
+          }}
         />
       )}
       {changes.preview && ((changes.previewSource === "instruction" && editDetailOpen && !mode1) || changes.previewSource === "reconcile") && (
