@@ -5270,12 +5270,13 @@
       "view": "View",
       "noText": "No readable text in the file",
       "legacyDoc": "Cannot read .doc files, save it as .docx",
-      "imagesSkipped": "Images / diagrams in the file are not read"
+      "imagesSkipped": "Images / diagrams in the file are not read",
+      "confirmBatches": "The document is long: the AI reads it in {batches} passes for ~{credits} credits. Run?"
     },
     "extraction": {
       "aria": "Requirements extracted from {name}",
       "title": "{name} - {count, plural, =1 {1 requirement} other {# requirements}}",
-      "intro": "Labels are AI suggestions. Tick items to include; give a reason for each dropped item; items in the same group become one change request (rename the group to split). Duplicates only need a tick - the document becomes a source of the element.",
+      "intro": "Labels are AI suggestions. Tick items to include; give a reason for each dropped item; items in the same group become one change request (rename the group to split). Duplicates only need a tick - the document becomes a source of the element. Inferred items are not ticked by default: to include one, pick an option.",
       "creditsUsed": "{credits} credits used",
       "approvedAt": "list approved",
       "labels": {
@@ -5283,7 +5284,8 @@
         "modification": "Modification",
         "duplicate": "Duplicate",
         "contradiction": "Contradiction",
-        "ambiguous": "Ambiguous"
+        "ambiguous": "Ambiguous",
+        "inferred": "Inferred"
       },
       "group": "Group",
       "groupAria": "Group of {id}",
@@ -5301,8 +5303,31 @@
       "requesterPlaceholder": "Who asked for this (e.g. PM Lan)",
       "create": "{count, plural, =0 {Approve list} =1 {Create 1 change request} other {Create # change requests}}",
       "creating": "Creating…",
-      "problems": "{count, plural, =1 {1 item} other {# items}} still missing a drop reason or an answer.",
-      "approveFailed": "Could not approve the list"
+      "problems": "{count, plural, =1 {1 item} other {# items}} still missing a drop reason, an answer or an option.",
+      "approveFailed": "Could not approve the list",
+      "paragraph": "paragraph {n}",
+      "openParagraph": "Open {source}",
+      "speaker": "Speaker: {name}",
+      "sidesTitle": "Who said what",
+      "unknownSpeaker": "Unnamed speaker",
+      "situationAria": "Current and desired situation",
+      "current": "Today",
+      "desired": "Wanted",
+      "inference": {
+        "symptom": "Symptom",
+        "rootCause": "Root cause",
+        "rationale": "Why this is inferred",
+        "servesGoal": "Serves goal: {goal}",
+        "optionsAria": "Options for {id}",
+        "recommended": "Recommended",
+        "recommendationReason": "Why recommended: {reason}",
+        "noRecommendation": "Not enough grounds to recommend - both options are equal, you choose.",
+        "pros": "Pros",
+        "cons": "Cons",
+        "risks": "Risks / assumptions",
+        "chosen": "Chosen: {label}",
+        "pickHint": "To include this item, pick an option."
+      }
     },
     "templateMigration": {
       "loading": "Loading…",
