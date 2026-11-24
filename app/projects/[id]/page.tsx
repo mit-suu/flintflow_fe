@@ -63,7 +63,7 @@ import TemplateProposalCard from "@/components/org-template/template-proposal-ca
 import SaveStructureEntry from "@/components/org-template/save-structure-entry";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import ProjectActionDialogs from "@/components/project/ProjectActionDialogs";
-import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
+import { resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
 import { getRunEstimate, submitGate } from "@/lib/api/pipeline";
@@ -594,8 +594,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
   // UC-85: Lead vừa bấm "Lưu cấu trúc thành mẫu" ⇒ thẻ đề xuất đọc lại
   const [proposalRefresh, setProposalRefresh] = useState(0);
-  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
-  const documentLanguage = knownDocumentLanguage(ws.project);
+  // FLF-265: ngôn ngữ tài liệu client đã biết. FLF-480 (ChoViet #14): dự án mode 1 chưa lưu field riêng thì dùng
+  // ngôn ngữ BE đã suy (`document_language`, cùng lượt tải project — không gọi thêm BE), không rơi về "en".
+  const documentLanguage = resolvedDocumentLanguage(ws.project);
   /**
    * Nguồn duy nhất của tài liệu (một lời gọi `GET /document` mỗi lượt tải): `DocumentPane` nhận qua prop, nên trang thấy được
    * lúc bản mới về để đánh dấu mục đang / vừa cập nhật. `ExportPanel` giữ instance riêng (xuất bản chốt / bản nháp).
