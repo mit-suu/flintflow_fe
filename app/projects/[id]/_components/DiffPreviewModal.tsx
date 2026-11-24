@@ -4,7 +4,7 @@ import { useContext, useId, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ChangeDiff, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
-import { elementNames, refNames, type RefNames } from "./mode1/spine-labels";
+import { elementNames, isInternalCollection, parseElementPath, refNames, type RefNames } from "./mode1/spine-labels";
 import { CR_SOURCE_KINDS } from "./mode1/labels";
 import { SectionNamesContext, useMode1Labels } from "./mode1/i18n";
 
@@ -93,8 +93,23 @@ export default function DiffPreviewModal({
   const [sourceRef, setSourceRef] = useState("");
   const names = useMemo(() => refNames(spine), [spine]);
   const allNames = useMemo(() => elementNames(spine), [spine]);
+  // FLF-480 (B11): flags/steps/progress/sessions/baselines/usage/decisions là sổ sách nội bộ của lô sửa
+  // (cờ, trạng thái bước áp…), không phải nội dung tài liệu — ẩn khỏi bảng xem trước (và khỏi tóm tắt).
+  const { visibleChanges, removedFlagCount } = useMemo(() => {
+    const visible: ChangeDiff[] = [];
+    const flagKeys = new Set<string>();
+    for (const c of preview.changes) {
+      const p = parseElementPath(c.path);
+      if (p && isInternalCollection(p.collection)) {
+        if (p.collection === "flags" && p.key) flagKeys.add(p.key);
+        continue;
+      }
+      visible.push(c);
+    }
+    return { visibleChanges: visible, removedFlagCount: flagKeys.size };
+  }, [preview.changes]);
   // FLF-411 #24: tóm tắt dựng từ chính các thay đổi, không chỉ lời của model
-  const summary = useMemo(() => changeSummary(preview.changes, allNames), [changeSummary, preview.changes, allNames]);
+  const summary = useMemo(() => changeSummary(visibleChanges, allNames), [changeSummary, visibleChanges, allNames]);
   // FLF-411 #23: mục BE suy ra mà tài liệu đang xem không có (vd "5.5 Glossary" ở file không có mục đó) ⇒ không kể ra
   const impactSections = (preview.impact?.sections ?? []).filter((s) => !documentSections || documentSections.size === 0 || documentSections.has(s.id));
   const referrerNames = Array.from(new Set((preview.impact?.referrers ?? []).map((r) => referrerLabel(r.path, allNames))));
@@ -162,7 +177,13 @@ export default function DiffPreviewModal({
           </p>
         )}
 
-        {preview.changes.length === 0 ? (
+        {removedFlagCount > 0 && (
+          <p className="text-body text-[#4B4842] leading-relaxed" data-testid="diff-flags-removed">
+            {t("flagsRemoved", { count: removedFlagCount })}
+          </p>
+        )}
+
+        {visibleChanges.length === 0 ? (
           <div className="text-body py-4 text-center flex flex-col gap-1">
             <span className="text-[#A8A49C] italic">{t("none")}</span>
             {preview.no_change && (
@@ -182,7 +203,7 @@ export default function DiffPreviewModal({
                 </tr>
               </thead>
               <tbody>
-                {preview.changes.map((change, i) => (
+                {visibleChanges.map((change, i) => (
                   <tr key={i}>
                     <td className="border border-[#ECEAE5] px-2 py-1 align-top">{changeLabel(change, allNames)}</td>
                     <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, lastField(change.path), names, t("deleted"), humanValue)}</td>

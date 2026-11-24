@@ -2247,6 +2247,7 @@
         "other": "liên quan"
       },
       "noChangeNote": "Nội dung của các mục này vẫn đúng - xác nhận để gỡ cờ “đã cũ”.",
+      "flagsRemoved": "Gỡ {count} cảnh báo liên quan.",
       "colPath": "Phần thay đổi",
       "colBefore": "Trước",
       "colAfter": "Sau",

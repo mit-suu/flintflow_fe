@@ -2247,6 +2247,7 @@
         "other": "related"
       },
       "noChangeNote": "The content of these sections is still correct - confirm to clear the “outdated” flag.",
+      "flagsRemoved": "Cleared {count} related warnings.",
       "colPath": "Changed part",
       "colBefore": "Before",
       "colAfter": "After",

@@ -150,6 +150,26 @@ describe("DiffPreviewModal", () => {
     renderWithIntl(<DiffPreviewModal preview={{ ...basePreview, changes: [] }} onCancel={vi.fn()} onConfirm={vi.fn()} />);
     expect(screen.getByText("Không có thay đổi nào.")).toBeInTheDocument();
   });
+
+  it("FLF-480 (B11): ẩn collection nội bộ (flags, steps…) khỏi bảng, tóm tắt số cảnh báo gỡ", () => {
+    const preview: PreviewResult = {
+      ...basePreview,
+      changes: [
+        { op: "set", path: "actors[id=A03].name", before: "Admin", value: "Administrator", reason: "typo" },
+        { op: "remove", path: "flags[id=FL021]", before: { id: "FL021", status: "open" }, value: { _absent: true }, reason: null },
+        { op: "set", path: "steps[id=S-5.1@SCR-09].status", before: "pending", value: "done", reason: null },
+      ],
+    };
+    renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+
+    const dialogText = document.body.textContent ?? "";
+    expect(dialogText).not.toContain("[id=");
+    expect(dialogText).not.toContain("FL021");
+    expect(dialogText).not.toContain("S-5.1@SCR-09");
+    expect(screen.getByTestId("diff-flags-removed")).toHaveTextContent("Gỡ 1 cảnh báo liên quan.");
+    // thay đổi còn lại vẫn hiện bình thường
+    expect(screen.getByRole("cell", { name: "Sửa tên của một tác nhân" })).toBeInTheDocument();
+  });
 });
 
 describe("DiffPreviewModal - FLF-177", () => {
