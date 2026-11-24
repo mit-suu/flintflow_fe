@@ -166,6 +166,22 @@ describe("ProjectCard - màu và nhãn theo source mode", () => {
     expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Đổi tên", "Xoá vĩnh viễn"]);
   });
 
+  it("FLF-480 (ChoViet #16): canDelete=false (vai analyst) ⇒ ẩn cả Lưu trữ và Xoá vĩnh viễn", () => {
+    renderWithIntl(
+      <ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} canDelete={false} />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Đổi tên"]);
+  });
+
+  it("FLF-480 (ChoViet #16): canDelete=true (vai lead, cũng là mặc định) ⇒ có đủ Lưu trữ và Xoá vĩnh viễn", () => {
+    renderWithIntl(
+      <ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} canDelete />
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
+    expect(screen.getAllByRole("menuitem").map((i) => i.textContent)).toEqual(["Đổi tên", "Lưu trữ", "Xoá vĩnh viễn"]);
+  });
+
   it("FLF-318 (business-flow nguyên tắc 7): tạo SRS đã chốt baseline chạy ở mode import nhưng không phải dự án tải file ⇒ vẫn đổi được ngôn ngữ", () => {
     const onChangeDocumentLanguage = vi.fn();
     const converted = { ...baseProject, mode: "import" as const, import_state: "delivered" as const, converted_from: "fpt" as const };

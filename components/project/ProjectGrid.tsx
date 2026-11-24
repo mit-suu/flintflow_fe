@@ -30,6 +30,8 @@ interface ProjectGridProps {
   onToggleSelect?: (p: Project) => void;
   /** Viewer: card không có menu thao tác. */
   readOnly?: boolean;
+  /** FLF-480 (ChoViet #16): chỉ Lead lưu trữ / xoá vĩnh viễn được — mặc định `true` ở nơi chưa truyền. */
+  canDelete?: boolean;
 }
 
 /** Lưới card dự án responsive 1/2/3/4 cột (4 cột từ màn desktop xl). */
@@ -48,6 +50,7 @@ export default function ProjectGrid({
   selectedIds,
   onToggleSelect,
   readOnly,
+  canDelete,
 }: ProjectGridProps) {
   return (
     <div className={CARD_GRID}>
@@ -68,6 +71,7 @@ export default function ProjectGrid({
           selected={selectedIds?.has(p._id)}
           onToggleSelect={onToggleSelect}
           readOnly={readOnly}
+          canDelete={canDelete}
         />
       ))}
     </div>
