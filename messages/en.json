@@ -5090,7 +5090,9 @@
       "releasing": "Releasing…",
       "confirmRelease": "Confirm release",
       "blockedMigrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. Write them (through a change request) before submitting or releasing.",
-      "unsentPill": "{count, plural, one {# CR not sent to Lead} other {# CRs not sent to Lead}}"
+      "unsentPill": "{count, plural, one {# CR not sent to Lead} other {# CRs not sent to Lead}}",
+      "previousRounds": "{count, plural, one {# earlier change request} other {# earlier change requests}}",
+      "previousRoundReason": "“{reason}”"
     },
     "paused": {
       "title": "{what} is paused - {reason, select, credits {out of credit} interrupted {it was interrupted} other {AI failed after 2 retries}}",

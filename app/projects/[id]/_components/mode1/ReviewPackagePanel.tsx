@@ -127,6 +127,17 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
           {t("changesRequestedNote", { reason: pkg.submission.reason })}
         </p>
       )}
+      {/* FLF-480 (B13): lý do các vòng "Yêu cầu sửa" trước lần gửi lại hiện tại — trước đây mất khi gửi lại. */}
+      {pkg.rounds.length > 0 && (
+        <details className="text-body text-[#8A867E]">
+          <summary className="cursor-pointer select-none font-semibold text-[#4B4842]">{t("previousRounds", { count: pkg.rounds.length })}</summary>
+          <ul className="list-disc pl-4 mt-1 flex flex-col gap-1">
+            {pkg.rounds.map((round, i) => (
+              <li key={i}>{round.reason ? t("previousRoundReason", { reason: round.reason }) : null}</li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {count > 0 ? (
         <ul className="flex flex-col gap-1" aria-label={t("listAria")}>

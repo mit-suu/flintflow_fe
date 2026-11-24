@@ -26,6 +26,7 @@ const pkg = (over: Partial<ReviewPackage> = {}): ReviewPackage => ({
   red_open: 0,
   submission: null,
   spine_version: 7,
+  rounds: [],
   ...over,
 });
 
@@ -148,5 +149,25 @@ describe("ReviewPackagePanel (FLF-330 - gói duyệt kiểu pull request)", () =
     renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={() => {}} migrationMissing={1} />);
     expect(await screen.findByRole("button", { name: "Duyệt cả gói & phát hành" })).toBeDisabled();
     expect(screen.getByText(/Còn 1 mục của mẫu mới chưa viết/)).toBeInTheDocument();
+  });
+
+  it("FLF-480 (B13): còn lý do vòng Yêu cầu sửa trước ⇒ hiện danh sách thu gọn, không mất khi gửi lại", async () => {
+    serve(
+      pkg({
+        status: "pending",
+        submission: { status: "pending", submitted_by: "u1", submitted_at: "2026-10-26T03:00:00.000Z", spine_version: 7, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] },
+        rounds: [{ decided_by: "u-lead", decided_at: "2026-10-25T00:00:00.000Z", reason: "Thiếu bước xác nhận email" }],
+      })
+    );
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} />);
+    expect(await screen.findByText("1 lần yêu cầu sửa trước")).toBeInTheDocument();
+    expect(screen.getByText("“Thiếu bước xác nhận email”")).toBeInTheDocument();
+  });
+
+  it("chưa từng bị yêu cầu sửa ⇒ không hiện mục vòng trước", async () => {
+    serve(pkg());
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="analyst" onChanged={vi.fn()} />);
+    await screen.findByText("v0 · 2 thay đổi chưa duyệt");
+    expect(screen.queryByText(/lần yêu cầu sửa trước/)).not.toBeInTheDocument();
   });
 });

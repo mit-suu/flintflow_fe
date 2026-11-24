@@ -66,6 +66,13 @@ export interface ReviewPackageSubmission {
   rejection_comment_ids: string[];
 }
 
+/** FLF-480 (B13): một vòng "Yêu cầu sửa" trước lần gửi lại hiện tại — BE dựng lại từ change log (không mất lý do). */
+export interface ReviewPackageRound {
+  decided_by: string;
+  decided_at: IsoDateTime;
+  reason: string | null;
+}
+
 export interface ReviewPackage {
   status: ReviewPackageStatus;
   /** "v0" (chưa phát hành) hoặc số chính gần nhất "1.0". */
@@ -78,6 +85,8 @@ export interface ReviewPackage {
   red_open: number;
   submission: ReviewPackageSubmission | null;
   spine_version: number;
+  /** Vòng "Yêu cầu sửa" trước lần gửi lại hiện tại, mới nhất trước — rỗng nếu chưa từng bị yêu cầu sửa. */
+  rounds: ReviewPackageRound[];
 }
 
 export interface ReleaseRequest {

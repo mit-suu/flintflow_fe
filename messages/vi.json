@@ -5090,7 +5090,9 @@
       "releasing": "Đang phát hành…",
       "confirmRelease": "Xác nhận phát hành",
       "blockedMigrationMissing": "Còn {count} mục của mẫu mới chưa viết sau khi đổi mẫu. Viết xong (qua change request) mới gửi duyệt hoặc phát hành được.",
-      "unsentPill": "{count, plural, =1 {1 CR chưa gửi Lead} other {# CR chưa gửi Lead}}"
+      "unsentPill": "{count, plural, =1 {1 CR chưa gửi Lead} other {# CR chưa gửi Lead}}",
+      "previousRounds": "{count, plural, =1 {1 lần yêu cầu sửa trước} other {# lần yêu cầu sửa trước}}",
+      "previousRoundReason": "“{reason}”"
     },
     "paused": {
       "title": "{what} đang tạm dừng - {reason, select, credits {hết credit} interrupted {bị gián đoạn} other {AI lỗi, đã thử lại 2 lần}}",
