@@ -164,8 +164,8 @@ const QUESTIONS: Question[] = [
   { id: "q2", text: "Có hệ thống bên ngoài nào cần tích hợp không?", options: ["Cổng thanh toán", "Email", "Không có"] },
 ];
 
-const gateActions = (regenerateUsed: number): GateAction[] =>
-  regenerateUsed >= REGENERATE_LIMIT ? ["accept", "revision", "accept_as_is"] : ["accept", "revision", "regenerate"];
+/** FLF-449: như BE, cổng step chỉ mời Chấp nhận / chat để sửa; `/gate` vẫn nhận regenerate / accept_as_is (client cũ). */
+const GATE_ACTIONS: GateAction[] = ["accept", "revision"];
 
 const summaryOf = (state: MockState, stepId: string): StepSummary => {
   const def = getStepDef(stepId);
@@ -359,7 +359,7 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
   send({
     type: "gate_ready",
     step_id: stepId,
-    actions: gateActions(counters.regenerate_used),
+    actions: [...GATE_ACTIONS],
     regenerate_used: counters.regenerate_used,
     calls_used: counters.calls_used,
     spine_version: state.spine.spine_version,

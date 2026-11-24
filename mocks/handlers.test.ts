@@ -95,7 +95,8 @@ describe("mock pipeline theo contract (DoD T12)", () => {
       expect(res.data?.step.regenerate_used).toBe(i);
       const events = await runToGate("S-3.1");
       const gateReady = events.find((e) => e.type === "gate_ready");
-      expect(gateReady && gateReady.type === "gate_ready" && gateReady.actions.includes("regenerate")).toBe(i < 3);
+      // FLF-449: cổng không mời regenerate / accept_as_is nữa (lệnh vẫn được nhận cho client cũ)
+      expect(gateReady && gateReady.type === "gate_ready" && gateReady.actions).toEqual(["accept", "revision"]);
     }
 
     await expect(submitGate(P, "S-3.1", { session_id: MOCK_SESSION_ID, action: "regenerate", base_version: await version() })).rejects.toMatchObject({

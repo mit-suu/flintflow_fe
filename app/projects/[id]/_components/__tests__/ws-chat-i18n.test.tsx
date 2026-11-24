@@ -146,13 +146,12 @@ describe("Khung chat - song ngữ", () => {
       <div>
         <GateCard
           stepId="S-3.1"
-          actions={["accept", "revision", "regenerate", "accept_as_is"]}
-          regenerateUsed={1}
+          actions={["accept", "revision"]}
           wroteOps={false}
           emptySections={[{ section_id: "fixed:2.1", title: "Actors" }]}
           payload={
             {
-              summary: [{ kind: "add", collection: "actors", id: "A01", title_vi: "Admin" }],
+              summary: [{ kind: "add", collection: "actors", id: "A01", title_vi: "Admin", section_id: "fixed:2.1" }],
               table: { title_vi: "Roles", columns: ["Role"], rows: [["Admin"]], truncated: 2 },
             } as never
           }
@@ -161,6 +160,7 @@ describe("Khung chat - song ngữ", () => {
           newFlags={[{ id: "f2", level: "red", message: "Broken link", waivable: true }]}
           onFixFlag={noop}
           onKeepFlag={vi.fn()}
+          onAcceptSkipSections={noop}
           onAction={noop}
         />
         <QuestionStepperInput
@@ -177,6 +177,7 @@ describe("Khung chat - song ngữ", () => {
     expect(screen.getByText(/^I’ve updated: added 1 actors \(Admin\)/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Keep as is" }));
     fireEvent.click(screen.getByRole("button", { name: "More options" }));
+    expect(screen.getByRole("menuitem", { name: "Accept, don't ask again about this section" })).toBeInTheDocument();
     expect(screen.getByText("Recommended")).toBeInTheDocument();
     expect(vietnameseLeftovers(container)).toEqual([]);
   });
