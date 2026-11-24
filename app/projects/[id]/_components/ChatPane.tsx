@@ -28,6 +28,8 @@ interface ChatPaneProps {
   session: ChatSession | null;
   /** Nhãn step hiện tại, tên đời thường (`Actor`) — không hiện mã B-x.y / S-x.y. */
   stepLabel?: string | null;
+  /** Tiến độ chưa tải xong (chưa biết bước) ⇒ khung chờ cùng cỡ chip bước, không để chip bật ra sau. */
+  stepLabelLoading?: boolean;
   /** Mã step (`S-3.1`) — chỉ để trong tooltip của nhãn. */
   stepCode?: string | null;
   inputMessage: string;
@@ -152,6 +154,7 @@ export default function ChatPane({
   fill = false,
   session,
   stepLabel,
+  stepLabelLoading = false,
   stepCode = null,
   inputMessage,
   setInputMessage,
@@ -287,9 +290,12 @@ export default function ChatPane({
             {title ?? t("title")}
           </h2>
         </div>
-        {(headerEnd || stepLabel) && (
+        {(headerEnd || stepLabel || stepLabelLoading) && (
           <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
             {headerEnd && <div className="shrink-0 pointer-events-auto">{headerEnd}</div>}
+            {!stepLabel && stepLabelLoading && (
+              <span aria-hidden className="hidden @[24rem]/chathead:block w-28 h-[22px] rounded-full bg-primary-soft animate-pulse" />
+            )}
             {stepLabel && (
               <span
                 title={stepCode ?? undefined}

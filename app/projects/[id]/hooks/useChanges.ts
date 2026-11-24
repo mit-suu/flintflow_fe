@@ -46,7 +46,10 @@ export const conflictOf = (err: unknown, instruction: string): ChangeConflict | 
   return { instruction: asked, previewId, items: items as ChangeConflictItem[] };
 };
 /** `skipped`: chưa gửi gì (chưa biết version, lệnh rỗng). */
-export type PreviewOutcome = "preview" | "clarification" | "error" | "skipped";
+export type PreviewOutcome = "preview" | "clarification" | "auto_applied" | "error" | "skipped";
+
+/** Bản xem trước dùng được: có thay đổi + `preview_id` để xác nhận. */
+const hasUsablePreview = (data: PreviewResult): boolean => data.ok && Boolean(data.preview_id) && data.changes.length > 0;
 
 export interface UseChangesResult {
   preview: PreviewResult | null;
@@ -103,6 +106,11 @@ export interface UseChangesOptions {
   syncBeforeSend?: () => Promise<boolean>;
   /** `409 SPINE_VERSION_CONFLICT`: Spine đổi ở nơi khác giữa lúc xem trước và gửi — tải lại Spine + tài liệu, KHÔNG tự gửi lại. */
   onConflict?: () => void;
+  /**
+   * Mức duyệt cho tự ghi: BE đã ghi lệnh (không có `preview_id`, không có thẻ xác nhận). Cha tải lại Spine + tài liệu + số
+   * "Chưa xem" và hiện thẻ "Đã áp dụng" có Hoàn tác.
+   */
+  onAutoApplied?: (preview: PreviewResult, instruction: string) => void | Promise<void>;
 }
 
 const isConflict = (err: unknown): boolean => err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT";
@@ -121,7 +129,7 @@ export function useChanges(
   onApplied: (result: ApplyResult, impactedSectionIds?: string[]) => void,
   /** Phiên chat đang mở — lệnh sửa gửi kèm để model đọc được các tin trước và lượt sửa nằm lại trong phiên. */
   getSessionId: () => string | null = () => null,
-  { syncBeforeSend, onConflict }: UseChangesOptions = {}
+  { syncBeforeSend, onConflict, onAutoApplied }: UseChangesOptions = {}
 ): UseChangesResult {
   const [preview, setPreview] = useState<PreviewResult | null>(null);
   const previewLockRef = useRef(false);
@@ -179,9 +187,18 @@ export function useChanges(
           base_version: baseVersion,
           ...(sessionId ? { session_id: sessionId } : {}),
         });
+        if (res.data?.auto_applied) {
+          // Đã ghi: không giữ bản xem trước nào để xác nhận lại
+          await onAutoApplied?.(res.data, instruction.trim());
+          return "auto_applied";
+        }
         if (res.data?.clarification) {
           setClarification(res.data.clarification);
-          return "clarification";
+          // Lệnh nhiều ý: phần rõ vẫn có thay đổi xác nhận được ⇒ giữ bản xem trước cạnh câu hỏi, không giấu op
+          if (!hasUsablePreview(res.data)) return "clarification";
+          setPreview(res.data);
+          setPreviewSource("instruction");
+          return "preview";
         }
         setPreview(res.data);
         setPreviewSource("instruction");
@@ -199,7 +216,7 @@ export function useChanges(
         setPreviewing(false);
       }
     },
-    [projectId, getBaseVersion, getSessionId, syncFirst, handleFailure]
+    [projectId, getBaseVersion, getSessionId, syncFirst, handleFailure, onAutoApplied]
   );
 
   const requestOpsPreview = useCallback(
@@ -264,7 +281,8 @@ export function useChanges(
 
   const adoptPreview = useCallback((next: PreviewResult, instruction: string) => {
     setError(null);
-    setClarification(null);
+    // Lệnh nhiều ý từ tin chat: bản xem trước kèm câu hỏi cho phần chưa rõ
+    setClarification(next.clarification && hasUsablePreview(next) ? next.clarification : null);
     setPendingOps(null);
     setPendingInstruction(instruction.trim());
     setPreview(next);

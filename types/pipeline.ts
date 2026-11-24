@@ -81,6 +81,24 @@ export interface PreviewResult {
   notes?: string;
   /** Hoà giải: không có gì cần đổi — xác nhận nguyên trạng để gỡ cờ "đã cũ" (BUG-16). */
   no_change?: boolean;
+  /** AI cảnh báo yêu cầu không hợp lý — không bao giờ tự ghi; "Vẫn làm" gửi `preview_id` như xác nhận thường. */
+  warning?: string;
+  /** Cờ đỏ mới mà bản sửa này sẽ mở (chặn baseline). */
+  predicted_red_flags?: PredictedRedFlag[];
+  /** Giả định BE đã ghi vào Spine; lời trả lời (`notes`) đã nói inline, UI không làm hộp riêng. */
+  assumptions?: { statement: string; statement_vi?: string }[];
+  /** Đã ghi luôn theo mức duyệt (không còn `preview_id`); hoàn tác bằng `POST /undo`. */
+  auto_applied?: true;
+  applied_version?: number;
+  /** Vì sao vẫn chờ xác nhận. */
+  confirm_reason?: string;
+}
+
+export interface PredictedRedFlag {
+  rule_id: string;
+  section_id: string;
+  target_id: string | null;
+  message: string;
 }
 
 /** `POST /projects/:id/changes`, `/undo`, `/reconcile`. */

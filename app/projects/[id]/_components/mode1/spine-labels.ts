@@ -79,6 +79,11 @@ export const RULE_KEYS = [
   // FLF-395: sau khi đổi mẫu
   "template_section_migration_missing",
   "section_reference_after_migration",
+  "duplicate_name",
+  "vague_wording",
+  "source_missing",
+  "content_type_missing",
+  "standard_section_missing",
   "import_title_content_mismatch",
   "verification_orphan",
   "import_needs_review",

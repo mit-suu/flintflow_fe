@@ -4,6 +4,7 @@ import { useLocale, useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import type { PreviewResult } from "@/types/pipeline";
 import type { AlreadyApplied, ChangeConflict } from "../hooks/useChanges";
+import ChatEditNotes from "./ChatEditNotes";
 import ChangeConflictCard from "./ChangeConflictCard";
 import { describeChange } from "./describe-change";
 import { useMode1Labels } from "./mode1/i18n";
@@ -14,6 +15,8 @@ export interface AppliedEdit {
   instruction: string;
   count: number;
   version: number;
+  /** Mức duyệt cho tự ghi: BE đã ghi trước khi user thấy thẻ — thẻ nói rõ và vẫn hoàn tác được. */
+  auto?: boolean;
 }
 
 interface ChatEditCardProps {
@@ -74,6 +77,9 @@ export default function ChatEditCard({
   const { violationText } = useMode1Labels();
   const blocked = preview ? !preview.ok || preview.violations.length > 0 : false;
   const empty = preview ? preview.changes.length === 0 : false;
+  /** Lệnh nhiều ý: phần rõ đã có bản xem trước, câu hỏi chỉ cho phần còn lại. */
+  const partial = Boolean(clarification && preview && !blocked && !empty);
+  const warned = Boolean(preview?.warning);
 
   return (
     <div role="status" aria-label={t("aria")} className="self-stretch rounded-card bg-surface-container-lowest p-3.5 flex flex-col gap-2.5">
@@ -106,9 +112,9 @@ export default function ChatEditCard({
 
       {clarification && (
         <div className="rounded-control bg-primary-soft px-3 py-2 text-body text-primary-hover leading-relaxed">
-          <span className="font-bold">{t("clarifyLead")}</span>
+          <span className="font-bold">{t(partial ? "partialLead" : "clarifyLead")}</span>
           {clarification}
-          <span className="block mt-1 text-caption opacity-80">{t("clarifyHint")}</span>
+          <span className="block mt-1 text-caption opacity-80">{t(partial ? "partialHint" : "clarifyHint")}</span>
         </div>
       )}
 
@@ -144,6 +150,7 @@ export default function ChatEditCard({
               </ul>
             </div>
           )}
+          <ChatEditNotes preview={preview} sectionName={sectionName} />
           <div className="flex items-center justify-end gap-1.5 flex-wrap">
             <button
               type="button"
@@ -166,7 +173,7 @@ export default function ChatEditCard({
                 disabled={applying}
                 className="h-8 px-3 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover disabled:opacity-60 cursor-pointer disabled:cursor-not-allowed transition-colors"
               >
-                {requiresCr ? t("createCr") : applying ? t("applying") : t("apply")}
+                {requiresCr ? t("createCr") : applying ? t("applying") : warned ? t("applyAnyway") : t("apply")}
               </button>
             )}
           </div>
@@ -178,7 +185,7 @@ export default function ChatEditCard({
           <span className="flex items-center gap-1.5 text-body font-semibold text-success">
             <Icon name="check-circle" size={15} />
             {applied.count > 0
-              ? t("applied", { count: applied.count })
+              ? t(applied.auto ? "autoApplied" : "applied", { count: applied.count })
               : alreadyApplied?.length
                 ? t("alreadyApplied", { who: [...new Set(alreadyApplied.map((a) => a.changed_by))].join(", ") })
                 : t("confirmedNoChange")}
@@ -195,6 +202,7 @@ export default function ChatEditCard({
           )}
         </div>
       )}
+      {applied?.auto && applied.count > 0 && onUndo && <p className="text-caption text-on-surface-muted">{t("autoAppliedHint")}</p>}
     </div>
   );
 }
