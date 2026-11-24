@@ -348,16 +348,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     ws.user?.id ?? null
   );
   // E2E 24/11 #3: "Mở trong khung chat" ở trang một CR ⇒ `?openCr=CR-007` ⇒ khung chat mở đúng CR đó (nếu là CR đang mở của mình)
+  // Theo dõi query (không chỉ lúc mount): Link trong cùng route không mount lại trang.
   const { reloadOpen } = crChat;
+  const searchParams = useSearchParams();
+  const wantedCr = searchParams?.get("openCr") ?? null;
   useEffect(() => {
-    if (typeof window === "undefined") return;
+    if (!wantedCr) return;
+    reloadOpen(wantedCr);
     const url = new URL(window.location.href);
-    const wanted = url.searchParams.get("openCr");
-    if (!wanted) return;
-    reloadOpen(wanted);
     url.searchParams.delete("openCr");
     router.replace(`${url.pathname}${url.search}`, { scroll: false });
-  }, [reloadOpen, router]);
+  }, [wantedCr, reloadOpen, router]);
   // FLF-411 U2-4: dự án mode 1 (import) không có step ⇒ BE từ chối `POST /resume` (409); chỉ đọc Spine, không gọi resume
   const spineState = useSpine(projectId, ws.ready, ws.canEdit && !mode1);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
