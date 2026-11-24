@@ -63,6 +63,8 @@ export interface DiscoveryQuestion {
   multiple?: boolean;
   /** Câu mở đã được hỏi ngay trong lời AI — không hiện lại thành dòng/thẻ riêng. */
   inline?: boolean;
+  /** FLF-449: lý do khuyến nghị (khối "Vì sao khuyến nghị" ở phương án được khuyến nghị). */
+  recommendation_reason?: string;
 }
 
 export interface ActionCostEstimate {
