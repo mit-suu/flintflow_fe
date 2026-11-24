@@ -933,6 +933,13 @@ export const mode1Handlers = [
           { block_id: "B0010", change: "modified" as const, before: "NFR-P02: The system responds quickly under load.", after: "NFR-P02: 95% of requests respond within 2 seconds." },
           { block_id: null, change: "added" as const, after: "NFR-P03: The system supports 500 concurrent learners." },
         ],
+        // FLF-457
+        before_baseline: false,
+        no_stamp: false,
+        heading_match: 1,
+        suggest_reference: false,
+        stale: null,
+        markup: [],
       };
       S().reuploads.push(diff);
       return ok(diff, 201);

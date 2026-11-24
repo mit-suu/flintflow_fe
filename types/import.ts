@@ -472,6 +472,28 @@ export interface ReuploadDiff {
   blocks: BlockDiffEntry[];
   /** Bản ghi cũ ⇒ []. */
   sections?: DiffSectionStat[];
+  /** FLF-457: chưa có baseline ⇒ so với nội dung đang soạn (`against_version = "DRAFT"`), chỗ nhận thành bản sửa qua chat. */
+  before_baseline?: boolean;
+  /** FLF-457: file không có dấu version ⇒ đã so theo nội dung với bản nháp hiện tại. */
+  no_stamp?: boolean;
+  /** FLF-457: tỉ lệ heading của bản đang so tìm thấy trong file (0…1). */
+  heading_match?: number;
+  /** FLF-457: heading khớp dưới ngưỡng ⇒ gợi ý Dùng làm tham khảo. */
+  suggest_reference?: boolean;
+  /** FLF-457: dấu version của file cũ hơn bản hiện tại. */
+  stale?: { file_version: string; current_version: string } | null;
+  /** FLF-457: Track Changes / comment của người ngoài trong file, mỗi chỗ một dòng. */
+  markup?: ReuploadMarkup[];
+}
+
+/** FLF-457: một chỗ Track Changes / comment của người ngoài trong file upload lại. */
+export interface ReuploadMarkup {
+  kind: "track_change" | "comment";
+  author: string;
+  change?: "text" | "format";
+  text: string;
+  section: string;
+  location: { block_ord: number; text: string } | null;
 }
 
 /** `meta` của 422 IMPORT_FILE_REJECTED. */
