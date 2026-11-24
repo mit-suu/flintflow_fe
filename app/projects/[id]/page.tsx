@@ -2253,6 +2253,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 projectName={ws.project?.name}
                 mode1={mode1}
                 refreshToken={ws.documentsVersion}
+                creditConfirm={creditGate.pending ? { ...creditGate.pending, onRun: creditGate.run, onCancel: creditGate.cancel } : null}
                 // Duyệt danh sách rút (mode 1) tạo change request ⇒ tải lại tài liệu, gói thay đổi (pill), mục đang chờ
                 onCrsCreated={() => onSpineChanged()}
                 onAdd={async (files) => {

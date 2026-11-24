@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { deleteProjectDocument, listProjectDocuments } from "@/lib/api/documents";
 import type { ProjectDocument } from "@/types/document";
 
@@ -12,13 +12,18 @@ export function useProjectDocuments(projectId: string, refreshToken = 0) {
   const [docs, setDocs] = useState<ProjectDocument[] | null>(null);
   const [error, setError] = useState<unknown>(null);
 
+  // Hai lượt tải chồng nhau (refreshToken đổi + reload sau khi thêm) ⇒ chỉ lượt gọi sau cùng được ghi, kết quả cũ về muộn không
+  // đè danh sách mới (E2E 24/11 #1)
+  const seq = useRef(0);
   const reload = useCallback(async () => {
+    const mine = ++seq.current;
     try {
       const res = await listProjectDocuments(projectId);
+      if (mine !== seq.current) return;
       setDocs(res.data ?? []);
       setError(null);
     } catch (err) {
-      setError(err);
+      if (mine === seq.current) setError(err);
     }
   }, [projectId]);
 
