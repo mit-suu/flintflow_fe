@@ -125,6 +125,8 @@ const reviewPackage = () => {
     red_open: S().redFlags,
     submission: sub,
     spine_version: S().spineVersion,
+    // FLF-480 (B13): lý do các vòng "Yêu cầu sửa" trước lần gửi lại hiện tại, mới nhất trước.
+    rounds: S().rounds,
   };
 };
 const latestBlocks = (): DocBlock[] => S().blocks.get(latestVersion() ?? "") ?? [];
@@ -1415,6 +1417,9 @@ export const mode1Handlers = [
       if (S().submission?.status === "pending") return fail(409, "PACKAGE_ALREADY_SUBMITTED", "Gói thay đổi đang chờ Lead duyệt — không gửi lại được.");
       if (pendingCrIds().length === 0) return fail(409, "PACKAGE_EMPTY", "Chưa có thay đổi nào được ghi vào bản nháp.");
       if (S().redFlags > 0) return fail(422, "RELEASE_RED_FLAGS_OPEN", `Còn ${S().redFlags} cờ đỏ — xử lý qua change request rồi gửi duyệt`, { flags: [redFlag()] });
+      // FLF-480 (B13): submission "rejected" đang hiệu lực sắp bị ghi đè ⇒ dồn vào `rounds` trước khi mất, như BE dựng từ change log.
+      const prev = S().submission;
+      if (prev?.status === "rejected" && prev.decided_by && prev.decided_at) S().rounds = [{ decided_by: prev.decided_by, decided_at: prev.decided_at, reason: prev.reason }, ...S().rounds];
       S().spineVersion += 1;
       S().submission = { status: "pending", submitted_by: MODE1_USER_ID, submitted_at: now(), spine_version: S().spineVersion, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] };
       return ok(reviewPackage());
