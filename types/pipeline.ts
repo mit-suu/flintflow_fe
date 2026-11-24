@@ -245,7 +245,7 @@ export type StepEvent =
   | { type: "answer_received"; step_id: string; count: number }
   | { type: "draft"; step_id: string; attempt: number }
   | { type: "draft_retry"; step_id: string; attempt: number; max: number; reason_vi: string }
-  | { type: "stage"; step_id: string; stage: RunStage; label_vi: string; detail_vi?: string; batch?: { i: number; n: number }; est_ms?: number }
+  | { type: "stage"; step_id: string; stage: RunStage; label_vi: string; detail_vi?: string; batch?: { i: number; n: number }; est_ms?: number; section_ids?: string[] }
   | { type: "heartbeat"; step_id: string; stage: RunStage; elapsed_ms: number }
   | {
       type: "ops_applied";

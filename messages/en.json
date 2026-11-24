@@ -2277,7 +2277,10 @@
         "desktop_app": "Desktop",
         "api_service": "API",
         "cli": "CLI",
-        "embedded": "Embedded"
+        "embedded": "Embedded",
+        "responsive_web": "Web (responsive)",
+        "mobile_web": "Mobile web",
+        "pwa": "Installable web app (PWA)"
       },
       "stakes": {
         "internal": "Internal",
@@ -2312,7 +2315,15 @@
         "vision": "Vision",
         "goalsCount": "Goals ({count})",
         "notesCount": "What you told me ({count})",
-        "understoodCount": "What I currently understand ({count})"
+        "understoodCount": "What I currently understand ({count})",
+        "docExcerpt": "{code}",
+        "docExcerptTitle": "Document language: {language}",
+        "titleTip": "An idea summary gathered from the conversation, used as the basis for writing the SRS document.",
+        "stakesTip": "How widely the system is used and the compliance it must meet.",
+        "visionTip": "The core value the system delivers.",
+        "goalsTip": "Measurable outcomes the project must achieve.",
+        "notesTip": "Information you provided, kept as-is when writing the document.",
+        "understoodTip": "Points FlintFlow inferred, waiting for your confirmation. Confirm them all before locking the baseline."
       },
       "summary": {
         "vision": "Vision",
@@ -2744,9 +2755,6 @@
     },
     "activityLog": {
       "aria": "AI activity log",
-      "running": " (in progress)",
-      "failed": " (failed)",
-      "done": " (done)",
       "collections": {
         "project": "project info",
         "addendum": "note",
@@ -2763,7 +2771,11 @@
         "business_rules": "rule",
         "messages": "message",
         "glossary": "glossary term",
-        "permissions": "permission"
+        "permissions": "permission",
+        "common_requirements": "common requirement",
+        "references": "reference",
+        "verifications": "verification",
+        "deployment_nodes": "deployment node"
       },
       "verbs": {
         "add": "Add",
@@ -2786,7 +2798,15 @@
       "renderFailed": "Could not draw a diagram",
       "rendered": "Draw diagrams",
       "flagsFound": "{count, plural, one {Found # error to fix} other {Found # errors to fix}}",
-      "nextStep": "Next step"
+      "nextStep": "Next step",
+      "stages": {
+        "intake": "Read project data",
+        "ask": "Prepare questions for you",
+        "check": "Review the content",
+        "render": "Draw diagrams"
+      },
+      "redrafting": "Revise the draft",
+      "round": "Round {n}"
     },
     "describeChange": {
       "collections": {
@@ -3215,7 +3235,10 @@
         "desktop_app": "Desktop",
         "api_service": "API",
         "cli": "CLI",
-        "embedded": "Embedded"
+        "embedded": "Embedded",
+        "responsive_web": "Web (responsive)",
+        "mobile_web": "Mobile web",
+        "pwa": "Installable web app (PWA)"
       },
       "stakes": {
         "internal": "Internal",
@@ -3357,6 +3380,27 @@
           "check": "Check"
         },
         "sections": "{done}/{total} sections",
+        "foundTotal": "Found:",
+        "foundSeparator": " · ",
+        "foundLine": "+ {label}: {names}",
+        "foundMore": "and {count} more",
+        "foundDiagram": "diagrams",
+        "diagramKinds": {
+          "context": "context",
+          "usecase": "use case",
+          "screen_flow": "screen flow",
+          "erd": "ERD",
+          "class": "class",
+          "state_machine": "state lifecycle",
+          "sequence": "sequence",
+          "activity": "activity",
+          "deployment": "deployment"
+        },
+        "announce": "Read {done}/{total} sections",
+        "figure": "Figure",
+        "tableMoreRows": "and {count} more rows",
+        "outlineLabel": "Sections of the file",
+        "outlineJump": "Go to section {title}",
         "state": {
           "done": "done",
           "active": "in progress",
@@ -3494,6 +3538,65 @@
       "download": "Download",
       "downloading": "Downloading…",
       "downloadFailed": "Could not download the file. Try again later."
+    }
+  },
+  "aiFollow": {
+    "reading": "Reading {index}/{total}",
+    "writing": "Writing {index}/{total}",
+    "prev": "Previous section (key [)",
+    "next": "Next section (key ])",
+    "follow": "Follow AI"
+  },
+  "aiActivity": {
+    "status": {
+      "running": " (in progress)",
+      "done": " (done)",
+      "failed": " (failed)",
+      "todo": " (not started)"
+    },
+    "almostDone": "Almost done…",
+    "labels": {
+      "replying": "Writing the reply…",
+      "readingReference": "Reading the reference documents…",
+      "checking": "Checking…",
+      "working": "AI is working…",
+      "verifying": "Checking the document…"
+    },
+    "hints": {
+      "generic": {
+        "1": "Organizing ideas…",
+        "2": "Writing the details…",
+        "3": "Reviewing the result…"
+      },
+      "chat": {
+        "1": "Organizing ideas…",
+        "2": "Writing the reply…",
+        "3": "Reviewing the content…"
+      },
+      "reference": {
+        "1": "Reading the documents…",
+        "2": "Finding relevant parts…",
+        "3": "Summarizing key points…"
+      },
+      "document": {
+        "1": "Organizing ideas…",
+        "2": "Writing the details…",
+        "3": "Reviewing the content…"
+      },
+      "check": {
+        "1": "Comparing sections…",
+        "2": "Looking for mismatches…",
+        "3": "Putting results together…"
+      },
+      "diagram": {
+        "1": "Identifying the elements…",
+        "2": "Connecting the elements…",
+        "3": "Redrawing…"
+      }
+    },
+    "steps": {
+      "thinking": "Thinking",
+      "searchKnowledge": "Searching the knowledge base"
     }
   },
   "errors": {

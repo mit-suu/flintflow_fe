@@ -237,12 +237,41 @@ export interface ReviewField {
   entity_name?: string;
 }
 
+/** Thứ AI tìm thấy trong một mục: `entity` là khoá thô (`use_cases`, `actors`…) hoặc `diagram` (names = loại sơ đồ). */
+export interface FoundGroup {
+  entity: string;
+  count: number;
+  names: string[];
+}
+
 export interface ExtractionSection {
   section_id: string;
   status: "pending" | "done" | "failed";
   fields_total: number;
   fields_needing_review: number;
   error: string | null;
+  /** AI đang đọc mục này lúc này (nhiều mục có thể cùng lúc). Thiếu (BE cũ) ⇒ coi như false. */
+  reading?: boolean;
+  /** Thứ đã tìm thấy trong mục. Thiếu (BE cũ) ⇒ rỗng. */
+  found?: FoundGroup[];
+}
+
+/** `GET /projects/:id/import/source` — chữ gốc của file theo mục, đúng thứ tự trong file. Tải một lần, không poll. */
+export interface ImportSourceBlock {
+  block_id: string;
+  kind: DocBlockKind;
+  /** Bảng: các dòng `| a | b |` nối bằng xuống dòng; ảnh: rỗng. */
+  text: string;
+}
+export interface ImportSourceSection {
+  section_id: string;
+  title: string;
+  level: number;
+  blocks: ImportSourceBlock[];
+}
+export interface ImportSourceResponse {
+  import_id: string;
+  sections: ImportSourceSection[];
 }
 
 /** Ngưỡng độ tin (BE `import.constants.ts`): mapping < 0.9 ⇒ xác nhận mapping; field < 0.8 ⇒ xác nhận field. */

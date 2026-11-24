@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import type { ChangeSummary, RunStage, StepEvent } from "@/types/pipeline";
 import type { RunnerState } from "../hooks/useStepRunner";
+import { AiWaitLine, type AiWaitKind } from "@/components/ui/ai-activity";
 import RunActivityLog from "./RunActivityLog";
 import { activityLines } from "./activity-log";
 
@@ -19,6 +20,9 @@ import { activityLines } from "./activity-log";
  */
 
 const STAGE_ORDER: RunStage[] = ["intake", "ask", "draft", "check", "render", "gate"];
+
+/** Giai đoạn đang chạy ⇒ bộ câu chờ phụ tương ứng. */
+const WAIT_KIND: Record<RunStage, AiWaitKind> = { intake: "generic", ask: "chat", draft: "document", check: "check", render: "diagram", gate: "generic" };
 
 /** Giai đoạn nào thật sự có trong lượt này: các stage đã đi qua + stage đang chạy + "chờ duyệt". */
 export const visibleStages = (events: StepEvent[], current: RunStage | null): RunStage[] => {
@@ -85,24 +89,24 @@ export default function StepProgress({ state, onCancel, onBackground }: StepProg
       <div className="flex-1 min-w-0 flex flex-col gap-1.5">
         <div className="flex items-start gap-2 min-w-0">
           {showLog ? (
-            <div className="flex-1 min-w-0" role="status" aria-live="polite">
-              <RunActivityLog events={state.events} running={working} />
+            <div className="flex-1 min-w-0">
+              <RunActivityLog events={state.events} running={working} since={state.startedAt} />
             </div>
           ) : (
-          <div className="flex-1 min-w-0 flex items-center gap-2">
-          {working && (
-            <span className="flex items-center gap-1 shrink-0" aria-hidden>
-              {[0, 150, 300].map((delay) => (
-                <span key={delay} className="w-1.5 h-1.5 rounded-full bg-[#6A62C4] animate-bounce" style={{ animationDelay: `${delay}ms` }} />
-              ))}
-            </span>
-          )}
-          <p
-            role="status"
-            className="flex-1 min-w-0 truncate text-body text-[#33312D]"
-          >
-            {headline}
-          </p>
+          <div className="flex-1 min-w-0">
+            {working && state.status !== "reconnecting" ? (
+              <AiWaitLine
+                label={headline}
+                kind={WAIT_KIND[state.stage ?? "intake"]}
+                // Có ước lượng của stage ⇒ đếm từ lúc stage bắt đầu để "sắp xong" đúng nghĩa; không có thì đếm cả lượt
+                since={state.stageEstMs !== undefined ? (state.stageStartedAt ?? state.startedAt) : state.startedAt}
+                estMs={state.stageEstMs}
+              />
+            ) : (
+              <p role="status" className="truncate text-body text-on-surface-dark">
+                {headline}
+              </p>
+            )}
           </div>
           )}
           <div className={`${actionsClass} items-center gap-2 shrink-0`}>

@@ -67,7 +67,7 @@ describe("Khung chat - song ngữ", () => {
   it("vi giữ nguyên chữ cũ", () => {
     renderPane("vi");
     expect(screen.getByRole("heading", { name: "Trò chuyện và duyệt" })).toBeInTheDocument();
-    expect(screen.getByText("Đang tra kho tri thức…")).toBeInTheDocument();
+    expect(screen.getByText("Đang tìm trong kho kiến thức")).toBeInTheDocument();
     expect(screen.getByText("Chờ bạn xác nhận (2 thay đổi)")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Về phiên chính" })).toBeInTheDocument();
   });

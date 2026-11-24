@@ -4,6 +4,7 @@ import type { ComponentProps, ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
+import { AiWaitLine } from "@/components/ui/ai-activity";
 import FlagsPanel from "./FlagsPanel";
 import ReadinessSummary from "./ReadinessSummary";
 import BaselineApprovalPanel from "./BaselineApprovalPanel";
@@ -82,9 +83,8 @@ export default function VerificationPane({
         {baseline && <BaselineApprovalPanel {...baseline} />}
 
         {flagsLoading ? (
-          <div className="flex flex-col items-center justify-center py-12 gap-2 text-on-surface-muted">
-            <span className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-            <span className="text-xs">{t("loadingIssues")}</span>
+          <div className="flex justify-center py-12">
+            <AiWaitLine label={t("loadingIssues")} kind="check" />
           </div>
         ) : (
           <FlagsPanel

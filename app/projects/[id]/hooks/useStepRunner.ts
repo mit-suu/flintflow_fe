@@ -58,6 +58,11 @@ export interface RunnerState {
   /** Câu mô tả việc đang làm ("AI đang soạn nội dung · lô 1/2"). */
   detail: string | null;
   batch: { i: number; n: number } | null;
+  /** Mục tài liệu step đang soạn (stage mới nhất, do BE ánh xạ) — rỗng khi không có mục nào hoặc hết lượt. */
+  activeSectionIds: string[];
+  /** Thời gian dự kiến của stage hiện tại (`est_ms` BE gửi, nếu có) và mốc stage bắt đầu — để dòng chờ nói "sắp xong". */
+  stageEstMs?: number;
+  stageStartedAt?: number;
   /** Mốc bắt đầu lượt (ms) — component tự đếm đồng hồ, hook không tick mỗi giây. */
   startedAt: number | null;
   /** Lần cuối có tín hiệu thật từ BE — quá lâu ⇒ hiện "chậm hơn thường lệ" rồi "mất kết nối". */
@@ -132,6 +137,7 @@ export const initialRunnerState: RunnerState = {
   stage: null,
   detail: null,
   batch: null,
+  activeSectionIds: [],
   startedAt: null,
   lastEventAt: null,
   summary: [],
@@ -166,6 +172,9 @@ const STATUS_BY_EVENT: Partial<Record<StepEvent["type"], RunnerStatus>> = {
   gate_ready: "gate_ready",
   error: "error",
 };
+
+/** Hết lượt / tới cổng / lỗi / huỷ ⇒ bỏ mục đang quét và ước lượng của stage. */
+const IDLE_STAGE_FIELDS = { activeSectionIds: [] as string[], stageEstMs: undefined, stageStartedAt: undefined };
 
 const gateOf = (event: GateReadyEvent): RunnerGate => ({
   actions: event.actions,
@@ -242,11 +251,14 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
             detail: event.detail_vi ?? event.label_vi,
             batch: event.batch ?? null,
             retry: null,
+            activeSectionIds: event.section_ids ?? [],
+            stageEstMs: event.est_ms,
+            stageStartedAt: event.est_ms === undefined ? undefined : at,
           };
         case "elicit":
           return { ...next, elicitText: appendElicit(state, event) };
         case "answer_needed":
-          return { ...next, questions: event.questions, busy: false, detail: runnerDetail("waitingAnswers", event.questions.length) };
+          return { ...next, ...IDLE_STAGE_FIELDS, questions: event.questions, busy: false, detail: runnerDetail("waitingAnswers", event.questions.length) };
         case "answer_received":
           return { ...next, questions: [], busy: true, detail: runnerDetail(event.count > 0 ? "readingAnswers" : "readingMessage") };
         case "draft_retry":
@@ -255,8 +267,8 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
           return { ...next, summary: [...state.summary, ...(event.summary ?? [])] };
         case "gate_ready":
           // Bước im: server tự Accept ngay — chỉ vào nhật ký, không dựng thẻ cổng (bấm chip lúc này ăn 409 và làm gãy luồng)
-          if (event.auto) return { ...next, status: "drafting", busy: true, stage: null, detail: null, retry: null };
-          return { ...next, gate: gateOf(event), busy: false, stage: "gate", detail: null, retry: null };
+          if (event.auto) return { ...next, ...IDLE_STAGE_FIELDS, status: "drafting", busy: true, stage: null, detail: null, retry: null };
+          return { ...next, ...IDLE_STAGE_FIELDS, gate: gateOf(event), busy: false, stage: "gate", detail: null, retry: null };
         case "phase_progress":
           return {
             ...next,
@@ -269,11 +281,11 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
         case "auto_accepted":
           // Bước tự hoàn tất: không phải một cổng chốt phải bấm — bỏ `gate_ready` của nó, chuỗi chạy tiếp (kể cả sang giai
           // đoạn kế trên cùng luồng khi cả giai đoạn tự qua); giữ thẻ lại thì user thấy cổng của một bước đã chốt.
-          return { ...next, status: "drafting", stage: null, detail: null, gate: null, busy: true, autoAccepted: [...state.autoAccepted, { step_id: event.step_id, reason_vi: event.reason_vi }] };
+          return { ...next, ...IDLE_STAGE_FIELDS, status: "drafting", stage: null, detail: null, gate: null, busy: true, autoAccepted: [...state.autoAccepted, { step_id: event.step_id, reason_vi: event.reason_vi }] };
         case "phase_gate":
           return { ...next, status: state.status, phaseGate: event };
         case "error":
-          return { ...next, error: { code: event.code, message: event.message }, busy: false };
+          return { ...next, ...IDLE_STAGE_FIELDS, error: { code: event.code, message: event.message }, busy: false };
         default:
           return next;
       }
@@ -293,11 +305,11 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
     case "busy":
       return { ...state, busy: action.busy };
     case "failed":
-      return { ...state, status: "error", error: { code: action.code, message: action.message, ...(action.meta ? { meta: action.meta } : {}) }, busy: false };
+      return { ...state, ...IDLE_STAGE_FIELDS, status: "error", error: { code: action.code, message: action.message, ...(action.meta ? { meta: action.meta } : {}) }, busy: false };
     case "reconnecting":
       return { ...state, status: "reconnecting", detail: runnerDetail("reconnecting") };
     case "interrupted":
-      return { ...state, status: "interrupted", busy: false, detail: runnerDetail("interrupted") };
+      return { ...state, ...IDLE_STAGE_FIELDS, status: "interrupted", busy: false, detail: runnerDetail("interrupted") };
     case "restored": {
       const { state: run } = action;
       const at = action.at ?? Date.now();
@@ -323,7 +335,9 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
       }
       if (run.status === "running" && run.alive) {
         const other = run.by && action.me && run.by !== action.me ? run.by_name || run.by : null;
-        return { ...base, status: STATUS_BY_STAGE[run.stage], busy: true, runBy: other };
+        // Dựng lại mục đang soạn từ stage mới nhất trong nhật ký của lượt
+        const lastStage = [...events].reverse().find((e): e is Extract<StepEvent, { type: "stage" }> => e.type === "stage");
+        return { ...base, status: STATUS_BY_STAGE[run.stage], busy: true, runBy: other, activeSectionIds: lastStage?.section_ids ?? [] };
       }
       if (run.status === "interrupted" || (run.status === "running" && !run.alive)) {
         // Lỗi của lượt (vd lượt chạy tiếp ở nền sau khi trả lời) hiện ở khối lỗi kèm nút làm lại
@@ -335,7 +349,7 @@ export function stepRunnerReducer(state: RunnerState, action: RunnerAction): Run
       return { ...state, events: [...action.events, ...state.events] };
     case "detached":
       // Luồng đóng lúc đang chờ trả lời (BE hết giờ chờ): câu hỏi vẫn trả lời được, chỉ là không còn SSE nữa
-      return { ...state, status: "needs_input", busy: false, source: "restored" };
+      return { ...state, ...IDLE_STAGE_FIELDS, status: "needs_input", busy: false, source: "restored" };
     case "reset":
       return initialRunnerState;
   }
