@@ -197,3 +197,35 @@ describe("useCrChat - nạp lại CR đang mở (E2E 24/11 #3)", () => {
     await waitFor(() => expect(result.current.detail?.change_request.cr_id).toBe("CR-010"));
   });
 });
+
+describe("useCrChat - tải lại lúc đang ghi (FLF-480 B17)", () => {
+  const withStatus = (status: string) => ({ ...detail, change_request: { ...detail.change_request, status } }) as unknown as CrDetail;
+
+  it("nạp CR ở ready_to_submit, đọc lại thấy written ⇒ detail về null, báo trang tải lại tài liệu", async () => {
+    const onWritten = vi.fn();
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "ready_to_submit", created_by: "u1" }] });
+    api.getCr.mockReset().mockResolvedValueOnce({ data: withStatus("ready_to_submit") }).mockResolvedValue({ data: withStatus("written") });
+    const { result } = renderHookWithIntl(() => useCrChat("p-b17", true, onWritten, "u1"));
+    await waitFor(() => expect(result.current.detail?.change_request.status).toBe("ready_to_submit"));
+
+    // cửa sổ được focus ⇒ đọc lại
+    await act(async () => {
+      window.dispatchEvent(new Event("focus"));
+    });
+    await waitFor(() => expect(result.current.detail).toBeNull());
+    expect(onWritten).toHaveBeenCalledWith("CR-001", []);
+  });
+
+  it("gửi lệnh mới khi CR đã written ở nơi khác ⇒ không gộp vào CR cũ (không gọi amend)", async () => {
+    api.sendCrMessage.mockClear();
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "ready_to_submit", created_by: "u1" }] });
+    api.getCr.mockReset().mockResolvedValueOnce({ data: withStatus("ready_to_submit") }).mockResolvedValue({ data: withStatus("written") });
+    const { result } = renderHookWithIntl(() => useCrChat("p-b17b", true, undefined, "u1"));
+    await waitFor(() => expect(result.current.detail?.change_request.status).toBe("ready_to_submit"));
+
+    await act(async () => result.current.send("thêm mục 3.3"));
+    expect(api.sendCrMessage).not.toHaveBeenCalled();
+    expect(result.current.detail).toBeNull();
+    expect(result.current.pending).toBe("thêm mục 3.3");
+  });
+});

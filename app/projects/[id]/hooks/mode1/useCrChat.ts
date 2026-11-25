@@ -242,6 +242,61 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     setReloadSeq((n) => n + 1);
   }, []);
 
+  /**
+   * FLF-480 (B17): đọc lại CR đang mở. Tải lại trang lúc BE còn đang ghi ("Xác nhận & ghi") nạp CR ở `ready_to_submit`; BE ghi xong
+   * thành `written` nhưng chat không biết ⇒ vẫn "Sẵn sàng nộp", lệnh mới gộp vào CR cũ. Trả CR mới đọc được (`null` = CR đã đóng,
+   * hoặc không đọc được ⇒ giữ nguyên trạng thái hiện có).
+   */
+  const detailRef = useRef(detail);
+  detailRef.current = detail;
+  const busyRef = useRef<CrChatBusy | null>(null);
+  busyRef.current = busy;
+  const refreshOpen = useCallback(async (): Promise<CrDetail | null | undefined> => {
+    const cur = detailRef.current;
+    if (!cur) return undefined;
+    let fresh: CrDetail | null;
+    try {
+      fresh = (await getCr(projectId, cur.change_request.cr_id)).data ?? null;
+    } catch {
+      return undefined;
+    }
+    if (!alive.current || detailRef.current?.change_request.cr_id !== cur.change_request.cr_id) return undefined;
+    if (!fresh) return undefined;
+    if (CR_OPEN_STATUSES.includes(fresh.change_request.status)) {
+      if (fresh.change_request.status !== cur.change_request.status || fresh.change_request.updated_at !== cur.change_request.updated_at) setDetail(fresh);
+      return fresh;
+    }
+    // CR đã ghi / huỷ / nộp ở nơi khác ⇒ thôi coi là CR mở; ghi vào bản nháp thì báo trang tải lại tài liệu như lúc tự xác nhận
+    setDetail(null);
+    setRedraftFor(null);
+    if (fresh.change_request.status === "written") {
+      setSent(fresh.change_request.cr_id);
+      onWrittenRef.current?.(fresh.change_request.cr_id, cur.change_request.flag_ids ?? []);
+    }
+    return null;
+  }, [projectId]);
+
+  // CR đang ở bước BE có thể đang ghi (`ready_to_submit` / `verifying`) và không phải do lượt chạy này đang chờ ⇒ đọc lại sau vài
+  // giây (vài lần) và mỗi khi cửa sổ được focus
+  const watchedStatus = detail?.change_request.status;
+  const watchedCr = detail?.change_request.cr_id ?? null;
+  useEffect(() => {
+    if (!enabled || !watchedCr || (watchedStatus !== "ready_to_submit" && watchedStatus !== "verifying")) return;
+    const check = () => {
+      if (!sendingRef.current && !busyRef.current) void refreshOpen();
+    };
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      if (++tries > 6) return window.clearInterval(timer);
+      check();
+    }, 4000);
+    window.addEventListener("focus", check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+    };
+  }, [enabled, watchedCr, watchedStatus, refreshOpen]);
+
   const isAccepted = useCallback(
     (l: CrLocation) => accepted.has(proposalKey(l)) || (detail !== null && inApprovedBatch(detail, l)),
     [accepted, detail]
@@ -441,7 +496,20 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     async (text: string) => {
       const value = text.trim();
       if (!value) return;
-      if (!detail) {
+      // FLF-480 (B17): trước khi gộp lệnh vào "CR đang mở", đọc lại trạng thái - CR có thể đã ghi / đóng ở nơi khác
+      let current: CrDetail | null = detail;
+      if (detail && !sendingRef.current) {
+        sendingRef.current = true;
+        try {
+          const fresh = await refreshOpen();
+          if (!alive.current) return;
+          if (fresh === null) current = null;
+          else if (fresh) current = fresh;
+        } finally {
+          sendingRef.current = false;
+        }
+      }
+      if (!current) {
         setSent(null);
         // Đọc lại trạng thái gói ngay lúc gửi (người khác có thể vừa gửi Lead duyệt); không đọc được ⇒ để BE quyết
         const locked = await getReviewPackage(projectId)
@@ -460,12 +528,12 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (sendingRef.current) return;
       sendingRef.current = true;
       try {
-        await sendToCr(detail, value);
+        await sendToCr(current, value);
       } finally {
         sendingRef.current = false;
       }
     },
-    [detail, sendToCr, projectId, t]
+    [detail, sendToCr, refreshOpen, projectId, t]
   );
 
   const withCr = <T,>(fn: (id: string, d: CrDetail) => T): T | undefined => (detail ? fn(detail.change_request.cr_id, detail) : undefined);
