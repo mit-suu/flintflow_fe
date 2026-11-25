@@ -2967,6 +2967,8 @@
       "rerunStep": "Update this step",
       "continueNotice": "Step <strong>{step}</strong> is next but has not run yet.",
       "continueRun": "Continue",
+      "continueAfterRerun": "Step <strong>{done}</strong> has been updated. The project is at <strong>{step}</strong>.",
+      "continueRunStep": "Continue: {step}",
       "keeping": "Approving…",
       "keepAsIs": "Keep as is, re-approve",
       "close": "Close",

@@ -444,6 +444,8 @@ export interface GateResponse {
   spine_version: number;
   /** Sau `revision`: lời AI nói đã sửa gì (vắng khi BE không có gì để nói). */
   message_vi?: string;
+  /** FLF-489: bước vừa duyệt đã từng được chốt trước lượt này (chạy lại bước đã qua). Client không tự chạy tiếp quy trình. */
+  rerun?: boolean;
 }
 
 // ─── progress ────────────────────────────────────────────────────

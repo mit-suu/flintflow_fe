@@ -646,6 +646,9 @@ const patchMockUser = (body: unknown) => {
 
 // ─── handlers ────────────────────────────────────────────────────
 
+/** FLF-489: step đã được duyệt trong phiên mock này — duyệt lần nữa (chạy lại) thì gate trả `rerun`. */
+const acceptedStepsInMock = new Set<string>();
+
 export const handlers = [
   http.get(api("/users/me"), () => ok(mockState.user)),
   http.post(api("/ai-actions/estimate-cost"), async ({ request }) => {
@@ -1001,6 +1004,8 @@ export const handlers = [
       return fail(400, "VALIDATION_ERROR", "revision và accept_as_is bắt buộc ghi chú");
     }
     const counters = countersOf(mockState, stepId);
+    // FLF-489: bước đã từng accepted (mở lại để chạy lại) ⇒ duyệt xong BE báo `rerun`
+    const acceptedBefore = acceptedStepsInMock.has(stepId);
 
     switch (body.action) {
       case "accept":
@@ -1043,7 +1048,14 @@ export const handlers = [
       mockState.spine.progress.current_step = next;
       mockState.spine.progress.current_phase = next ? (phaseOfStep(next) ?? null) : null;
     }
-    const response: GateResponse = { step: summaryOf(mockState, stepId), next_step: next, spine_version: mockState.spine.spine_version };
+    const accepting = body.action === "accept" || body.action === "accept_as_is";
+    if (accepting) acceptedStepsInMock.add(stepId);
+    const response: GateResponse = {
+      step: summaryOf(mockState, stepId),
+      next_step: next,
+      spine_version: mockState.spine.spine_version,
+      ...(accepting && acceptedBefore ? { rerun: true } : {}),
+    };
     return ok(response);
   }),
 

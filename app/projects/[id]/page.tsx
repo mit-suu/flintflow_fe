@@ -784,6 +784,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     recordStepStat(stepId, { duration_ms: payload.duration_ms, credits: payload.credits_used ?? 0 });
   }, []);
 
+  /** FLF-489: vừa duyệt xong bước chạy lại, quy trình dừng ở bước tới lượt — thẻ "Tiếp tục: <bước>" */
+  const [afterRerun, setAfterRerun] = useState<{ done: string; next: string } | null>(null);
+
   const runner = useStepRunner({
     projectId,
     // FLF-244: quy trình chạy ở phiên chính dù user đang xem phiên phụ (dữ liệu cũ thiếu cờ ⇒ phiên đang mở)
@@ -791,6 +794,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     getBaseVersion,
     onSpineChanged,
     onGateDone: (res) => setSelectedStepId(res.next_step),
+    onStoppedAfterRerun: (done, next) => setAfterRerun(next ? { done, next } : null),
     myUserId: ws.user?.id ?? null,
     // Lời AI xác nhận việc vừa sửa hiện ngay như một tin của AI, trước khi bước chạy lại
     onRevisionMessage: (message, stepId) => {
@@ -835,6 +839,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     title: t("turnNotice.title"),
     notification: t("turnNotice.notification"),
   });
+
+  // FLF-489: có lượt mới chạy (hoặc đang chờ) ⇒ thẻ "Tiếp tục" sau bước chạy lại hết nhiệm vụ
+  useEffect(() => {
+    if (runner.state.status !== "idle") setAfterRerun(null);
+  }, [runner.state.status]);
 
   // Thời gian và credit THẬT của bước vừa xong — dùng lại làm ước lượng cho lần sau (03 §6)
   useEffect(() => {
@@ -1736,6 +1745,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     viewedStep === currentStep &&
     !viewingAccepted &&
     (viewedSummary === undefined || viewedSummary.status === "pending" || viewedSummary.status === "revision_requested");
+  /** FLF-489: bước chạy lại vừa duyệt xong, quy trình dừng; bước tới lượt chưa chốt, runner rảnh. Phủ cả bước tới lượt đang dở. */
+  const rerunStopped =
+    afterRerun !== null && runner.state.status === "idle" && viewedStep !== null && viewedStep === currentStep && afterRerun.next === currentStep && !viewingAccepted;
   /** Mở đầu project mới: B-0.1 chưa chạy, phiên pipeline chưa có tin nhắn, Spine chưa có ghi chú Brief. */
   const showOpening =
     !mode1 &&
@@ -1755,6 +1767,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     aiWorking,
     showOpening,
     sessionMessages: ws.activeSession?.messages.length ?? 0,
+    afterRerun: rerunStopped,
   });
 
   /**
@@ -2480,14 +2493,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           {showContinueCard && currentStep && (
             <div className="bg-primary-soft rounded-control p-3 flex flex-wrap items-center justify-between gap-2 text-body text-on-surface">
               <p className="leading-relaxed">
-                {t.rich("page.continueNotice", { step: stepLabel(currentStep, locale), strong: (chunks) => <strong>{chunks}</strong> })}
+                {rerunStopped && afterRerun
+                  ? t.rich("page.continueAfterRerun", {
+                      done: stepLabel(afterRerun.done, locale),
+                      step: stepLabel(currentStep, locale),
+                      strong: (chunks) => <strong>{chunks}</strong>,
+                    })
+                  : t.rich("page.continueNotice", { step: stepLabel(currentStep, locale), strong: (chunks) => <strong>{chunks}</strong> })}
               </p>
               <button
                 type="button"
                 onClick={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)}
                 className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
               >
-                {t("page.continueRun")}
+                {rerunStopped ? t("page.continueRunStep", { step: stepLabel(currentStep, locale) }) : t("page.continueRun")}
               </button>
             </div>
           )}

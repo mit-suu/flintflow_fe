@@ -2967,6 +2967,8 @@
       "rerunStep": "Cập nhật lại bước này",
       "continueNotice": "Bước <strong>{step}</strong> tới lượt nhưng chưa chạy.",
       "continueRun": "Tiếp tục",
+      "continueAfterRerun": "Đã cập nhật lại bước <strong>{done}</strong>. Dự án đang ở bước <strong>{step}</strong>.",
+      "continueRunStep": "Tiếp tục: {step}",
       "keeping": "Đang duyệt…",
       "keepAsIs": "Giữ nguyên, duyệt lại",
       "close": "Đóng",
