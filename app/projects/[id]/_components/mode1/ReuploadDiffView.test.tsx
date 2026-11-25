@@ -203,3 +203,74 @@ describe("reuploadPrefill", () => {
     expect(description).not.toMatch(/B000\d/);
   });
 });
+
+describe("FLF-457 - upload lại trước baseline, file không dấu version, bản cũ, Track Changes người ngoài", () => {
+  const respond = (data: ReuploadDiff) =>
+    mockServer.use(http.post(`${API_BASE_URL}/projects/:projectId/reupload`, () => HttpResponse.json({ data, error: null }, { status: 201 })));
+
+  it("trước baseline ⇒ so với nội dung đang soạn, không có nút tạo CR; chỉ những chỗ đã chọn thành lệnh sửa qua chat", async () => {
+    respond({ ...DIFF, against_version: "DRAFT", before_baseline: true, blocks: DIFF.blocks.slice(0, 3), summary: { added: 1, removed: 1, modified: 1, moved: 0 } });
+    const onApply = vi.fn();
+    renderWithIntl(<ReuploadDiffView projectId={P} beforeBaseline onApplyViaChat={onApply} />);
+    expect(screen.getByText(/So từng đoạn với nội dung đang soạn/)).toBeInTheDocument();
+    pick("SRS_DRAFT.docx");
+    expect(await screen.findByText(/so với nội dung đang soạn/)).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Tạo CR từ khác biệt" })).not.toBeInTheDocument();
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes).toHaveLength(3);
+    fireEvent.click(boxes[1]);
+    fireEvent.click(screen.getByRole("button", { name: "Sửa qua chat (2)" }));
+    expect(onApply).toHaveBeenCalledTimes(1);
+    expect(onApply.mock.calls[0][0].split("\n")).toEqual([
+      "Cập nhật nội dung đang soạn theo file SRS_sua.docx:",
+      "- Thêm: NFR-P03: 500 learners.",
+      '- Sửa: "quickly" → "within 2 seconds"',
+    ]);
+  });
+
+  it("file không dấu version, heading khớp ít, bản cũ, Track Changes / comment ⇒ cảnh báo + mỗi chỗ một dòng; Lưu / Dùng làm tham khảo gửi đúng file", async () => {
+    respond({
+      ...DIFF,
+      no_stamp: true,
+      suggest_reference: true,
+      heading_match: 0.2,
+      stale: { file_version: "0.1", current_version: "0.2" },
+      markup: [
+        { kind: "track_change", author: "Lan", change: "text", text: "Customer note.", section: "1 Introduction", location: { block_ord: 3, text: "Lumen is a platform." } },
+        { kind: "comment", author: "", text: "Please confirm.", section: "", location: null },
+      ],
+    });
+    const onSave = vi.fn();
+    renderWithIntl(<ReuploadDiffView projectId={P} onSaveAsReference={onSave} />);
+    pick("SRS_khach.docx");
+    expect(await screen.findByText("File không có thông tin phiên bản, đã so với bản nháp hiện tại")).toBeInTheDocument();
+    expect(screen.getByText(/chỉ khớp 20% với tài liệu hiện tại/)).toBeInTheDocument();
+    expect(screen.getByText(/File mang phiên bản 0.1, cũ hơn bản hiện tại 0.2/)).toBeInTheDocument();
+    expect(screen.getByText("Track Changes và comment trong file (2)")).toBeInTheDocument();
+    expect(screen.getByText('Track Changes của Lan: "Customer note."')).toBeInTheDocument();
+    expect(screen.getByText("Tại đoạn: Lumen is a platform.")).toBeInTheDocument();
+    expect(screen.getByText('Comment của không rõ: "Please confirm."')).toBeInTheDocument();
+    // Sau baseline vẫn tạo CR được
+    expect(screen.getByRole("link", { name: "Tạo CR từ khác biệt" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Dùng làm tham khảo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Lưu làm tham khảo" }));
+    expect(onSave).toHaveBeenCalledTimes(2);
+    expect((onSave.mock.calls[0][0] as File).name).toBe("SRS_khach.docx");
+  });
+
+  it("không truyền onSaveAsReference ⇒ không có nút lưu làm tham khảo", async () => {
+    respond(DIFF);
+    renderWithIntl(<ReuploadDiffView projectId={P} />);
+    pick("SRS_sua.docx");
+    await screen.findByRole("link", { name: "Tạo CR từ khác biệt" });
+    expect(screen.queryByRole("button", { name: "Lưu làm tham khảo" })).not.toBeInTheDocument();
+  });
+
+  it("reuploadPrefill kèm mỗi chỗ Track Changes / comment một dòng, theo mục", () => {
+    const { description } = reuploadPrefill(
+      { ...DIFF, blocks: [], markup: [{ kind: "comment", author: "Lan", text: "Check scope", section: "1 Introduction", location: null }] },
+      labelsFor()
+    );
+    expect(description.split("\n").slice(1)).toEqual(["1 Introduction:", '- Comment của Lan: "Check scope"']);
+  });
+});

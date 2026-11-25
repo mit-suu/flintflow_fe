@@ -22,6 +22,15 @@ interface Mode1PopupProps {
   /** BF §3.2 / UC-45, UC-48: người đang xem + vai trò — CR của người khác chỉ xem, Huỷ chỉ người tạo hoặc Lead. */
   myUserId?: string | null;
   orgRole?: string | null;
+  /**
+   * FLF-457: dự án chưa có baseline (đang soạn) chỉ có popup upload lại (`panel=reupload`): so với nội dung đang soạn, chỗ nhận
+   * thành lệnh sửa qua chat. Gap report / CR / so sánh version không mở.
+   */
+  beforeBaseline?: boolean;
+  /** FLF-457: gửi lệnh sửa qua chat cho những chỗ khác biệt đã chọn (trước baseline). */
+  onApplyViaChat?: (instruction: string) => void;
+  /** FLF-457: nút Lưu làm tham khảo trên màn khác biệt. */
+  onSaveAsReference?: (file: File) => void;
 }
 
 /**
@@ -53,13 +62,14 @@ function CompareBody({ projectId }: { projectId: string }) {
  * `panel=gap` / `panel=cr` (+ `cr=<id>` ⇒ chi tiết ngay trong popup, `new=1&…` ⇒ form tạo CR điền sẵn) /
  * `panel=compare` / `panel=reupload` (UC-25, chỉ người sửa được). Đóng ⇒ bỏ query.
  */
-export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false, myUserId = null, orgRole = null }: Mode1PopupProps) {
+export default function Mode1Popup({ projectId, projectName, onChanged, readOnly = false, myUserId = null, orgRole = null, beforeBaseline = false, onApplyViaChat, onSaveAsReference }: Mode1PopupProps) {
   const t = useTranslations("mode1.popup");
   const params = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const panel = params?.get("panel");
   if (panel !== "gap" && panel !== "cr" && panel !== "compare" && panel !== "reupload") return null;
+  if (beforeBaseline && panel !== "reupload") return null;
   // Re-upload dẫn tới tạo CR từ khác biệt — viewer không làm được, nên không dựng popup
   if (panel === "reupload" && readOnly) return null;
 
@@ -81,7 +91,28 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
       {panel === "gap" && <GapReportView projectId={projectId} projectName={projectName} onChanged={onChanged} readOnly={readOnly} />}
       {/* So sánh chỉ đọc nên viewer cũng xem được — không gác theo `readOnly` */}
       {panel === "compare" && <CompareBody projectId={projectId} />}
-      {panel === "reupload" && <ReuploadDiffView projectId={projectId} />}
+      {panel === "reupload" && (
+        <ReuploadDiffView
+          projectId={projectId}
+          beforeBaseline={beforeBaseline}
+          onApplyViaChat={
+            onApplyViaChat
+              ? (instruction) => {
+                  close();
+                  onApplyViaChat(instruction);
+                }
+              : undefined
+          }
+          onSaveAsReference={
+            onSaveAsReference
+              ? (file) => {
+                  close();
+                  onSaveAsReference(file);
+                }
+              : undefined
+          }
+        />
+      )}
       {panel === "cr" && crId && (
         <div className="flex flex-col gap-3">
           <Link href={crListHref(projectId)} scroll={false} className="self-start text-body font-bold text-primary hover:underline">

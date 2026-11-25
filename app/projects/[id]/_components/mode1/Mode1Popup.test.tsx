@@ -18,7 +18,18 @@ vi.mock("./CrWorkspace", () => ({ default: ({ crId }: { crId: string }) => <p>ch
 vi.mock("./ChangeRequestList", () => ({
   default: (props: Record<string, unknown>) => <p>danh sách CR{"prefill" in props ? " · có prefill" : ""}</p>,
 }));
-vi.mock("./ReuploadDiffView", () => ({ default: ({ projectId }: { projectId: string }) => <p>re-upload · {projectId}</p> }));
+vi.mock("./ReuploadDiffView", () => ({
+  default: ({ projectId, beforeBaseline, onApplyViaChat }: { projectId: string; beforeBaseline?: boolean; onApplyViaChat?: (text: string) => void }) => (
+    <div>
+      <p>re-upload · {projectId}{beforeBaseline ? " · trước baseline" : ""}</p>
+      {onApplyViaChat && (
+        <button type="button" onClick={() => onApplyViaChat("lệnh sửa")}>
+          gửi chat
+        </button>
+      )}
+    </div>
+  ),
+}));
 vi.mock("./VersionCompare", () => ({ default: ({ versions }: { versions: { version: string }[] }) => <p>so sánh · {versions.length} version</p> }));
 /** Lượt tải đầu xong hay chưa — popup phải chờ xong mới dựng `VersionCompare` (nó chốt mặc định lúc mount). */
 let docsLoading = false;
@@ -100,5 +111,19 @@ describe("Mode1Popup - gap report / change request dạng popup trên màn Tài 
     open("panel=reupload", true);
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(screen.queryByText(/re-upload ·/)).not.toBeInTheDocument();
+  });
+
+  it("FLF-457: trước baseline ⇒ chỉ mở popup upload lại; gửi lệnh sửa qua chat thì đóng popup rồi chuyển lệnh", () => {
+    const onApply = vi.fn();
+    query = "panel=gap";
+    const { unmount } = renderWithIntl(<Mode1Popup projectId={P} beforeBaseline onApplyViaChat={onApply} />);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    unmount();
+    query = "panel=reupload";
+    renderWithIntl(<Mode1Popup projectId={P} beforeBaseline onApplyViaChat={onApply} />);
+    expect(screen.getByText(`re-upload · ${P} · trước baseline`)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "gửi chat" }));
+    expect(router.replace).toHaveBeenCalledWith(`/projects/${P}`, { scroll: false });
+    expect(onApply).toHaveBeenCalledWith("lệnh sửa");
   });
 });

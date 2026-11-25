@@ -1842,6 +1842,12 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   };
 
   /** Lệnh sửa (chip "Sửa tài liệu") cũng đi qua bước chặn — lệnh dịch không được thành một lệnh sửa gửi cho AI. */
+  /** FLF-457: nút Lưu làm tham khảo trên màn khác biệt, đúng đường "Thêm tài liệu" (báo credit đọc file trước, hỏi bản mới). */
+  const saveReuploadAsReference = async (file: File) => {
+    if (!(await confirmAttachments([file]))) return;
+    await ws.uploadDocuments([file]);
+  };
+
   const sendEditInstruction = async (text: string) => {
     if (editSendLockRef.current) return;
     editSendLockRef.current = true;
@@ -2340,8 +2346,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   className="mx-3 mb-2"
                 />
               )}
-              {/* §3.6: file đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới — chỉ khi đã có bản gốc */}
-              {mode1 && canEdit && ws.srsSuggestions[0] && (
+              {/* §3.6: file đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới. FLF-457: cả trước baseline (đang soạn) */}
+              {canEdit && ws.srsSuggestions[0] && (
                 <SrsAttachmentChip
                   suggestion={ws.srsSuggestions[0]}
                   onUpdateVersion={() => {
@@ -3070,7 +3076,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
       {mode1 && (
         <Suspense fallback={null}>
-          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} myUserId={ws.user?.id ?? null} orgRole={ws.orgRole ?? null} />
+          <Mode1Popup projectId={projectId} projectName={documentName} onChanged={() => onSpineChanged()} readOnly={!canEdit} myUserId={ws.user?.id ?? null} orgRole={ws.orgRole ?? null} onSaveAsReference={(file) => void saveReuploadAsReference(file)} />
+        </Suspense>
+      )}
+      {/* FLF-457: trước baseline (đang soạn) chỉ có popup upload lại; chỗ nhận thành lệnh sửa qua chat */}
+      {!mode1 && canEdit && ws.project && (
+        <Suspense fallback={null}>
+          <Mode1Popup
+            projectId={projectId}
+            projectName={documentName}
+            readOnly={!canEdit}
+            beforeBaseline
+            onApplyViaChat={(instruction) => void sendEditInstruction(instruction)}
+            onSaveAsReference={(file) => void saveReuploadAsReference(file)}
+          />
         </Suspense>
       )}
       {/* Đổi mẫu: popup riêng (mode 2 đã có baseline cũng dùng, không mở gap report / CR) */}
