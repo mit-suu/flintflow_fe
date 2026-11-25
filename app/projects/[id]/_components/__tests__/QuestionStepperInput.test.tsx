@@ -3,7 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { fireEvent, screen } from "@testing-library/react";
 import QuestionStepperInput, { answerValue, formatAnswers } from "../QuestionStepperInput";
 import { directReplyAnswers, mergeAnswers, splitQuestions, toStepAnswers } from "../ElicitPanel";
-import { parseChatQuestion, splitRecommended, toDiscoveryQuestion } from "@/lib/question-options";
+import { isRecommendedOption, parseChatQuestion, splitRecommended, toDiscoveryQuestion } from "@/lib/question-options";
 import type { DiscoveryQuestion } from "@/types/chat";
 
 const opts = (...labels: string[]) => labels.map((label) => ({ label }));
@@ -170,5 +170,81 @@ describe("question-options", () => {
     expect(splitRecommended("99.9% (Khuyến nghị)")).toEqual({ text: "99.9%", recommended: true });
     expect(splitRecommended("Web (Recommended)")).toEqual({ text: "Web", recommended: true });
     expect(splitRecommended("Mobile")).toEqual({ text: "Mobile", recommended: false });
+  });
+});
+
+describe("FLF-449: thẻ phương án đủ ưu / nhược / rủi ro, khuyến nghị kèm lý do", () => {
+  const card: DiscoveryQuestion = {
+    question: "Kênh nhắc lịch nào?",
+    header: "Nhắc lịch",
+    recommendation_reason: "Bạn nói bệnh nhân lớn tuổi ít dùng ứng dụng",
+    options: [
+      { label: "SMS (Khuyến nghị)", recommended: true, pros: ["Ai cũng nhận được"], cons: ["Tốn phí mỗi tin"], risks: ["Giả định số điện thoại đúng"] },
+      { label: "Zalo", pros: ["Miễn phí"] },
+      { label: "Email" },
+    ],
+    multiple: false,
+  };
+
+  it("khối Vì sao khuyến nghị chỉ ở phương án được khuyến nghị; ưu / nhược thu gọn mặc định, bấm mới mở", () => {
+    renderWithIntl(<QuestionStepperInput questions={[card]} onSubmit={vi.fn()} />);
+    expect(screen.getAllByText("Vì sao khuyến nghị:")).toHaveLength(1);
+    expect(screen.getByText("Bạn nói bệnh nhân lớn tuổi ít dùng ứng dụng")).toBeInTheDocument();
+
+    // Thu gọn mặc định: chưa thấy ưu / nhược; phương án không có phân tích thì không có nút
+    expect(screen.queryByText("Tốn phí mỗi tin")).toBeNull();
+    const toggles = screen.getAllByRole("button", { name: "Xem ưu, nhược" });
+    expect(toggles).toHaveLength(2);
+
+    fireEvent.click(toggles[0]);
+    expect(screen.getByRole("button", { name: "Ẩn ưu, nhược" })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText("Ai cũng nhận được")).toBeInTheDocument();
+    expect(screen.getByText("Tốn phí mỗi tin")).toBeInTheDocument();
+    expect(screen.getByText("Giả định số điện thoại đúng")).toBeInTheDocument();
+    expect(screen.getByText("Rủi ro, giả định")).toBeInTheDocument();
+  });
+
+  it("mở ưu / nhược không chọn phương án; chọn vẫn gửi nhãn không kèm đuôi", () => {
+    const onSubmit = vi.fn();
+    renderWithIntl(<QuestionStepperInput questions={[card]} onSubmit={onSubmit} />);
+    fireEvent.click(screen.getAllByRole("button", { name: "Xem ưu, nhược" })[0]);
+    expect(screen.getByRole("radio", { name: /SMS/ })).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(screen.getByRole("radio", { name: /SMS/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Gửi câu trả lời" }));
+    expect(onSubmit).toHaveBeenCalledWith(["SMS"]);
+  });
+
+  it("cờ recommended không kèm đuôi vẫn hiện badge; không khuyến nghị thì không có khối lý do", () => {
+    const flagOnly: DiscoveryQuestion = { ...card, options: [{ label: "SMS", recommended: true }, { label: "Zalo" }] };
+    const { unmount } = renderWithIntl(<QuestionStepperInput questions={[flagOnly]} onSubmit={vi.fn()} />);
+    expect(screen.getByText("Khuyến nghị")).toBeInTheDocument();
+    unmount();
+    const neutral: DiscoveryQuestion = { ...card, options: [{ label: "SMS" }, { label: "Zalo" }] };
+    renderWithIntl(<QuestionStepperInput questions={[neutral]} onSubmit={vi.fn()} />);
+    expect(screen.queryByText("Khuyến nghị")).toBeNull();
+    expect(screen.queryByText("Vì sao khuyến nghị:")).toBeNull();
+  });
+
+  it("parseChatQuestion / toDiscoveryQuestion giữ ưu / nhược / rủi ro, cờ và lý do khuyến nghị", () => {
+    const raw = {
+      question: "Kênh nhắc lịch nào?",
+      recommendation_reason: "Bệnh nhân lớn tuổi",
+      options: [{ label: "SMS (Khuyến nghị)", recommended: true, pros: ["Ai cũng nhận", "", 3], cons: ["Tốn phí"], risks: "không phải mảng" }, { label: "Zalo" }],
+    };
+    expect(parseChatQuestion(raw)).toEqual({
+      question: "Kênh nhắc lịch nào?",
+      options: [{ label: "SMS (Khuyến nghị)", recommended: true, pros: ["Ai cũng nhận"], cons: ["Tốn phí"] }, { label: "Zalo" }],
+      multiple: undefined,
+      recommendation_reason: "Bệnh nhân lớn tuổi",
+    });
+    const step = toDiscoveryQuestion({ id: "Q_reminder", text: "Kênh?", recommendation_reason: "r", options: [{ label: "SMS", recommended: true, cons: ["Tốn phí"] }, "Zalo"] });
+    expect(step.recommendation_reason).toBe("r");
+    expect(step.options).toEqual([{ label: "SMS", recommended: true, cons: ["Tốn phí"] }, { label: "Zalo" }]);
+  });
+
+  it("isRecommendedOption: cờ mới hoặc đuôi cũ", () => {
+    expect(isRecommendedOption({ label: "Web (Khuyến nghị)" })).toBe(true);
+    expect(isRecommendedOption({ label: "Web", recommended: true })).toBe(true);
+    expect(isRecommendedOption({ label: "Web" })).toBe(false);
   });
 });

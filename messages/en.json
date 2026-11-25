@@ -4,6 +4,15 @@
     "description": "Enterprise-grade AI-powered software specification engine"
   },
   "common": {
+    "optionAnalysis": {
+      "pros": "Pros",
+      "cons": "Cons",
+      "risks": "Risks, assumptions",
+      "whyRecommended": "Why recommended",
+      "showDetails": "Show pros and cons",
+      "hideDetails": "Hide pros and cons",
+      "detailsLabel": "Pros, cons and risks of option {label}"
+    },
     "localeSwitcher": {
       "label": "Language",
       "vi": "Tiếng Việt",

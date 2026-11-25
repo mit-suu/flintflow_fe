@@ -4,7 +4,8 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { useTranslations } from "next-intl";
 import type { DiscoveryQuestion } from "@/types/chat";
 import Icon from "@/components/ui/Icon";
-import { splitRecommended, stripRecommended } from "@/lib/question-options";
+import { isRecommendedOption, splitRecommended, stripRecommended } from "@/lib/question-options";
+import { hasOptionAnalysis } from "@/components/project/OptionAnalysis";
 import QuestionOptionRow from "./QuestionOptionRow";
 import QuestionReview from "./QuestionReview";
 
@@ -248,14 +249,16 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
                   onMouseLeave={() => setFocusedOption(null)}
                 >
                   {options.map((option, oIdx) => {
-                    const { text, recommended } = splitRecommended(option.label);
+                    const { text } = splitRecommended(option.label);
                     return (
                       <QuestionOptionRow
                         key={oIdx}
                         index={oIdx}
                         label={text}
                         description={option.description}
-                        recommended={recommended}
+                        recommended={isRecommendedOption(option)}
+                        analysis={hasOptionAnalysis(option) ? option : undefined}
+                        recommendationReason={question.recommendation_reason}
                         selected={answer.selected.includes(option.label)}
                         multiple={isMultiple}
                         onToggle={() => toggleOption(option.label)}

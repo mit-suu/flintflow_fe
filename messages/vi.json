@@ -4,6 +4,15 @@
     "description": "Công cụ đặc tả phần mềm bằng AI cho doanh nghiệp"
   },
   "common": {
+    "optionAnalysis": {
+      "pros": "Ưu",
+      "cons": "Nhược",
+      "risks": "Rủi ro, giả định",
+      "whyRecommended": "Vì sao khuyến nghị",
+      "showDetails": "Xem ưu, nhược",
+      "hideDetails": "Ẩn ưu, nhược",
+      "detailsLabel": "Ưu, nhược và rủi ro của phương án {label}"
+    },
     "localeSwitcher": {
       "label": "Ngôn ngữ",
       "vi": "Tiếng Việt",
