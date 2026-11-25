@@ -76,12 +76,16 @@ export interface ReviewPackage {
   draft_label: string;
   change_requests: ReviewPackageCr[];
   red_open: number;
+  /** FLF-492: credit ước tính cho tuỳ chọn "AI viết gọn" mô tả dòng CR khi phát hành; BE cũ không trả ⇒ coi như 0. */
+  concise_record_credits?: number;
   submission: ReviewPackageSubmission | null;
   spine_version: number;
 }
 
 export interface ReleaseRequest {
   base_version: number;
+  /** FLF-492: AI viết gọn mô tả các dòng CR trong Record of Changes (mặc định tắt). */
+  concise_record?: boolean;
 }
 
 export interface ReleaseResponse {

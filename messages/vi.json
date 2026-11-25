@@ -5088,6 +5088,8 @@
       "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến - sai thì phát hành bản mới.",
       "releasing": "Đang phát hành…",
       "confirmRelease": "Xác nhận phát hành",
+      "conciseRecord": "AI viết gọn mô tả các dòng thay đổi trong Lịch sử thay đổi",
+      "conciseRecordHint": "{credits, plural, =0 {Không tốn credit.} other {Tốn khoảng # credit.}} Mặc định tắt: mô tả được dựng sẵn từ chính các thay đổi.",
       "blockedMigrationMissing": "Còn {count} mục của mẫu mới chưa viết sau khi đổi mẫu. Viết xong (qua change request) mới gửi duyệt hoặc phát hành được.",
       "unsentPill": "{count, plural, =1 {1 CR chưa gửi Lead} other {# CR chưa gửi Lead}}"
     },
