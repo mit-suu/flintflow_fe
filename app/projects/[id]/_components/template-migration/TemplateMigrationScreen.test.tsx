@@ -64,6 +64,18 @@ describe("TemplateMigrationScreen", () => {
     expect(screen.getByRole("button", { name: "Hoàn tác lần đổi mẫu" })).toBeInTheDocument();
   });
 
+  it("sau khi áp dụng báo mục chưa dịch được; BE cũ không trả thì không hiện", async () => {
+    const applied = migrationFixture({ state: "applied", applied_at: "2026-11-11T02:00:00.000Z", undecided: [], translation_summary: { translated: 40, untranslated: 2, sections: [{ section_id: "s1", title: "Phạm vi" }] } });
+    open(applied);
+    const { unmount } = renderWithIntl(<TemplateMigrationScreen projectId="p1" orgId="o1" flags={flags} sectionName={(id) => id} orgRole="lead" />);
+    expect(await screen.findByText(/2 đoạn chưa dịch được.*Phạm vi/)).toBeInTheDocument();
+    unmount();
+    open(migrationFixture({ state: "applied", applied_at: "2026-11-11T02:00:00.000Z", undecided: [] }));
+    renderWithIntl(<TemplateMigrationScreen projectId="p1" orgId="o1" flags={flags} sectionName={(id) => id} orgRole="lead" />);
+    expect(await screen.findByRole("button", { name: "Hoàn tác lần đổi mẫu" })).toBeInTheDocument();
+    expect(screen.queryByText(/chưa dịch được/)).not.toBeInTheDocument();
+  });
+
   it("thẻ mục thiếu sau khi áp dụng hiện tên heading của mẫu mới, không phải mã mục thô", async () => {
     const applied = migrationFixture({ state: "applied", applied_at: "2026-11-11T02:00:00.000Z", undecided: [] });
     open(applied);

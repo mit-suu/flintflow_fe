@@ -26,6 +26,12 @@ export interface NewHeading {
   level?: number;
 }
 
+export interface TranslationSummary {
+  translated: number;
+  untranslated: number;
+  sections: { section_id: string; title: string }[];
+}
+
 export interface SectionPair {
   old_key: string;
   new_key: string | null;
@@ -191,6 +197,8 @@ export interface Migration {
   /** Dàn tiêu đề tài liệu sau khi đổi. Bản BE cũ chưa có ⇒ thiếu. */
   outline?: OutlineEntry[];
   language: { source: string; target: string; needs_translation: boolean; /** Chỉ đổi ngôn ngữ tài liệu (mode 2 / từ FPT): không dịch Spine, không credit. */ switches_document_language: boolean };
+  /** Sau khi áp dụng có dịch: đơn vị không dịch được dù đã thử lại (tài liệu giữ chữ gốc) và các mục chứa chúng. BE cũ không trả ⇒ thiếu. */
+  translation_summary?: TranslationSummary | null;
   credit_estimate: MigrationCreditEstimate;
   warnings: string[];
   broken_links: BrokenLink[];

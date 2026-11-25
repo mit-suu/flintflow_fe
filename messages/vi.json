@@ -5357,6 +5357,7 @@
       "stale": "Dữ liệu tài liệu vừa thay đổi trong lúc chuẩn bị nên chưa áp dụng. Kiểm lại các lựa chọn ở bước này rồi tiếp tục.",
       "applyingElsewhere": "Lần đổi mẫu này đang được áp dụng ở một phiên khác. Chờ xong rồi tải lại.",
       "refresh": "Tải lại",
+      "untranslatedNote": "{count} đoạn chưa dịch được, đang giữ chữ gốc{sections, select, none {} other { ở các mục: {sections}}}. Sửa qua yêu cầu thay đổi.",
       "appliedNote": "Đã chuyển tài liệu sang mẫu {name} (bản {version}).",
       "changeAgain": "Đổi sang mẫu khác",
       "cancelMigration": "Huỷ lần đổi mẫu",
