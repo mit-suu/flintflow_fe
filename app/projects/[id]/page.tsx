@@ -804,12 +804,25 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       const est = await getRunEstimate(projectId, { scope: "all", from: next })
         .then((r) => r.data)
         .catch(() => null);
-      if (!est || est.credits_total <= 0) return true;
+      // FLF-485 lát E: gọi ước tính lỗi thì vẫn hiện thẻ (không chạy lặng lẽ); tổng 0 thật thì chạy luôn
+      if (est && est.credits_total <= 0) return true;
+      if (!est) {
+        return confirmCredits({ title: t("creditGate.pipelineTitle"), lines: [], total: 0, totalUnknown: true, available: null, notes: [t("creditGate.estimateFailed")] });
+      }
+      const min = est.credits_min ?? est.credits_total;
+      const max = est.credits_max ?? est.credits_total;
+      const hasRange = est.units.some((u) => u.screens);
       return confirmCredits({
         title: t("creditGate.pipelineTitle"),
-        lines: est.units.map((u) => ({ label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits })),
-        total: est.credits_total,
+        lines: est.units.map((u) =>
+          u.screens
+            ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
+            : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
+        ),
+        total: min,
+        totalMax: max,
         available: est.available_credits,
+        notes: hasRange ? [t("creditGate.screenRangeNote")] : undefined,
       });
     },
   });

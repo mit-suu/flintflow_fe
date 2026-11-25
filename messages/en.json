@@ -2900,7 +2900,13 @@
       "pipelineTitle": "Draft the rest of the SRS",
       "unitLine": "Phase {unit} · {steps, plural, =1 {1 step} other {# steps}}",
       "attachmentsTitle": "Read {count, plural, =1 {1 attached document} other {# attached documents}}",
-      "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead."
+      "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead.",
+      "creditsRange": "~{min}–{max} credits",
+      "totalRange": "Estimated total: ~{min}–{max} credits",
+      "screenRangeLine": "Screen details · about {min}–{max} screens",
+      "screenRangeNote": "The screen count is estimated from the Brief. The exact figure is known after the Screen List step.",
+      "shortRange": "The balance is enough if the project has few screens, and may fall short if it has many. The AI stops when credits run out, finished parts are not charged again.",
+      "estimateFailed": "Credits could not be estimated. Press Run to continue drafting; the AI stops when credits run out."
     },
     "aiError": {
       "title": "{what}: the AI failed{retried, select, yes {, retried twice} other {}} - credits refunded",
