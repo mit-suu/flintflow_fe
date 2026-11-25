@@ -334,7 +334,8 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
   }
 
   let wroteOps = false;
-  if (def && !def.deterministic && def.renders.length === 0) {
+  // FLF-466: registry đồng bộ cho S-3.5 thêm render `activity` nhưng step vẫn là lượt AI ghi op ⇒ không loại theo `renders`
+  if (def && !def.deterministic && (def.renders.length === 0 || stepId === "S-3.5")) {
     counters.calls_used += 1;
     const attempt = counters.regenerate_used + 1;
     send({ type: "draft", step_id: stepId, attempt });
@@ -931,8 +932,10 @@ export const handlers = [
       { unit: "S-2", steps: 5, ai_steps: 5, interview_credits: 1, credits: 21 },
     ];
     const credits_total = units.reduce((n, u) => n + u.credits, 0);
-    return ok({ scope, from_step: from, units, steps_total: units.reduce((n, u) => n + u.steps, 0), ai_steps_total: units.reduce((n, u) => n + u.ai_steps, 0), credits_total, available_credits: (mockState.user as { balance?: number }).balance ?? 120 });
+    return ok({ scope, from_step: from, units, steps_total: units.reduce((n, u) => n + u.steps, 0), ai_steps_total: units.reduce((n, u) => n + u.ai_steps, 0), credits_total, available_credits: (mockState.user as { balance?: number }).balance ?? 120, scope_kind: null, screen_range: null, ack_required: null });
   }),
+  // FLF-466: xác nhận lần báo credit — mock không có lần nào chờ
+  http.post(api("/projects/:projectId/run-estimate/ack"), () => ok({ scope: "after_brief", credits: 0, spine_version: mockState.spine.spine_version })),
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
   // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
   http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),

@@ -58,6 +58,35 @@ const serve = (initial: ReviewPackage) => {
 };
 
 describe("ReviewPackagePanel (FLF-330 - gói duyệt kiểu pull request)", () => {
+  it("báo trước bản phát hành sẽ không có Track Changes khi gói có đổi mẫu kèm dịch", async () => {
+    serve(pkg({ tracked_unavailable_reason: "template_translated" }));
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} />);
+    expect(await screen.findByText(/sẽ không có bản Track Changes vì gói có đổi mẫu kèm dịch/)).toBeInTheDocument();
+  });
+
+  it("không có lý do ⇒ không hiện ghi chú", async () => {
+    serve(pkg());
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} />);
+    await screen.findByText("CR-001");
+    expect(screen.queryByText(/Track Changes/)).not.toBeInTheDocument();
+  });
+
+  it("FLF-466: nhóm Thay đổi hệ thống dưới danh sách CR; gói chỉ có thay đổi hệ thống vẫn gửi được", async () => {
+    serve(
+      pkg({
+        change_requests: [],
+        draft_label: "v0 · 1 thay đổi chưa duyệt",
+        system_changes: [{ version: "0.2", type: "template_migration", ref: "mig-1", summary: "Đổi mẫu sang Sở XD v3", created_by: "PM Lan", created_at: "2026-10-26T01:00:00.000Z" }],
+      })
+    );
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="analyst" onChanged={vi.fn()} />);
+
+    expect(await screen.findByText("Thay đổi hệ thống")).toBeInTheDocument();
+    expect(screen.getByText("Đổi mẫu sang Sở XD v3")).toBeInTheDocument();
+    expect(screen.getByText("Đổi mẫu")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gửi Lead duyệt cả gói" })).toBeEnabled();
+  });
+
   it("Analyst: thấy nhãn bản nháp + danh sách CR; Gửi Lead duyệt ⇒ pending, bản nháp khoá, không có nút của Lead", async () => {
     const calls = serve(pkg());
     const onChanged = vi.fn();

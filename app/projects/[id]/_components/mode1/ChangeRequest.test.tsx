@@ -155,4 +155,13 @@ describe("CR của người khác (BF §3.2 / UC-45 A6, UC-48)", () => {
     renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} myUserId="user-lead" orgRole="lead" />);
     expect(await screen.findByRole("button", { name: "Huỷ CR" })).toBeInTheDocument();
   });
+
+  it("FLF-466: CR trạng thái released ⇒ hiện banner Đã phát hành trong bản chính thức", async () => {
+    const { change_request } = await newCr();
+    const target = S().crs.get(change_request.cr_id)!;
+    target.change_request.status = "released";
+    target.change_request.result_doc_version = "2.0";
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} myUserId={change_request.created_by} orgRole="lead" />);
+    expect(await screen.findByText(/Đã phát hành trong bản chính thức \(bản 2\.0\)/)).toBeInTheDocument();
+  });
 });

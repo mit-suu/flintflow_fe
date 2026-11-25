@@ -7,7 +7,7 @@ import { saveBlob } from "@/lib/api/files";
 import { mockServer } from "@/mocks/server";
 import { resetMockState } from "@/mocks/state";
 import { MODE1_PROJECT_ID, resetMode1MockState } from "@/mocks/mode1/state";
-import type { DocVersion } from "@/types/doc-version";
+import { projectCode, type DocVersion } from "@/types/doc-version";
 import VersionsPanel from "./VersionsPanel";
 
 const P = MODE1_PROJECT_ID;
@@ -197,7 +197,7 @@ describe("VersionsPanel - danh sách version và tải file", () => {
     fireEvent.click(screen.getByRole("button", { name: "Tải file gốc" }));
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));
     expect(seen).toEqual(["0.1?variant=original"]);
-    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_v0.1_original.docx");
+    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe(`Lumen_${projectCode(P)}_v0.1_original.docx`);
   });
 
   it("tải: gửi variant đúng; BE không gửi tên ⇒ tên mặc định FLF-334 (gốc + CR mới nhất, _DRAFT / _tracked_DRAFT)", async () => {
@@ -216,7 +216,7 @@ describe("VersionsPanel - danh sách version và tải file", () => {
     await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(4));
 
     expect(seen).toEqual(["1.0?variant=auto", "0.3?variant=auto", "0.3?variant=tracked", "1.0?variant=auto&format=pdf"]);
-    expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual(["Lumen_v1.0.docx", "Lumen_v0.1+CR-003_DRAFT.docx", "Lumen_v0.1+CR-003_tracked_DRAFT.docx", "Lumen_v1.0.pdf"]);
+    expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual([1, 2, 3, 4].map((i) => `Lumen_${projectCode(P)}_${["v1.0.docx", "v0.3.docx", "v0.3_tracked.docx", "v1.0.pdf"][i - 1]}`));
   });
 
   it("tải dùng tên BE trả nếu có; lỗi tải ⇒ hiện thông báo", async () => {
@@ -237,6 +237,33 @@ describe("VersionsPanel - danh sách version và tải file", () => {
 });
 
 describe("VersionsPanel - Viewer (readOnly)", () => {
+  it("FLF-466: version thay đổi hệ thống có nhãn riêng + tóm tắt, tải bản nháp tên mang mã dự án và số phụ", async () => {
+    serveDownload();
+    const sys = { ...version("0.2", "system_change"), has_tracked_file: false, system_change: { type: "template_migration" as const, ref: "m1", summary: "Đổi mẫu sang Sở XD v3" } };
+    renderPanel({ versions: [sys, version("0.1", "imported")], selected: "0.2" });
+    const item = screen.getAllByRole("listitem")[0];
+    expect(within(item).getByText("Thay đổi hệ thống")).toBeInTheDocument();
+    expect(within(item).getByText("Đổi mẫu sang Sở XD v3")).toBeInTheDocument();
+    fireEvent.click(within(item).getByRole("button", { name: "Tải bản nháp (DRAFT)" }));
+    await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));
+    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe(`Lumen_${projectCode(P)}_v0.2.docx`);
+  });
+
+  it("bản phát hành không có Track Changes: hiện lý do; có thì có nút tải tracked", async () => {
+    serveDownload();
+    const translated = { ...version("1.1", "release"), has_tracked_file: false, tracked_unavailable_reason: "template_translated" as const };
+    const failed = { ...version("1.0", "release"), has_tracked_file: false, tracked_unavailable_reason: "build_failed" as const };
+    const ok = { ...version("0.9", "release"), has_tracked_file: true, tracked_unavailable_reason: null };
+    renderPanel({ versions: [translated, failed, ok], selected: "1.1", readOnly: true });
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[0]).getByText(/có đổi mẫu kèm dịch/)).toBeInTheDocument();
+    expect(within(items[0]).queryByRole("button", { name: "Tải bản có đánh dấu" })).not.toBeInTheDocument();
+    expect(within(items[1]).getByText(/Chưa dựng được bản Track Changes/)).toBeInTheDocument();
+    expect(within(items[2]).queryByRole("note")).not.toBeInTheDocument();
+    fireEvent.click(within(items[2]).getByRole("button", { name: "Tải bản có đánh dấu" }));
+    await waitFor(() => expect(saveBlob).toHaveBeenCalledTimes(1));
+  });
+
   it("không có mục Release, vẫn xem được các version", () => {
     renderPanel({ readOnly: true });
     expect(screen.queryByRole("heading", { name: "Release" })).not.toBeInTheDocument();
@@ -279,7 +306,7 @@ describe("VersionsPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => 
     fireEvent.click(buttons[0]);
     await waitFor(() => expect(saveBlob).toHaveBeenCalled());
     expect(seen[0]).toBe("1.0?variant=auto&lang=vi");
-    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_v1.0_VI.docx");
+    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe(`Lumen_${projectCode(P)}_v1.0_VI.docx`);
   });
 
   it("không biết ngôn ngữ tài liệu ⇒ không có nút", () => {
@@ -328,5 +355,28 @@ describe("VersionsPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => 
     const alert = await screen.findByRole("alert");
     expect(alert).toHaveTextContent("Tài liệu còn mục chưa dịch sang ngôn ngữ này");
     expect(alert).not.toHaveTextContent(/Còn 0 mục/);
+  });
+
+  it("FLF-466: dùng project_code từ DocVersion / prop khi tạo tên file tải về; dự án upload thật cũng gọi onTranslate", async () => {
+    serveDownload();
+    const onTranslate = vi.fn();
+    mockServer.use(
+      http.get(`${API_BASE_URL}/projects/:projectId/versions/:v/download`, ({ request }) => {
+        if (request.url.includes("lang=en")) {
+          return HttpResponse.json({ data: null, error: { code: "TRANSLATION_INCOMPLETE", message: "thiếu" }, meta: { locale: "en", missing: 3, total: 10 } }, { status: 409 });
+        }
+        return new HttpResponse(new Blob(["ok"]), { status: 200 });
+      })
+    );
+    const uploadedVersion = { ...version("0.1", "imported"), other_language_available: true, project_code: "P999XYZ" };
+    renderPanel({ versions: [uploadedVersion], selected: "0.1", documentLanguage: "vi", onTranslate });
+    fireEvent.click(screen.getByRole("button", { name: "Tải bản render (DRAFT)" }));
+    await waitFor(() => expect(saveBlob).toHaveBeenCalled());
+    expect(vi.mocked(saveBlob).mock.calls[0][1]).toBe("Lumen_P999XYZ_v0.1.docx");
+
+    fireEvent.click(screen.getByRole("button", { name: "Tải bản English" }));
+    const alert = await screen.findByRole("alert");
+    fireEvent.click(within(alert).getByRole("button", { name: "Dịch nốt" }));
+    expect(onTranslate).toHaveBeenCalledWith("en", "0.1");
   });
 });
