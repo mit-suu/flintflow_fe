@@ -9,6 +9,7 @@ import type {
   FinalizeResponse,
   GapReport,
   GetImportResponse,
+  ImportSourceResponse,
   ImportStateResponse,
   MappingPatchRequest,
   ReuploadDiff,
@@ -16,7 +17,7 @@ import type {
   StepPlanResponse,
 } from "@/types/import";
 import type { RocRow } from "@/types/document";
-import { apiCall } from "./client";
+import { ApiClientError, apiCall, authFetch } from "./client";
 import { fetchFile } from "./files";
 
 const base = (projectId: string) => `/projects/${projectId}`;
@@ -48,6 +49,23 @@ export const confirmLatest = (projectId: string, importId: string) =>
   });
 
 export const getImport = (projectId: string) => apiCall<GetImportResponse>(`${base(projectId)}/import`);
+
+/** `notModified` = 304 (`etag` gửi lên còn khớp) ⇒ giữ bản đã có. */
+export type ImportSourceResult = { notModified: true } | { notModified: false; etag: string | null; data: ImportSourceResponse };
+
+/**
+ * Chữ gốc của file theo mục cho màn đọc file. Tải một lần mỗi lần import (không đi theo poll); có `etag` cũ ⇒ gửi
+ * `If-None-Match`, BE trả 304 không kèm nội dung.
+ */
+export const getImportSource = async (projectId: string, etag?: string | null): Promise<ImportSourceResult> => {
+  const res = await authFetch(`${base(projectId)}/import/source`, etag ? { headers: { "If-None-Match": etag } } : {});
+  if (res.status === 304) return { notModified: true };
+  const json = (await res.json().catch(() => null)) as { data?: ImportSourceResponse | null; error?: { code?: string; message?: string }; meta?: Record<string, unknown> } | null;
+  if (!res.ok || json?.error || !json?.data) {
+    throw new ApiClientError(res.status, json?.error?.code ?? "UNKNOWN_ERROR", json?.error?.message ?? `HTTP ${res.status}`, json?.meta);
+  }
+  return { notModified: false, etag: res.headers.get("ETag"), data: json.data };
+};
 
 export const patchMapping = (projectId: string, body: MappingPatchRequest) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/mapping`, { method: "PATCH", body: JSON.stringify(body) });

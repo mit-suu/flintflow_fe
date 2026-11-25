@@ -29,8 +29,8 @@ export const CR_LOCKING_STATUSES: readonly CrStatus[] = ["impact_review", "propo
  * `chat` (FLF-182): chỉ còn ở CR cũ. Mode 1 v3 (BPMN 3.1): tạo CR mới chỉ nhận 6 nguồn `NEW_CR_SOURCE_KINDS` — lệnh
  * sửa trong chat là yêu cầu miệng (`verbal`, `ref: chat:<id>`).
  */
-/** `template_migration` (FLF-395): CR do lần đổi mẫu tự ghi, không nhận khi tạo CR. `reference_document` (FLF-338): CR tạo từ danh sách rút yêu cầu của tài liệu thô — `ref` = tên tài liệu + mã đoạn. */
-export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal" | "chat" | "reference_document" | "template_migration";
+/** `revert`: CR do "Hoàn tác" tạo (`ref` = mã CR gốc), client không gửi nguồn này ở `POST /change-requests`. `template_migration` (FLF-395): CR do lần đổi mẫu tự ghi, không nhận khi tạo CR. `reference_document` (FLF-338): CR tạo từ danh sách rút yêu cầu của tài liệu thô — `ref` = tên tài liệu + mã đoạn. */
+export type CrSourceKind = "stakeholder_email" | "meeting_minutes" | "gap_report" | "reupload" | "viewer_comment" | "verbal" | "chat" | "reference_document" | "template_migration" | "revert";
 
 /** Nguồn nhận khi tạo CR (BE `NEW_CR_SOURCE_KINDS`) — đúng 6 nguồn BPMN 3.1. */
 export const NEW_CR_SOURCE_KINDS = ["stakeholder_email", "meeting_minutes", "gap_report", "reupload", "viewer_comment", "verbal", "reference_document"] as const satisfies readonly CrSourceKind[];
@@ -94,6 +94,8 @@ export interface Cr {
   materials: CrMaterial[];
   /** Phase 7: dữ kiện 3.2 báo vẫn thiếu khi buộc đi tiếp — 3.6 viết kèm giả định. */
   missing_info: string[];
+  /** C-2 đọc câu trả lời vừa gửi là lời rút lại yêu cầu ⇒ hỏi người dùng có huỷ CR không (BE không tự huỷ). */
+  withdraw_suggested?: boolean;
   /** Phase 8: lệnh sửa gộp thêm từ chat (theo thứ tự). */
   amendments: { text: string; at: IsoDateTime }[];
   created_at: IsoDateTime;
@@ -147,6 +149,12 @@ export interface CrLocation {
     at: IsoDateTime;
   } | null;
   group_id: string | null;
+  /** C-4: AI cảnh báo yêu cầu không hợp lý ở chỗ này; chưa `kept_intent` ⇒ chặn Gửi duyệt tới khi "Vẫn làm" hoặc bỏ chỗ này. */
+  warning?: { text: string; reason: string } | null;
+  /** C-4: BA đã chọn "Vẫn làm" sau cảnh báo. */
+  kept_intent?: boolean;
+  /** C-5: mã luật BA chọn giữ theo ý mình (chỉ `new_red_flag`); cờ đỏ sinh ra sẽ chặn Gửi duyệt. */
+  kept_violations?: string[];
   /** FLF-375: tên chỗ + nội dung trước / sau người đọc được (không mã nội bộ) — hiện cái này, không tự ghép path / id. */
   display?: CrLocationDisplay;
   /** FLF-375 (BF §3.2 "Hai người sửa cùng lúc"): lúc xác nhận, người khác đã sửa đúng phần đề xuất định đổi ⇒ so 3 cột. */
@@ -199,6 +207,8 @@ export interface CrDetail {
   locations: CrLocation[];
   groups: CrGroup[];
   pending_questions: string[];
+  /** Chỉ khác null khi CR ở `impact_review` và có hơn 80 vị trí (số lô × 3 credit) — hiện trước khi chạy đề xuất. */
+  propose_estimate?: { locations: number; batches: number; credits: number } | null;
 }
 
 /** Lý do quyết định group (duyệt lẫn từ chối — BPMN 3.12, mode 1 v3) / đóng / huỷ tối thiểu (BE `DECISION_REASON_MIN_LENGTH`). */
@@ -255,6 +265,13 @@ export interface AnswersRequest {
 export interface PatchLocationRequest {
   conclusion?: LocationConclusion;
   reason?: string;
+  /** Đi một mình: `proceed` = "Vẫn làm" sau cảnh báo (C-4); `keep` = giữ theo ý mình lỗi cờ đỏ mới (C-5). */
+  action?: "keep" | "proceed";
+}
+
+/** `POST …/change-requests/:crId/revert` — tạo CR mới (nguồn `revert`) đưa các chỗ CR đã ghi về như cũ. */
+export interface RevertCrRequest {
+  requester: string;
 }
 
 export interface GroupDecisionRequest {
@@ -318,7 +335,22 @@ export type Mode1ErrorCode =
   | "CHANGE_REQUIRES_CR"
   | "IMPORT_FILE_REJECTED"
   | "IMPORT_STAMP_FOREIGN_PROJECT"
-  | "RELEASE_RED_FLAGS_OPEN";
+  | "RELEASE_RED_FLAGS_OPEN"
+  | "CR_OWN_OPEN"
+  | "CR_WARNING_PENDING"
+  | "CR_NO_WARNING"
+  | "CR_CANNOT_KEEP"
+  | "CR_REVERT_NOT_WRITTEN"
+  | "CR_REVERT_NOTHING";
+
+/** 409 CR_OWN_OPEN — mỗi người một CR mở; `cr_id` là CR đang dở của chính người đó. */
+export interface CrOwnOpenMeta {
+  cr_id: string;
+  title?: string;
+}
+
+/** Luật mà "giữ theo ý mình" nhận (BE `KEEPABLE_RULES`): chỉ lỗi cờ đỏ mới sinh ra. */
+export const KEEPABLE_VIOLATION_RULES: readonly string[] = ["new_red_flag"];
 
 /** BF §3.2: mục của tài liệu đang có bản sửa chưa xác nhận (CR chưa đóng), ai giữ — `GET …/change-requests/pending-sections`. */
 export interface PendingSection {

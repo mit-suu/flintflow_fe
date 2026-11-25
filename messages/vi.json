@@ -2277,7 +2277,10 @@
         "desktop_app": "Desktop",
         "api_service": "API",
         "cli": "CLI",
-        "embedded": "Nhúng"
+        "embedded": "Nhúng",
+        "responsive_web": "Web (responsive)",
+        "mobile_web": "Web trên điện thoại",
+        "pwa": "Web app cài được (PWA)"
       },
       "stakes": {
         "internal": "Nội bộ",
@@ -2312,7 +2315,15 @@
         "vision": "Tầm nhìn",
         "goalsCount": "Mục tiêu ({count})",
         "notesCount": "Điều bạn đã kể ({count})",
-        "understoodCount": "Những điều tôi đang hiểu ({count})"
+        "understoodCount": "Những điều tôi đang hiểu ({count})",
+        "docExcerpt": "{code}",
+        "docExcerptTitle": "Ngôn ngữ tài liệu: {language}",
+        "titleTip": "Tóm tắt ý tưởng được tổng hợp từ cuộc trò chuyện, làm cơ sở để soạn tài liệu SRS.",
+        "stakesTip": "Phạm vi sử dụng và yêu cầu tuân thủ của hệ thống.",
+        "visionTip": "Giá trị cốt lõi mà hệ thống mang lại.",
+        "goalsTip": "Các kết quả đo được mà dự án cần đạt.",
+        "notesTip": "Thông tin bạn cung cấp, được giữ nguyên khi soạn tài liệu.",
+        "understoodTip": "Những điểm FlintFlow tự suy ra, chờ bạn xác nhận. Cần xác nhận hết trước khi chốt baseline."
       },
       "summary": {
         "vision": "Tầm nhìn",
@@ -2572,7 +2583,15 @@
       "confirmedNoChange": "Đã xác nhận, nội dung không đổi",
       "alreadyApplied": "Đã được {who} sửa giống đề xuất của bạn - không ghi lại.",
       "undoing": "Đang hoàn tác…",
-      "undo": "Hoàn tác"
+      "undo": "Hoàn tác",
+      "warningLead": "Lưu ý: ",
+      "applyAnyway": "Vẫn làm",
+      "blocksBaseline": "Sửa này sẽ chặn baseline",
+      "confirmReason": "Cần bạn xác nhận vì: {reason}",
+      "partialLead": "Còn một ý chưa rõ: ",
+      "partialHint": "Trả lời ở ô chat; phần đã rõ bên dưới áp dụng được ngay.",
+      "autoApplied": "Đã áp dụng {count} thay đổi",
+      "autoAppliedHint": "Đã tự áp dụng theo mức duyệt của bạn. Chưa ưng thì hoàn tác."
     },
     "gateFlags": {
       "keepFailed": "Chưa giữ nguyên được vấn đề này, bạn thử lại nhé.",
@@ -2744,9 +2763,6 @@
     },
     "activityLog": {
       "aria": "Nhật ký hoạt động của AI",
-      "running": " (đang làm)",
-      "failed": " (lỗi)",
-      "done": " (xong)",
       "collections": {
         "project": "thông tin dự án",
         "addendum": "ghi chú",
@@ -2763,7 +2779,11 @@
         "business_rules": "quy tắc",
         "messages": "thông báo",
         "glossary": "thuật ngữ",
-        "permissions": "phân quyền"
+        "permissions": "phân quyền",
+        "common_requirements": "yêu cầu chung",
+        "references": "tài liệu tham chiếu",
+        "verifications": "cách kiểm chứng",
+        "deployment_nodes": "nút triển khai"
       },
       "verbs": {
         "add": "Thêm",
@@ -2786,7 +2806,15 @@
       "renderFailed": "Chưa vẽ được một sơ đồ",
       "rendered": "Vẽ sơ đồ",
       "flagsFound": "Phát hiện {count} lỗi cần sửa",
-      "nextStep": "Bước tiếp theo"
+      "nextStep": "Bước tiếp theo",
+      "stages": {
+        "intake": "Đọc dữ liệu dự án",
+        "ask": "Chuẩn bị câu hỏi cho bạn",
+        "check": "Kiểm tra lại nội dung",
+        "render": "Vẽ sơ đồ"
+      },
+      "redrafting": "Soạn lại cho chuẩn hơn",
+      "round": "Lần {n}"
     },
     "describeChange": {
       "collections": {
@@ -2961,6 +2989,11 @@
       "render_error": "Sơ đồ vẽ bị lỗi",
       "diagram_stale": "Sơ đồ đã cũ",
       "nfr_missing_number": "Yêu cầu phi chức năng thiếu con số đo được",
+      "duplicate_name": "Tên bị trùng",
+      "vague_wording": "Từ ngữ mơ hồ, chưa đo được",
+      "source_missing": "Yêu cầu chưa ghi nguồn",
+      "content_type_missing": "Thiếu một loại nội dung chuẩn",
+      "standard_section_missing": "Thiếu mục của mẫu chuẩn FlintFlow",
       "unconfirmed_assumption": "Giả định chưa xác nhận",
       "section_stale_at_baseline": "Mục cần viết lại",
       "section_awaiting_reaccept": "Mục chờ duyệt lại",
@@ -3215,7 +3248,10 @@
         "desktop_app": "Desktop",
         "api_service": "API",
         "cli": "CLI",
-        "embedded": "Nhúng"
+        "embedded": "Nhúng",
+        "responsive_web": "Web (responsive)",
+        "mobile_web": "Web trên điện thoại",
+        "pwa": "Web app cài được (PWA)"
       },
       "stakes": {
         "internal": "Nội bộ",
@@ -3357,6 +3393,27 @@
           "check": "Kiểm tra"
         },
         "sections": "{done}/{total} mục",
+        "foundTotal": "Đã tìm thấy:",
+        "foundSeparator": " · ",
+        "foundLine": "+ {label}: {names}",
+        "foundMore": "và {count} mục khác",
+        "foundDiagram": "sơ đồ",
+        "diagramKinds": {
+          "context": "context",
+          "usecase": "use case",
+          "screen_flow": "luồng màn hình",
+          "erd": "ERD",
+          "class": "class",
+          "state_machine": "vòng đời trạng thái",
+          "sequence": "sequence",
+          "activity": "activity",
+          "deployment": "deployment"
+        },
+        "announce": "Đã đọc {done}/{total} mục",
+        "figure": "Hình",
+        "tableMoreRows": "và {count} dòng khác",
+        "outlineLabel": "Các mục của file",
+        "outlineJump": "Xem mục {title}",
         "state": {
           "done": "xong",
           "active": "đang làm",
@@ -3494,6 +3551,65 @@
       "download": "Tải về",
       "downloading": "Đang tải…",
       "downloadFailed": "Không tải được file. Thử lại sau."
+    }
+  },
+  "aiFollow": {
+    "reading": "Đang đọc {index}/{total}",
+    "writing": "Đang soạn {index}/{total}",
+    "prev": "Mục trước (phím [)",
+    "next": "Mục kế tiếp (phím ])",
+    "follow": "Theo dõi AI"
+  },
+  "aiActivity": {
+    "status": {
+      "running": " (đang làm)",
+      "done": " (xong)",
+      "failed": " (lỗi)",
+      "todo": " (chưa tới)"
+    },
+    "almostDone": "Sắp xong…",
+    "labels": {
+      "replying": "Đang soạn câu trả lời…",
+      "readingReference": "Đang xem tài liệu tham khảo…",
+      "checking": "Đang kiểm tra…",
+      "working": "AI đang xử lý…",
+      "verifying": "Đang kiểm tra tài liệu…"
+    },
+    "hints": {
+      "generic": {
+        "1": "Đang sắp xếp ý…",
+        "2": "Đang viết chi tiết…",
+        "3": "Đang rà lại kết quả…"
+      },
+      "chat": {
+        "1": "Đang sắp xếp ý…",
+        "2": "Đang viết câu trả lời…",
+        "3": "Đang rà lại nội dung…"
+      },
+      "reference": {
+        "1": "Đang đọc tài liệu…",
+        "2": "Đang tìm phần liên quan…",
+        "3": "Đang tóm ý chính…"
+      },
+      "document": {
+        "1": "Đang sắp xếp ý…",
+        "2": "Đang viết chi tiết…",
+        "3": "Đang rà lại nội dung…"
+      },
+      "check": {
+        "1": "Đang đối chiếu các mục…",
+        "2": "Đang tìm chỗ chưa khớp…",
+        "3": "Đang tổng hợp kết quả…"
+      },
+      "diagram": {
+        "1": "Đang xác định các thành phần…",
+        "2": "Đang nối các thành phần…",
+        "3": "Đang vẽ lại…"
+      }
+    },
+    "steps": {
+      "thinking": "Đang suy nghĩ",
+      "searchKnowledge": "Đang tìm trong kho kiến thức"
     }
   },
   "errors": {
@@ -3697,7 +3813,16 @@
     "SKELETON_SUGGEST_FAILED": "Không gợi ý được tên chung. Thử lại sau.",
     "IMPORT_FILE_REJECTED": "Không đọc được file này.",
     "FLAG_NOT_OPEN": "Có cờ trong nhóm vừa được xử lý. Tải lại danh sách rồi thử lại.",
-    "CR_TOO_MANY_LOCATIONS": "Nhóm cờ này chạm quá nhiều chỗ cho một change request. Tách thành nhóm nhỏ hơn."
+    "CR_TOO_MANY_LOCATIONS": "Nhóm cờ này chạm quá nhiều chỗ cho một change request. Tách thành nhóm nhỏ hơn.",
+    "DRAFT_LOCKED": "Tài liệu đang chờ Lead duyệt nên tạm khoá sửa. Chờ Lead duyệt hoặc trả lại rồi làm tiếp.",
+    "CR_OWN_OPEN": "Bạn còn một change request đang dở. Hoàn tất hoặc huỷ nó trước khi mở cái mới.",
+    "CR_WARNING_PENDING": "Còn chỗ AI cảnh báo mà bạn chưa chọn. Chọn \"Vẫn làm\" hoặc bỏ chỗ đó rồi gửi lại.",
+    "CR_NO_WARNING": "Chỗ này không có cảnh báo nào của AI để chọn \"Vẫn làm\".",
+    "CR_CANNOT_KEEP": "Chỗ này không giữ theo ý mình được. Chỉ giữ được khi lỗi là cờ đỏ mới của tài liệu.",
+    "CR_REVERT_NOT_WRITTEN": "Chỉ hoàn tác được change request đã ghi vào bản nháp.",
+    "CR_REVERT_NOTHING": "Không còn gì để hoàn tác: các chỗ này đã được sửa tiếp hoặc đã về như cũ.",
+    "PACKAGE_PENDING": "Gói thay đổi đang chờ Lead duyệt nên bản nháp tạm khoá. Chờ Lead duyệt hoặc yêu cầu sửa rồi làm tiếp.",
+    "SUBMIT_STEP_RUNNING": "Một bước đang soạn dở. Chờ bước xong hoặc huỷ lượt đó rồi gửi duyệt."
   },
   "maintenance": {
     "metaTitle": "Đang bảo trì · FlintFlow",
@@ -3963,7 +4088,9 @@
         "reject": "Đang bỏ đề xuất…",
         "redraft": "AI đang soạn lại đề xuất…",
         "manual": "Đang lưu bản bạn tự sửa…",
-        "cancel": "Đang huỷ change request…"
+        "cancel": "Đang huỷ change request…",
+        "revert": "Đang tạo thay đổi hoàn tác…",
+        "decide": "Đang lưu lựa chọn của bạn…"
       },
       "approved": {
         "step": "Thay đổi đã duyệt ({count} phần)",
@@ -4040,7 +4167,14 @@
         "reject": "Bỏ",
         "othersPending": "{who} ({crId}) có bản sửa chưa xác nhận ở mục này",
         "askFailed": "Mình chưa sửa tự động được chỗ này sau 2 lần thử. Bạn gõ hướng sửa bên dưới, hoặc bỏ chỗ này khỏi change request.",
-        "askChanged": "Chỗ này vừa được sửa ở nơi khác - AI sẽ soạn lại trên nội dung hiện tại."
+        "askChanged": "Chỗ này vừa được sửa ở nơi khác - AI sẽ soạn lại trên nội dung hiện tại.",
+        "warningAria": "Cảnh báo của AI",
+        "warningTitle": "AI thấy yêu cầu này có thể chưa hợp lý ở chỗ này",
+        "proceed": "Vẫn làm",
+        "proceedHint": "Nếu bạn vẫn muốn, AI sẽ soạn đúng theo yêu cầu. Chưa chọn thì chưa gửi duyệt được.",
+        "keep": "Giữ theo ý mình",
+        "keepHint": "Giữ bản này thì tài liệu có cờ đỏ mới, và cờ đó chặn Gửi duyệt cho tới khi được xử lý.",
+        "keptNote": "Bạn đã giữ theo ý mình - cờ đỏ còn lại sẽ chặn Gửi duyệt."
       },
       "dropped": {
         "summary": "Không sửa {count} phần (không liên quan hoặc bạn đã bỏ)",
@@ -4066,6 +4200,11 @@
       "impactStep": "② Phần liên quan ({count})",
       "impactLabel": "Phần liên quan",
       "proposeNow": "Tiếp tục - AI đề xuất sửa",
+      "estimate": "Yêu cầu này chạm {locations} chỗ nên AI soạn theo {batches} lô, khoảng {credits} credit. Bấm tiếp tục khi bạn đồng ý.",
+      "revert": "Hoàn tác",
+      "revertHint": "Tạo change request mới đưa các chỗ này về như trước khi sửa.",
+      "openOwn": "Mở {crId}",
+      "openOwnAny": "Mở change request đang dở",
       "proposeStep": "③ Đề xuất sửa - đã chốt {settled}/{total}",
       "proposeLabel": "Đề xuất sửa",
       "proposeHint": "Phần đã đạt kiểm tra đồng ý một lần bằng \"Đồng ý tất cả\"; bấm ▸ để xem, sửa lại hoặc bỏ từng phần. Chốt hết thì hệ thống tự kiểm tra.",
@@ -4137,7 +4276,8 @@
       "multiQuestion": "AI đang hỏi nhiều câu - trả lời ở thẻ câu hỏi phía trên (chọn gợi ý hoặc gõ từng câu).",
       "paused": "Bước AI đang tạm dừng - bấm “Tiếp tục” ở phía trên trước.",
       "running": "AI đang chạy - đợi xong bước này rồi gõ tiếp.",
-      "withdrawReason": "Người yêu cầu rút lại ở bước làm rõ: “{text}”"
+      "withdrawReason": "Người yêu cầu rút lại ở bước làm rõ: “{text}”",
+      "submitManual": "Lúc xác nhận, kiểm lại thấy lỗi mới nên chưa ghi được. Xem các chỗ được đánh dấu bên dưới."
     },
     "crWorkspace": {
       "loading": "Đang tải change request",
@@ -4482,7 +4622,8 @@
         "verbal": "Yêu cầu miệng",
         "chat": "Lệnh sửa trong chat (CR cũ)",
         "reference_document": "Tài liệu tham khảo (rút yêu cầu)",
-        "template_migration": "Đổi mẫu tài liệu"
+        "template_migration": "Đổi mẫu tài liệu",
+        "revert": "Hoàn tác change request khác"
       },
       "foundBy": {
         "spine_link": "Liên kết field",
@@ -4602,6 +4743,11 @@
         "render_error": "Lỗi vẽ sơ đồ",
         "diagram_stale": "Sơ đồ chưa cập nhật",
         "nfr_missing_number": "Yêu cầu phi chức năng thiếu số đo",
+        "duplicate_name": "Tên bị trùng",
+        "vague_wording": "Từ ngữ mơ hồ, chưa đo được",
+        "source_missing": "Yêu cầu chưa ghi nguồn",
+        "content_type_missing": "Thiếu một loại nội dung chuẩn",
+        "standard_section_missing": "Thiếu mục của mẫu chuẩn FlintFlow",
         "usecase_relation_invalid": "Quan hệ include/extend không hợp lệ",
         "unconfirmed_assumption": "Giả định chưa xác nhận",
         "section_stale_at_baseline": "Mục cần xem lại",
@@ -4922,8 +5068,6 @@
       "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
       "listAria": "Change request trong gói",
       "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
-      "blockedEditing": "Đang sửa {crId} ở khung chat - xác nhận ghi vào bản nháp xong mới gửi duyệt hoặc phát hành được.",
-      "blockedEditingNew": "Đang soạn change request ở khung chat - ghi vào bản nháp xong mới gửi duyệt hoặc phát hành được.",
       "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
       "blockedRed": "Còn {count} cờ đỏ - xử lý qua change request trước khi gửi Lead duyệt.",
       "submit": "Gửi Lead duyệt cả gói",

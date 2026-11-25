@@ -113,6 +113,24 @@ describe("useCrChat - trả lời làm rõ là lời rút lại (FLF-439)", () =
     expect(result.current.withdrawAsk).toBeNull();
     expect(api.cancelCr).not.toHaveBeenCalled();
   });
+
+  it("AI đọc câu đã gửi là lời rút lại (withdraw_suggested) ⇒ dừng, hỏi huỷ CR; 'gửi làm câu trả lời' ⇒ đi tiếp, không gửi lại", async () => {
+    const suggested = { ...asking, change_request: { ...asking.change_request, status: "impact_review", withdraw_suggested: true }, pending_questions: [] } as unknown as CrDetail;
+    api.answerClarifications.mockResolvedValue({ data: suggested });
+    const { result } = renderHookWithIntl(() => useCrChat("p1", true, undefined, "u1"));
+    await waitFor(() => expect(result.current.detail).not.toBeNull());
+
+    act(() => result.current.answer(["khách đổi ý rồi, khỏi làm cái này"]));
+    await waitFor(() => expect(result.current.withdrawAsk).toEqual(["khách đổi ý rồi, khỏi làm cái này"]));
+    expect(result.current.withdrawAfterAnswer).toBe(true);
+    expect(api.runCrAction).not.toHaveBeenCalled();
+
+    act(() => result.current.answerAnyway());
+    await waitFor(() => expect(api.runCrAction).toHaveBeenCalled());
+    expect(api.answerClarifications).toHaveBeenCalledTimes(1);
+    expect(result.current.withdrawAsk).toBeNull();
+    expect(result.current.withdrawAfterAnswer).toBe(false);
+  });
 });
 
 describe("useCrChat - tạo CR từ nhóm cờ (FLF-445)", () => {

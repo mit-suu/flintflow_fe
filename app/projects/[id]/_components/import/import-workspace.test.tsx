@@ -10,7 +10,7 @@ vi.mock("../../hooks/mode1/useMode1Project", () => ({
   useMode1Project: () => ({ project: { _id: "p1", name: "Lumen", template_intent: "fixed" }, credits: 100, error: null, reload: vi.fn() }),
 }));
 vi.mock("@/lib/api/users", () => ({ fetchMe: vi.fn(async () => ({ _id: "u1", name: "BA", email: "ba@x.io" })) }));
-vi.mock("@/lib/api/import", () => ({ downloadGapReport: vi.fn(), getImport: vi.fn(async () => ({ data: { import: { structure_changes: [] } } })) }));
+vi.mock("@/lib/api/import", () => ({ downloadGapReport: vi.fn(), getImportSource: vi.fn(async () => ({ notModified: false, etag: null, data: { import_id: "i1", sections: [] } })), getImport: vi.fn(async () => ({ data: { import: { structure_changes: [] } } })) }));
 vi.mock("@/lib/api/export", () => ({ downloadWordExport: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: vi.fn() }), usePathname: () => "/projects/p1", useSearchParams: () => new URLSearchParams() }));
 

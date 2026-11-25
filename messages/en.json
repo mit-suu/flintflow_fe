@@ -2277,7 +2277,10 @@
         "desktop_app": "Desktop",
         "api_service": "API",
         "cli": "CLI",
-        "embedded": "Embedded"
+        "embedded": "Embedded",
+        "responsive_web": "Web (responsive)",
+        "mobile_web": "Mobile web",
+        "pwa": "Installable web app (PWA)"
       },
       "stakes": {
         "internal": "Internal",
@@ -2312,7 +2315,15 @@
         "vision": "Vision",
         "goalsCount": "Goals ({count})",
         "notesCount": "What you told me ({count})",
-        "understoodCount": "What I currently understand ({count})"
+        "understoodCount": "What I currently understand ({count})",
+        "docExcerpt": "{code}",
+        "docExcerptTitle": "Document language: {language}",
+        "titleTip": "An idea summary gathered from the conversation, used as the basis for writing the SRS document.",
+        "stakesTip": "How widely the system is used and the compliance it must meet.",
+        "visionTip": "The core value the system delivers.",
+        "goalsTip": "Measurable outcomes the project must achieve.",
+        "notesTip": "Information you provided, kept as-is when writing the document.",
+        "understoodTip": "Points FlintFlow inferred, waiting for your confirmation. Confirm them all before locking the baseline."
       },
       "summary": {
         "vision": "Vision",
@@ -2572,7 +2583,15 @@
       "confirmedNoChange": "Confirmed, content unchanged",
       "alreadyApplied": "{who} already made the same edit - nothing written again.",
       "undoing": "Undoing…",
-      "undo": "Undo"
+      "undo": "Undo",
+      "warningLead": "Heads up: ",
+      "applyAnyway": "Do it anyway",
+      "blocksBaseline": "This edit will block the baseline",
+      "confirmReason": "Needs your confirmation: {reason}",
+      "partialLead": "One part is unclear: ",
+      "partialHint": "Answer in the chat box; the clear part below can be applied now.",
+      "autoApplied": "Applied {count, plural, one {# change} other {# changes}}",
+      "autoAppliedHint": "Applied automatically per your review level. Undo if it is not what you wanted."
     },
     "gateFlags": {
       "keepFailed": "Couldn’t keep this issue as is, please try again.",
@@ -2744,9 +2763,6 @@
     },
     "activityLog": {
       "aria": "AI activity log",
-      "running": " (in progress)",
-      "failed": " (failed)",
-      "done": " (done)",
       "collections": {
         "project": "project info",
         "addendum": "note",
@@ -2763,7 +2779,11 @@
         "business_rules": "rule",
         "messages": "message",
         "glossary": "glossary term",
-        "permissions": "permission"
+        "permissions": "permission",
+        "common_requirements": "common requirement",
+        "references": "reference",
+        "verifications": "verification",
+        "deployment_nodes": "deployment node"
       },
       "verbs": {
         "add": "Add",
@@ -2786,7 +2806,15 @@
       "renderFailed": "Could not draw a diagram",
       "rendered": "Draw diagrams",
       "flagsFound": "{count, plural, one {Found # error to fix} other {Found # errors to fix}}",
-      "nextStep": "Next step"
+      "nextStep": "Next step",
+      "stages": {
+        "intake": "Read project data",
+        "ask": "Prepare questions for you",
+        "check": "Review the content",
+        "render": "Draw diagrams"
+      },
+      "redrafting": "Revise the draft",
+      "round": "Round {n}"
     },
     "describeChange": {
       "collections": {
@@ -2961,6 +2989,11 @@
       "render_error": "Diagram failed to render",
       "diagram_stale": "Diagram is outdated",
       "nfr_missing_number": "Non-functional requirement lacks a measurable number",
+      "duplicate_name": "Duplicate name",
+      "vague_wording": "Vague wording that can't be measured",
+      "source_missing": "Requirement has no source",
+      "content_type_missing": "A standard content type is missing",
+      "standard_section_missing": "FlintFlow standard template section is missing",
       "unconfirmed_assumption": "Unconfirmed assumption",
       "section_stale_at_baseline": "Section needs rewriting",
       "section_awaiting_reaccept": "Section awaiting re-approval",
@@ -3215,7 +3248,10 @@
         "desktop_app": "Desktop",
         "api_service": "API",
         "cli": "CLI",
-        "embedded": "Embedded"
+        "embedded": "Embedded",
+        "responsive_web": "Web (responsive)",
+        "mobile_web": "Mobile web",
+        "pwa": "Installable web app (PWA)"
       },
       "stakes": {
         "internal": "Internal",
@@ -3357,6 +3393,27 @@
           "check": "Check"
         },
         "sections": "{done}/{total} sections",
+        "foundTotal": "Found:",
+        "foundSeparator": " · ",
+        "foundLine": "+ {label}: {names}",
+        "foundMore": "and {count} more",
+        "foundDiagram": "diagrams",
+        "diagramKinds": {
+          "context": "context",
+          "usecase": "use case",
+          "screen_flow": "screen flow",
+          "erd": "ERD",
+          "class": "class",
+          "state_machine": "state lifecycle",
+          "sequence": "sequence",
+          "activity": "activity",
+          "deployment": "deployment"
+        },
+        "announce": "Read {done}/{total} sections",
+        "figure": "Figure",
+        "tableMoreRows": "and {count} more rows",
+        "outlineLabel": "Sections of the file",
+        "outlineJump": "Go to section {title}",
         "state": {
           "done": "done",
           "active": "in progress",
@@ -3494,6 +3551,65 @@
       "download": "Download",
       "downloading": "Downloading…",
       "downloadFailed": "Could not download the file. Try again later."
+    }
+  },
+  "aiFollow": {
+    "reading": "Reading {index}/{total}",
+    "writing": "Writing {index}/{total}",
+    "prev": "Previous section (key [)",
+    "next": "Next section (key ])",
+    "follow": "Follow AI"
+  },
+  "aiActivity": {
+    "status": {
+      "running": " (in progress)",
+      "done": " (done)",
+      "failed": " (failed)",
+      "todo": " (not started)"
+    },
+    "almostDone": "Almost done…",
+    "labels": {
+      "replying": "Writing the reply…",
+      "readingReference": "Reading the reference documents…",
+      "checking": "Checking…",
+      "working": "AI is working…",
+      "verifying": "Checking the document…"
+    },
+    "hints": {
+      "generic": {
+        "1": "Organizing ideas…",
+        "2": "Writing the details…",
+        "3": "Reviewing the result…"
+      },
+      "chat": {
+        "1": "Organizing ideas…",
+        "2": "Writing the reply…",
+        "3": "Reviewing the content…"
+      },
+      "reference": {
+        "1": "Reading the documents…",
+        "2": "Finding relevant parts…",
+        "3": "Summarizing key points…"
+      },
+      "document": {
+        "1": "Organizing ideas…",
+        "2": "Writing the details…",
+        "3": "Reviewing the content…"
+      },
+      "check": {
+        "1": "Comparing sections…",
+        "2": "Looking for mismatches…",
+        "3": "Putting results together…"
+      },
+      "diagram": {
+        "1": "Identifying the elements…",
+        "2": "Connecting the elements…",
+        "3": "Redrawing…"
+      }
+    },
+    "steps": {
+      "thinking": "Thinking",
+      "searchKnowledge": "Searching the knowledge base"
     }
   },
   "errors": {
@@ -3697,7 +3813,16 @@
     "SKELETON_SUGGEST_FAILED": "Could not suggest generic names. Try again later.",
     "IMPORT_FILE_REJECTED": "This file could not be read.",
     "FLAG_NOT_OPEN": "A flag in this group was just handled. Reload the list and try again.",
-    "CR_TOO_MANY_LOCATIONS": "This flag group touches too many places for one change request. Split it into smaller groups."
+    "CR_TOO_MANY_LOCATIONS": "This flag group touches too many places for one change request. Split it into smaller groups.",
+    "DRAFT_LOCKED": "The document is waiting for the Lead's approval, so editing is paused. Continue once the Lead approves or sends it back.",
+    "CR_OWN_OPEN": "You still have an unfinished change request. Finish or cancel it before opening a new one.",
+    "CR_WARNING_PENDING": "Some parts the AI warned about are still undecided. Choose \"Proceed anyway\" or drop them, then submit again.",
+    "CR_NO_WARNING": "This part has no AI warning to proceed on.",
+    "CR_CANNOT_KEEP": "This part cannot be kept as is. That only works when the error is a new red flag in the document.",
+    "CR_REVERT_NOT_WRITTEN": "Only a change request that was written to the draft can be undone.",
+    "CR_REVERT_NOTHING": "Nothing left to undo: these parts were edited again or are already back to the original.",
+    "PACKAGE_PENDING": "The change package is waiting for the Lead's approval, so the draft is locked. Continue once the Lead approves or requests changes.",
+    "SUBMIT_STEP_RUNNING": "A step is still drafting. Wait for it to finish or cancel it, then submit for approval."
   },
   "maintenance": {
     "metaTitle": "Under maintenance · FlintFlow",
@@ -3963,7 +4088,9 @@
         "reject": "Dropping the proposal…",
         "redraft": "AI is redrafting the proposal…",
         "manual": "Saving your own edit…",
-        "cancel": "Cancelling the change request…"
+        "cancel": "Cancelling the change request…",
+        "revert": "Creating the undo change…",
+        "decide": "Saving your choice…"
       },
       "approved": {
         "step": "Approved changes ({count} parts)",
@@ -4040,7 +4167,14 @@
         "reject": "Drop",
         "othersPending": "{who} ({crId}) has an unconfirmed change in this part",
         "askFailed": "I could not fix this automatically after 2 tries. Type how it should change below, or drop it from the change request.",
-        "askChanged": "This part was just changed elsewhere - the AI will redraft on the current content."
+        "askChanged": "This part was just changed elsewhere - the AI will redraft on the current content.",
+        "warningAria": "AI warning",
+        "warningTitle": "The AI thinks this request may not make sense here",
+        "proceed": "Proceed anyway",
+        "proceedHint": "If you still want it, the AI will draft exactly what the request asks. It cannot be submitted for review until you choose.",
+        "keep": "Keep my version",
+        "keepHint": "Keeping this adds a new red flag to the document, and that flag blocks Submit for review until it is resolved.",
+        "keptNote": "You kept your version - the remaining red flag will block Submit for review."
       },
       "dropped": {
         "summary": "{count, plural, one {# part not edited (unrelated or dropped by you)} other {# parts not edited (unrelated or dropped by you)}}",
@@ -4066,6 +4200,11 @@
       "impactStep": "② Related parts ({count})",
       "impactLabel": "Related parts",
       "proposeNow": "Continue - AI proposes edits",
+      "estimate": "This request touches {locations} parts, so the AI drafts in {batches} batches, about {credits} credits. Continue when you agree.",
+      "revert": "Undo",
+      "revertHint": "Creates a new change request that puts these parts back as they were before.",
+      "openOwn": "Open {crId}",
+      "openOwnAny": "Open the unfinished change request",
       "proposeStep": "③ Proposed edits - {settled}/{total} settled",
       "proposeLabel": "Proposed edits",
       "proposeHint": "Accept every part that passed the checks at once with \"Accept all\"; click ▸ to view, redo or drop a part. Once all are settled, the system checks them automatically.",
@@ -4137,7 +4276,8 @@
       "multiQuestion": "AI is asking several questions - answer them in the question card above (pick a suggestion or type each answer).",
       "paused": "The AI step is paused - click “Continue” above first.",
       "running": "AI is running - wait for this step to finish, then type again.",
-      "withdrawReason": "The requester withdrew it during clarification: “{text}”"
+      "withdrawReason": "The requester withdrew it during clarification: “{text}”",
+      "submitManual": "On confirmation, the recheck found new errors so nothing was written. See the marked parts below."
     },
     "crWorkspace": {
       "loading": "Loading change request",
@@ -4482,7 +4622,8 @@
         "verbal": "Verbal request",
         "chat": "Chat edit command (legacy CR)",
         "reference_document": "Reference document (extracted requirements)",
-        "template_migration": "Template change"
+        "template_migration": "Template change",
+        "revert": "Undo of another change request"
       },
       "foundBy": {
         "spine_link": "Field link",
@@ -4602,6 +4743,11 @@
         "render_error": "Diagram rendering error",
         "diagram_stale": "Diagram out of date",
         "nfr_missing_number": "Non-functional requirement lacks a measurable number",
+        "duplicate_name": "Duplicate name",
+        "vague_wording": "Vague wording that can't be measured",
+        "source_missing": "Requirement has no source",
+        "content_type_missing": "A standard content type is missing",
+        "standard_section_missing": "FlintFlow standard template section is missing",
         "usecase_relation_invalid": "Invalid include/extend relation",
         "unconfirmed_assumption": "Unconfirmed assumption",
         "section_stale_at_baseline": "Section needs review",
@@ -4922,8 +5068,6 @@
       "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
       "listAria": "Change requests in the package",
       "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
-      "blockedEditing": "{crId} is still being edited in the chat - write it to the draft before submitting or releasing.",
-      "blockedEditingNew": "A change request is being prepared in the chat - write it to the draft before submitting or releasing.",
       "blockedEmpty": "No change request to submit yet.",
       "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open - resolve via change requests before submitting to the Lead.",
       "submit": "Submit whole package to Lead",

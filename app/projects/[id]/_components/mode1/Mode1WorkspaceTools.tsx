@@ -21,8 +21,6 @@ interface Mode1WorkspaceToolsProps {
   orgRole?: OrgRole | null;
   /** Đổi giá trị ⇒ tải lại gói thay đổi (vd CR vừa ghi bản nháp mới ở khung chat). */
   refreshToken?: number;
-  /** Change request đang soạn ở khung chat (chưa ghi bản nháp) — khoá gửi duyệt / phát hành (xem `ReviewPackagePanel`). */
-  crInProgress?: string | null;
   /** Tên mục dễ đọc theo `section_id` cho thẻ mục thiếu sau đổi mẫu. */
   sectionName?: (sectionId: string) => string;
   /** Hoàn tác / khôi phục đổi mẫu xong: tải lại project (mẫu, ngôn ngữ, `template_update`) ngoài Spine / tài liệu. */
@@ -42,7 +40,6 @@ export default function Mode1WorkspaceTools({
   readOnly = false,
   orgRole = null,
   refreshToken = 0,
-  crInProgress = null,
   sectionName = (id) => id,
   onTemplateChanged,
   templateAvailability,
@@ -68,7 +65,6 @@ export default function Mode1WorkspaceTools({
         projectId={projectId}
         refreshToken={refreshToken}
         role={readOnly ? "viewer" : orgRole}
-        crInProgress={crInProgress}
         migrationMissing={openMigrationMissing(flags).length}
         onChanged={onSpineChanged}
       />

@@ -28,6 +28,12 @@ const EXTRA_RULES = [
   // FLF-395: sau khi đổi mẫu — mục của mẫu mới chưa viết (đỏ) / tham chiếu số mục theo đánh số cũ (vàng)
   "template_section_migration_missing",
   "section_reference_after_migration",
+  // Luật Code mới: tên trùng, từ mơ hồ, thiếu nguồn, thiếu loại nội dung chuẩn, thiếu mục của mẫu chuẩn
+  "duplicate_name",
+  "vague_wording",
+  "source_missing",
+  "content_type_missing",
+  "standard_section_missing",
 ] as const;
 
 export type FlagRuleTitleKey = FlagRuleId | (typeof EXTRA_RULES)[number];
@@ -125,9 +131,9 @@ export const groupByAction = (flags: readonly Flag[], acceptedSteps?: ReadonlySe
   );
 
 export interface IssueCounts {
-  /** Vấn đề thật phải xử lý trước khi chốt bản: cờ đỏ (trừ "sẽ điền ở bước sau") + mục cần viết lại. */
+  /** Vấn đề thật phải xử lý trước khi chốt bản: cờ đỏ (trừ "sẽ điền ở bước sau"). */
   blocking: number;
-  /** Gợi ý nên xem: cờ vàng (trừ "sẽ điền ở bước sau"). */
+  /** Gợi ý nên xem: cờ vàng (trừ "sẽ điền ở bước sau") + mục cần viết lại (BE hạ "Cần xem lại" xuống vàng, không chặn). */
   suggestions: number;
   /** Số mục còn trống vì bước viết ra nó chưa chạy — không phải lỗi, không tính vào hai số trên. */
   later: number;
@@ -145,8 +151,8 @@ export const issueCounts = (flags: readonly Flag[], outdated = 0, acceptedSteps?
   const isLater = (f: Flag) => actionOfFlag(f, acceptedSteps) === "run_step";
   const now = open.filter((f) => !isLater(f));
   return {
-    blocking: now.filter((f) => f.level === "red").length + outdated,
-    suggestions: now.filter((f) => f.level === "yellow").length,
+    blocking: now.filter((f) => f.level === "red").length,
+    suggestions: now.filter((f) => f.level === "yellow").length + outdated,
     later: new Set(open.filter(isLater).map((f) => f.section_id)).size,
   };
 };

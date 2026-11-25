@@ -7,6 +7,7 @@ import { workspaceStepLabel } from "./phase-labels";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
 import type { Flag } from "@/types/flags";
 import Icon from "@/components/ui/Icon";
+import { ShimmerText } from "@/components/ui/ai-activity";
 import { useMode1Labels } from "./mode1/i18n";
 import { WAIVE_REASON_MIN_LENGTH, flagGroupTitle, groupByAction, isRedrawable, isSectionLevelRule, issueCounts, readableMessage, type ActionGroup, type RedrawReport } from "./flag-rules";
 import { userErrorMessage } from "@/lib/api/error-messages";
@@ -192,7 +193,7 @@ export default function FlagsPanel({
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   // Mở sẵn tab có việc: chỉ sang "Nên xem" khi không còn gì phải xử lý mà vẫn có gợi ý
   const [tab, setTab] = useState<IssueTab>(() =>
-    !flags.some((f) => isOpen(f) && f.level === "red") && outdatedCount === 0 && flags.some((f) => isOpen(f) && f.level === "yellow")
+    !flags.some((f) => isOpen(f) && f.level === "red") && (outdatedCount > 0 || flags.some((f) => isOpen(f) && f.level === "yellow"))
       ? "suggestions"
       : "blocking"
   );
@@ -547,6 +548,13 @@ export default function FlagsPanel({
       <div role="tabpanel" id="doc-issues-panel" aria-labelledby={`doc-issues-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "blocking" && (
           <>
+            {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
+            {redGroups.length === 0 && emptyNote(t("noBlocking"))}
+          </>
+        )}
+
+        {tab === "suggestions" && (
+          <>
             {showOutdated && (
               <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -558,19 +566,22 @@ export default function FlagsPanel({
                   </p>
                 </div>
                 <button type="button" onClick={onRewriteOutdated} disabled={rewriting} className={`${pillButton} bg-primary text-on-primary hover:bg-primary-hover`}>
-                  {rewriting ? t("rewriteChecking") : t("rewrite")}
+                  {rewriting ? (
+                    <span className="inline-flex items-center gap-1.5">
+                      <Icon name="spinner" size={12} className="animate-spin motion-reduce:animate-none" />
+                      <ShimmerText className="[--ff-shimmer-base:rgb(255_255_255/0.6)] [--ff-shimmer-peak:#fff]">{t("rewriteChecking")}</ShimmerText>
+                    </span>
+                  ) : (
+                    t("rewrite")
+                  )}
                 </button>
               </section>
             )}
-            {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
-            {redGroups.length === 0 &&
-              !showOutdated &&
-              emptyNote(t("noBlocking"))}
+
+            {yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`))}
+            {yellowGroups.length === 0 && !showOutdated && emptyNote(t("noSuggestions"))}
           </>
         )}
-
-        {tab === "suggestions" &&
-          (yellowGroups.length > 0 ? yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`)) : emptyNote(t("noSuggestions")))}
 
         {tab === "waived" &&
           (waivedFlags.length > 0 ? (

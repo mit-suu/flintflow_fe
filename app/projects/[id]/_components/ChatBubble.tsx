@@ -5,6 +5,7 @@ import { useFormatter, useLocale, useTranslations } from "next-intl";
 import type { ChatMessage, KnowledgeCitation } from "@/types/chat";
 import { parseChatQuestion, replyContainsQuestion } from "@/lib/question-options";
 import { displayUserText } from "./user-text";
+import { AiWaitLine } from "@/components/ui/ai-activity";
 import KnowledgeAnswer from "./KnowledgeAnswer";
 
 type KnowledgeShape = { reply: string; grounded: boolean; citations: KnowledgeCitation[] };
@@ -97,6 +98,7 @@ export default function ChatBubble({
   answered,
 }: ChatBubbleProps) {
   const t = useTranslations("workspace.chatBubble");
+  const tSteps = useTranslations("aiActivity.steps");
   const locale = useLocale();
   const format = useFormatter();
   const isUser = message.role === "user";
@@ -360,9 +362,8 @@ export default function ChatBubble({
             ) : activeReply ? (
               renderMarkdown(activeReply, isStreaming)
             ) : isStreaming ? (
-              <div className="flex items-center gap-2 py-1.5 text-[#6B6862] text-body">
-                <span className="w-2 h-2 rounded-full bg-[#6A62C4] animate-ping" />
-              </div>
+              // Chưa có chữ đầu: một dòng "Đang suy nghĩ" có ánh sáng chạy + ba chấm (kiểu ChatGPT); chữ về là thay bằng lời đáp
+              <AiWaitLine label={tSteps("thinking")} kind="chat" showTimer={false} className="py-1.5" />
             ) : null}
           </div>
 

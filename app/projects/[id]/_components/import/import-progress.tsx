@@ -1,13 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
-import { useReducedMotion } from "motion/react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
-import type { ExtractionSection, HeadingMapEntry, ImportedDocument, ImportStatus } from "@/types/import";
+import { AiFollowBar } from "@/components/ui/ai-follow-bar";
+import { useAiFollow } from "@/lib/hooks/use-ai-follow";
+import type { ExtractionSection, HeadingMapEntry, ImportedDocument, ImportSourceSection, ImportStatus } from "@/types/import";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
+import { FoundTotals, foundSignature, ImportSourcePane, SectionOutline, type PaneSection } from "./import-source-pane";
 import { importSectionTitle, sortByFileOrder } from "./section-titles";
 
 interface ImportProgressProps {
@@ -33,22 +35,20 @@ interface ImportProgressProps {
    * coi là heading nhóm, không đếm. Mục đọc lỗi luôn hiện. Không có (import cũ) ⇒ đủ `extraction.sections` như trước.
    */
   previewSectionIds?: readonly string[] | null;
+  /** Chữ gốc của file theo mục (GET /import/source, tải một lần). null = chưa có / tải lỗi: khung tài liệu hiện dòng giả như trước. */
+  source?: ImportSourceSection[] | null;
 }
 
+/** Mốc bắt đầu cũ hơn ngần này thì không tin để làm đồng hồ. */
+const MAX_CLOCK_AGE_MS = 12 * 60 * 60 * 1000;
+const NO_BLOCKS: never[] = [];
 const PHASES = ["read", "build", "check"] as const;
 type Phase = (typeof PHASES)[number];
-type RowState = "done" | "active" | "todo" | "failed";
 
 /** Pha hiện tại theo trạng thái import do BE trả — FE không tự suy tiến độ. */
 const phaseOf = (status: ImportStatus): Phase => (status === "checking" ? "check" : status === "baselining" ? "build" : "read");
 
 
-const ROW_LOOK: Record<RowState, { icon: "check-circle" | "spinner" | "error-circle" | null; className: string; pill: string }> = {
-  done: { icon: "check-circle", className: "text-success", pill: "bg-success-soft text-success" },
-  active: { icon: "spinner", className: "text-primary animate-spin", pill: "bg-primary-soft text-primary" },
-  todo: { icon: null, className: "", pill: "bg-surface-container text-on-surface-muted" },
-  failed: { icon: "error-circle", className: "text-on-error-container", pill: "bg-error-container text-on-error-container" },
-};
 
 /**
  * Tiến độ đọc file trong workspace — cùng ngôn ngữ với màn đọc khung: trái là trang tài liệu, mỗi mục một dòng với trạng thái
@@ -56,15 +56,25 @@ const ROW_LOOK: Record<RowState, { icon: "check-circle" | "spinner" | "error-cir
  * ba bước Đọc nội dung → Dựng tài liệu → Kiểm tra. Chạy nền trên BE, rời trang được. Dừng ⇒ banner Tiếp tục; AI quá tải ⇒
  * dòng "đang đọc lại".
  */
-export default function ImportProgress({ doc, sections: allSections, headings, busy = false, onResume, onPause, pausing = false, resolvedMode = null, fileKind = null, previewSectionIds = null }: ImportProgressProps) {
+export default function ImportProgress({ doc, sections: allSections, headings, busy = false, onResume, onPause, pausing = false, resolvedMode = null, fileKind = null, previewSectionIds = null, source = null }: ImportProgressProps) {
   const t = useTranslations("workspace.import.progress");
   const locale = useLocale() as Locale;
   const template = fileKind === "template";
   const hintKey = (phase: Phase): `phaseHint.${Phase | "buildDraft" | "readTemplate"}` =>
     phase === "read" && template ? "phaseHint.readTemplate" : phase === "build" && (template || (resolvedMode !== null && resolvedMode !== 1)) ? "phaseHint.buildDraft" : `phaseHint.${phase}`;
-  const reduceMotion = useReducedMotion();
-  const paperRef = useRef<HTMLDivElement>(null);
-  const activeRef = useRef<HTMLLIElement>(null);
+  const paperRef = useRef<HTMLDivElement | null>(null);
+  // Vùng cuộn cũng cần là state để các thẻ mục quan sát "gần khung nhìn" theo đúng vùng cuộn này
+  const [paperEl, setPaperEl] = useState<HTMLDivElement | null>(null);
+  const setPaper = useCallback((el: HTMLDivElement | null) => {
+    paperRef.current = el;
+    setPaperEl(el);
+  }, []);
+  // Đồng hồ tính từ lúc bấm Bắt đầu (BE ghi confirmed_latest_at); thiếu hoặc quá cũ (mở lại sau nhiều giờ) thì tính từ lúc mở màn
+  const [startedAt] = useState<number | null>(() => {
+    const at = doc.confirmed_latest_at ? Date.parse(doc.confirmed_latest_at) : NaN;
+    const age = Date.now() - at;
+    return Number.isFinite(at) && age >= 0 && age < MAX_CLOCK_AGE_MS ? at : null;
+  });
   const current = phaseOf(doc.status);
   const currentIndex = PHASES.indexOf(current);
   // Cùng tập mục với màn đọc khung (U2-8): số "x/y mục" chỉ đếm tập đó; mục lỗi ngoài tập vẫn hiện dòng để người dùng thấy
@@ -83,7 +93,7 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
     return map;
   }, [headings]);
   // `feature:@B1023` / `function:@B1023` ⇒ khối B1023; `fixed:2.1` ⇒ mục registry
-  const titleOf = (id: string) => importSectionTitle(id, id.includes("@") ? titles.get(id.slice(id.lastIndexOf("@") + 1)) : titles.get(id), locale);
+  const titleOf = useCallback((id: string) => importSectionTitle(id, id.includes("@") ? titles.get(id.slice(id.lastIndexOf("@") + 1)) : titles.get(id), locale), [titles, locale]);
   // Thứ tự theo file (như màn đọc khung), không theo thứ tự BE đọc
   const ordered = useMemo(() => sortByFileOrder(sections, headings), [sections, headings]);
   // Mục đang đọc = mục chờ đầu tiên khi còn ở pha đọc và không dừng (BE đọc lần lượt)
@@ -92,17 +102,32 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
   const pauseKind = !doc.paused ? null : stoppedByUser ? "user" : doc.paused.reason === "credits" ? "credits" : doc.status === "baselining" ? "interrupted" : "ai";
   // Dừng chỉ có ở bước đọc nội dung (bước tốn credit theo từng mục), khi đang chạy
   const canStop = !!onPause && current === "read" && !doc.paused;
-  const activeId = current === "read" && !doc.paused ? allSections.find((s) => s.status === "pending")?.section_id : undefined;
-
-  // Trang tự cuộn để mục đang đọc luôn trong tầm mắt
-  useEffect(() => {
-    const paper = paperRef.current;
-    const row = activeRef.current;
-    if (!paper || !row) return;
-    const top = row.offsetTop;
-    if (top >= paper.scrollTop && top + row.offsetHeight <= paper.scrollTop + paper.clientHeight) return;
-    paper.scrollTo({ top: Math.max(top - paper.clientHeight / 3, 0), behavior: reduceMotion ? "auto" : "smooth" });
-  }, [activeId, reduceMotion]);
+  // AI đang đọc: nhiều mục cùng lúc (BE reading), theo thứ tự trong file
+  const readingLive = current === "read" && !doc.paused;
+  const panes = useMemo<PaneSection[]>(() => {
+    const byId = new Map((source ?? []).map((x) => [x.section_id, x.blocks]));
+    return ordered.map((s) => {
+      const found = s.found ?? [];
+      return {
+        id: s.section_id,
+        title: titleOf(s.section_id),
+        state: s.status === "done" ? "done" : s.status === "failed" ? "failed" : readingLive && s.reading ? "reading" : "todo",
+        error: s.error,
+        found,
+        foundSig: foundSignature(found),
+        blocks: source ? (byId.get(s.section_id) ?? NO_BLOCKS) : null,
+      };
+    });
+  }, [ordered, titleOf, readingLive, source]);
+  const activeIds = useMemo(() => panes.filter((p) => p.state === "reading").map((p) => p.id), [panes]);
+  const follow = useAiFollow({
+    containerRef: paperRef,
+    activeIds,
+    getElement: (id) => paperRef.current?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(id)}"]`) ?? null,
+  });
+  // Đọc ra màn hình: chỉ báo mỗi ~1/5 tiến độ, không báo mỗi lần poll
+  const announceStep = Math.max(1, Math.ceil(total / 5));
+  const announced = done >= total && total > 0 ? total : Math.floor(done / announceStep) * announceStep;
 
   return (
     <div className="flex flex-col gap-6">
@@ -120,6 +145,7 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
           {pauseKind === "user" ? t("stopped.title") : pauseKind ? t("pausedTitle") : t("title")}
         </h2>
         {!doc.paused && <p className="text-body text-on-surface-variant leading-relaxed">{t("canLeave")}</p>}
+        <FoundTotals sections={panes} />
       </header>
 
       {/* Đang dừng (mọi lý do): một thẻ phẳng, câu theo lý do — phần đã xong giữ nguyên, Tiếp tục chạy tiếp từ chỗ dừng */}
@@ -149,6 +175,7 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
 
       <p className="sr-only" aria-live="polite">
         {t(`phase.${current}`)}
+        {total > 0 && current === "read" ? ` - ${t("announce", { done: announced, total })}` : ""}
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_380px] gap-6">
@@ -156,39 +183,16 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
         <section aria-label={t("documentLabel")} className="flex flex-col gap-2 min-w-0">
           <h3 className="min-h-6 flex items-center text-body font-bold text-on-surface-medium">{t("documentLabel")}</h3>
           <div className="flex-1 min-h-0 flex flex-col rounded-card bg-surface-container-lowest shadow-[0_1px_2px_rgba(30,25,60,0.06),0_10px_30px_-14px_rgba(30,25,60,0.22)] overflow-hidden">
-            <div ref={paperRef} className="overflow-y-auto ff-scroll" style={{ maxHeight: "max(320px, calc(100dvh - 400px))" }}>
-              {sections.length === 0 ? (
+            <div ref={setPaper} tabIndex={-1} className="overflow-y-auto ff-scroll focus:outline-none" style={{ maxHeight: "max(320px, calc(100dvh - 400px))" }}>
+              {panes.length === 0 ? (
                 <p className="px-8 py-10 text-body text-on-surface-muted">{t("noSections")}</p>
               ) : (
-                <ol className="relative flex flex-col px-5 sm:px-7 py-5 gap-0.5">
-                  {ordered.map((s) => {
-                    const state: RowState = s.status === "done" ? "done" : s.status === "failed" ? "failed" : s.section_id === activeId ? "active" : "todo";
-                    const look = ROW_LOOK[state];
-                    return (
-                      <li
-                        key={s.section_id}
-                        ref={state === "active" ? activeRef : undefined}
-                        aria-current={state === "active" ? "true" : undefined}
-                        className={`flex items-start gap-3 rounded-inner px-3 py-2.5 transition-colors duration-300 ${state === "active" ? "bg-primary-soft" : ""}`}
-                      >
-                        <span className="w-4 h-4 mt-[3px] shrink-0 flex items-center justify-center">
-                          {look.icon ? <Icon name={look.icon} size={15} className={look.className} /> : <span className="w-1.5 h-1.5 rounded-full bg-on-surface/20" />}
-                        </span>
-                        <span className="flex-1 min-w-0 flex flex-col gap-1.5">
-                          <span className={`text-body font-semibold truncate ${state === "todo" ? "text-on-surface-muted" : "text-on-surface"}`} title={titleOf(s.section_id)}>
-                            {titleOf(s.section_id)}
-                          </span>
-                          {/* Dòng chữ giả: đã đọc ⇒ đậm, chưa ⇒ mờ — trang "đầy" dần theo tiến độ */}
-                          <span aria-hidden className="flex flex-col gap-1">
-                            <span className={`h-1.5 w-11/12 rounded-full ${state === "done" ? "bg-on-surface/[0.09]" : "bg-on-surface/[0.04]"}`} />
-                            <span className={`h-1.5 w-3/5 rounded-full ${state === "done" ? "bg-on-surface/[0.09]" : "bg-on-surface/[0.04]"}`} />
-                          </span>
-                        </span>
-                        <span className={`shrink-0 rounded-full px-2 py-0.5 text-caption font-medium ${look.pill}`}>{t(`row.${state}`)}</span>
-                      </li>
-                    );
-                  })}
-                </ol>
+                <>
+                  <AiFollowBar follow={follow} since={startedAt} running={!doc.paused} idleLabel={doc.paused ? t("pausedTitle") : t(`phase.${current}`)} className="px-5 sm:px-7" />
+                  <div className="px-5 sm:px-7 pb-5">
+                    <ImportSourcePane sections={panes} scrollRoot={paperEl} />
+                  </div>
+                </>
               )}
             </div>
           </div>
@@ -249,6 +253,7 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
                 <span className="text-caption text-on-surface-muted">{t("stop.hint")}</span>
               </div>
             )}
+            {panes.length > 1 && <SectionOutline sections={panes} onJump={follow.jumpTo} />}
             {doc.reread && (
               <p role="status" aria-live="polite" className="flex items-center gap-2 px-3 pb-2 text-caption text-on-surface-muted">
                 <Icon name="refresh" size={14} />

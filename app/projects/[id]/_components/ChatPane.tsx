@@ -13,6 +13,7 @@ import type { ChatMessage, DiscoveryQuestion } from "@/types/chat";
 import type { ChatSession } from "@/types/chat";
 import { workspaceStepLabel as stepLabelOf } from "./phase-labels";
 import Icon from "@/components/ui/Icon";
+import { AiWaitLine } from "@/components/ui/ai-activity";
 import ChatBubble from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput, { formatAnswers } from "./QuestionStepperInput";
@@ -27,6 +28,8 @@ interface ChatPaneProps {
   session: ChatSession | null;
   /** Nhãn step hiện tại, tên đời thường (`Actor`) — không hiện mã B-x.y / S-x.y. */
   stepLabel?: string | null;
+  /** Tiến độ chưa tải xong (chưa biết bước) ⇒ khung chờ cùng cỡ chip bước, không để chip bật ra sau. */
+  stepLabelLoading?: boolean;
   /** Mã step (`S-3.1`) — chỉ để trong tooltip của nhãn. */
   stepCode?: string | null;
   inputMessage: string;
@@ -151,6 +154,7 @@ export default function ChatPane({
   fill = false,
   session,
   stepLabel,
+  stepLabelLoading = false,
   stepCode = null,
   inputMessage,
   setInputMessage,
@@ -188,6 +192,7 @@ export default function ChatPane({
   onStop
 }: ChatPaneProps) {
   const t = useTranslations("workspace.chatPane");
+  const tSteps = useTranslations("aiActivity.steps");
   const locale = useLocale() as Locale;
   const dividerLabel = (step: string) => stepLabelOf(step, locale);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -285,9 +290,12 @@ export default function ChatPane({
             {title ?? t("title")}
           </h2>
         </div>
-        {(headerEnd || stepLabel) && (
+        {(headerEnd || stepLabel || stepLabelLoading) && (
           <div className="flex-1 flex items-center justify-end gap-1.5 min-w-0">
             {headerEnd && <div className="shrink-0 pointer-events-auto">{headerEnd}</div>}
+            {!stepLabel && stepLabelLoading && (
+              <span aria-hidden className="hidden @[24rem]/chathead:block w-28 h-[22px] rounded-full bg-primary-soft animate-pulse" />
+            )}
             {stepLabel && (
               <span
                 title={stepCode ?? undefined}
@@ -362,10 +370,7 @@ export default function ChatPane({
             {/* Lượt tri thức thắng: nó không có chữ để chạy, nên bong bóng streaming sẽ rỗng — hai khối
                 chờ cùng lúc chỉ làm người đọc tưởng có hai lượt đang chạy. */}
             {knowledgePending ? (
-              <div className="flex items-center gap-2 text-body text-on-surface-muted px-1" role="status">
-                <span aria-hidden className="w-3.5 h-3.5 rounded-full border-2 border-current border-t-transparent ff-spinner" />
-                {t("knowledgePending")}
-              </div>
+              <AiWaitLine label={tSteps("searchKnowledge")} kind="reference" className="px-1" />
             ) : (
               isStreaming && (
                 <ChatBubble

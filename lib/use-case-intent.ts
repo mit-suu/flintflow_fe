@@ -13,13 +13,23 @@ const USE_CASE_WORD = /(use[\s-]?case|\buc(?![a-z])|ca sử dụng)/i;
 
 export type UseCaseIntent = "add" | "remove" | "edit";
 
+/** Phủ định đứng ngay trước động từ ("không thêm UC nữa", "đừng xoá", "don't remove") ⇒ động từ đó không phải ý của câu. */
+const NEGATION_BEFORE = /(?:^|[^\p{L}'])(?:không|chưa|đừng|chẳng|ko|don'?t|do not|not|never)\s+$/iu;
+
+/** Vị trí đầu tiên `re` khớp mà không bị phủ định ngay trước (`Infinity` khi không có) - cùng luật `affirmedIndex` của BE. */
+const affirmedIndex = (re: RegExp, text: string): number => {
+  const all = new RegExp(re.source, re.flags.includes("g") ? re.flags : `${re.flags}g`);
+  for (const m of text.matchAll(all)) if (!NEGATION_BEFORE.test(text.slice(Math.max(0, m.index - 12), m.index))) return m.index;
+  return Infinity;
+};
+
 export const editUseCaseIntent = (instruction: string): UseCaseIntent | null => {
   if (!USE_CASE_WORD.test(instruction)) return null;
   const found = (
     [
-      ["add", ADD_VERB.exec(instruction)?.index ?? Infinity],
-      ["remove", REMOVE_VERB.exec(instruction)?.index ?? Infinity],
-      ["edit", EDIT_VERB.exec(instruction)?.index ?? Infinity],
+      ["add", affirmedIndex(ADD_VERB, instruction)],
+      ["remove", affirmedIndex(REMOVE_VERB, instruction)],
+      ["edit", affirmedIndex(EDIT_VERB, instruction)],
     ] as const
   )
     .filter(([, at]) => at !== Infinity)

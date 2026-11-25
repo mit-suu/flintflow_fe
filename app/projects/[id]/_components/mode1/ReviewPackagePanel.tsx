@@ -20,11 +20,6 @@ interface ReviewPackagePanelProps {
   onChanged: () => void;
   /** Đổi giá trị ⇒ tải lại gói (vd CR vừa ghi bản nháp ở khung chat). */
   refreshToken?: number;
-  /**
-   * Khung chat đang soạn một change request chưa ghi vào bản nháp: mã CR, `""` khi chưa có mã (đang chờ chọn nguồn).
-   * Có giá trị ⇒ khoá "Gửi Lead duyệt cả gói" và "Phát hành thẳng" — gói lúc đó thiếu đúng thay đổi đang sửa.
-   */
-  crInProgress?: string | null;
   /** Số mục thiếu sau đổi mẫu còn cờ đỏ (cờ `template_section_migration_missing`) — chặn gửi duyệt / phát hành, nêu rõ lý do. */
   migrationMissing?: number;
 }
@@ -36,7 +31,7 @@ const REASON_MIN = 10;
  * BA **gửi Lead duyệt cả gói** (cờ đỏ = 0) ⇒ bản nháp khoá; Lead **duyệt cả gói** (= phát hành số chính) hoặc **yêu cầu
  * sửa** kèm lý do ⇒ mở khoá. Lead tự làm thì phát hành thẳng từ đây. Không duyệt từng CR.
  */
-export default function ReviewPackagePanel({ projectId, role, onChanged, refreshToken = 0, crInProgress = null, migrationMissing = 0 }: ReviewPackagePanelProps) {
+export default function ReviewPackagePanel({ projectId, role, onChanged, refreshToken = 0, migrationMissing = 0 }: ReviewPackagePanelProps) {
   const t = useTranslations("mode1.reviewPackage");
   const L = useMode1Labels();
   const [pkg, setPkg] = useState<ReviewPackage | null>(null);
@@ -92,16 +87,13 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
   const canSubmit = (role === "lead" || role === "analyst") && pkg.status !== "pending";
   const count = pkg.change_requests.length;
   const pending = pkg.status === "pending";
+  // CR đang soạn ở khung chat chưa nằm trong bản nháp nên không chặn gửi / phát hành (business-flow §3.2 C-7); chỉ cờ đỏ chặn
   const submitBlocked =
-    crInProgress !== null
-      ? crInProgress
-        ? t("blockedEditing", { crId: crInProgress })
-        : t("blockedEditingNew")
-      : count === 0
-        ? t("blockedEmpty")
-        : migrationMissing > 0
-          ? t("blockedMigrationMissing", { count: migrationMissing })
-          : pkg.red_open > 0
+    count === 0
+      ? t("blockedEmpty")
+      : migrationMissing > 0
+        ? t("blockedMigrationMissing", { count: migrationMissing })
+        : pkg.red_open > 0
           ? t("blockedRed", { count: pkg.red_open })
           : null;
   const migrationBlock = migrationMissing > 0 ? t("blockedMigrationMissing", { count: migrationMissing }) : null;
@@ -111,10 +103,11 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
 
   return (
     <section className="flex flex-col gap-2.5" aria-label={t("aria")}>
-      <div className="flex items-center justify-between gap-2">
+      {/* Panel hẹp ⇒ pill trạng thái xuống dòng chứ không bị ép/cắt ở mép phải */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h3 className="font-extrabold text-[#191817] text-body">{t("title")}</h3>
         <span
-          className={`px-2 py-0.5 rounded-full text-caption font-bold ${
+          className={`shrink-0 whitespace-nowrap px-2 py-0.5 rounded-full text-caption font-bold ${
             pending ? "bg-[#F2F1FB] text-[#554DB0]" : pkg.status === "changes_requested" ? "bg-[#FDEDED] text-[#B03030]" : "bg-[#F0EEEA] text-[#4B4842]"
           }`}
         >
@@ -170,7 +163,7 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
             {t("reasonLabel", { min: REASON_MIN })}
           </label>
           <textarea id="pkg-reason" rows={3} value={reason} onChange={(e) => setReason(e.target.value)} className="w-full px-3 py-2 rounded-[8px] bg-white border border-[#ECEAE5] text-body outline-none resize-none" />
-          <div className="flex gap-2 justify-end">
+          <div className="flex flex-wrap gap-2 justify-end">
             <button type="button" onClick={() => setAsking(null)} disabled={busy !== null} className={`${btn} border border-[#ECEAE5] bg-white text-[#4B4842]`}>
               {t("cancel")}
             </button>
@@ -189,13 +182,13 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
       {asking === "release" && (
         <div className="flex flex-col gap-2 bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] p-3 text-body text-[#554DB0]">
           <p>{t("confirmReleaseQuestion", { version: pkg.next_version ?? "", count })}</p>
-          <div className="flex gap-2 justify-end">
+          <div className="flex flex-wrap gap-2 justify-end">
             <button type="button" onClick={() => setAsking(null)} disabled={busy !== null} className={`${btn} border border-[#DCD8F0] bg-white text-[#4B4842]`}>
               {t("cancel")}
             </button>
             <button
               type="button"
-              disabled={busy !== null || (!pending && crInProgress !== null)}
+              disabled={busy !== null}
               onClick={() => void run("release", (v) => releaseDocument(projectId, v))}
               className={`${btn} bg-[#6A62C4] text-white`}
             >
