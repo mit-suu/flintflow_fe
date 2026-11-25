@@ -3619,6 +3619,26 @@
       "download": "Tải về",
       "downloading": "Đang tải…",
       "downloadFailed": "Không tải được file. Thử lại sau."
+    },
+    "liveWrite": {
+      "cr": "{name} vừa ghi {cr} vào {where}",
+      "edit": "{name} vừa sửa {where}",
+      "step": "{name} vừa cho AI soạn {where}",
+      "undo": "{name} vừa hoàn tác ở {where}",
+      "someone": "Một thành viên",
+      "whereOne": "mục {section}",
+      "whereMany": "{count} mục",
+      "staleBanner": "{name} vừa ghi vào mục bạn đang sửa. Bản bạn đang xem đã cũ.",
+      "update": "Cập nhật",
+      "dismiss": "Đóng"
+    },
+    "bell": {
+      "label": "Thông báo",
+      "aria": "Thông báo ({count} mới)",
+      "tabProject": "Dự án này",
+      "tabAll": "Tất cả",
+      "projectEmpty": "Chưa có ai ghi vào tài liệu từ lúc bạn mở dự án.",
+      "projectHint": "Chỉ hiện trong lần mở này. Bấm một dòng để tới mục đó."
     }
   },
   "aiFollow": {

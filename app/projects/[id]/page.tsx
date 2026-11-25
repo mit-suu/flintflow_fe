@@ -134,6 +134,12 @@ import { RunOnce } from "./_components/RunOnce";
 import { useFlags } from "./hooks/useFlags";
 import { useDocument } from "./hooks/useDocument";
 import { useDocumentFollow } from "./hooks/useDocumentFollow";
+import { useProjectEvents } from "./hooks/useProjectEvents";
+import { useLiveActivity } from "./hooks/useLiveActivity";
+import WorkspaceNotificationBell from "./_components/WorkspaceNotificationBell";
+import { isNotifiableWrite, liveWriteText, type LiveWriteTranslator } from "./_components/live-write-text";
+import { emitNotificationsChanged } from "@/lib/api/notifications";
+import type { ProjectStreamEvent, SpineWrittenEvent } from "@/types/project-events";
 import { useComments } from "./hooks/useComments";
 import CommentsPanel from "./_components/CommentsPanel";
 import type { CommentResolutionInput, PendingCommentAnchor } from "@/types/comment";
@@ -1292,6 +1298,40 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   useEffect(() => {
     behindRef.current = follow.behind;
   }, [follow.behind]);
+
+  // ── FLF-487: luồng SSE báo có người vừa ghi + thông báo app mới (polling ở trên vẫn là lưới an toàn) ──
+  const tLive = useTranslations("workspace.liveWrite") as unknown as LiveWriteTranslator;
+  const liveActivity = useLiveActivity();
+  /** Lần ghi của người khác vào đúng mục người dùng đang thao tác dở — thay câu của dải "có bản mới" trên tài liệu. */
+  const [staleWrite, setStaleWrite] = useState<{ event: SpineWrittenEvent; revision: string | null } | null>(null);
+  const shownRevision = doc.meta?.document_revision ?? null;
+  // Tài liệu đã đổi sang bản khác (đã áp bản mới) ⇒ câu báo đó hết hiệu lực
+  if (staleWrite && staleWrite.revision !== shownRevision) setStaleWrite(null);
+  /** Mục đang thao tác dở: bản xem trước sửa đang mở, chỗ đang soạn góp ý. */
+  const busySectionIds = [...(changes.preview?.impact?.sections.map((s) => s.id) ?? []), ...(pendingComment ? [pendingComment.sectionId] : [])];
+  const onProjectEvent = (event: ProjectStreamEvent) => {
+    if (event.type === "notification_created") {
+      emitNotificationsChanged();
+      return;
+    }
+    // `ready` sau khi nối lại: có thể đã lỡ sự kiện trong lúc rớt ⇒ hỏi /version luôn
+    if (event.type === "ready") {
+      follow.pollNow();
+      return;
+    }
+    if (event.type !== "spine_written") return;
+    follow.pollNow();
+    if (!isNotifiableWrite(event, ws.user?.id ?? null)) return;
+    liveActivity.push(event);
+    if (followBusy && event.sections.some((id) => busySectionIds.includes(id))) setStaleWrite({ event, revision: shownRevision });
+    else setToast(liveWriteText(event, panelSectionName, tLive));
+  };
+  useProjectEvents({ projectId, enabled: ws.ready, onEvent: onProjectEvent });
+  const staleWriteMessage = staleWrite ? t("liveWrite.staleBanner", { name: staleWrite.event.actor_name || t("liveWrite.someone") }) : undefined;
+  const applyNewer = () => {
+    setStaleWrite(null);
+    follow.apply();
+  };
   // P12 (BF §3.2, chốt câu 8): Spine mới hơn bản xem trước KHÔNG còn là lý do bỏ bản xem trước — lúc Áp dụng BE kiểm lại
   // theo nội dung từng chỗ (người kia sửa chỗ khác ⇒ vẫn ghi; đúng chữ ⇒ màn so sánh 3 cột trong thẻ sửa).
   // "Viết lại" vừa ghi các mục khác, mục bị người khác sửa giữa hai lượt đang được AI soạn lại (chốt câu 9)
@@ -2233,6 +2273,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           currentStep={mode1 || !currentStep ? null : stepLabel(currentStep, locale)}
           onBackToCurrent={!mode1 && viewedStep !== currentStep ? () => setSelectedStepId(null) : undefined}
           onExportClick={() => setExportOpen((v) => !v)}
+          notificationBell={
+            <WorkspaceNotificationBell
+              activity={liveActivity.items}
+              unseenActivity={liveActivity.unseen}
+              onSeenActivity={liveActivity.markSeen}
+              sectionName={panelSectionName}
+              onOpenSection={showSection}
+            />
+          }
           // Trợ lý Google Docs: tắt mặc định (`isDocsAssistantEnabled`); Viewer không dùng (BE cũng chặn bằng vai trò)
           onDocsAssistantClick={
             isDocsAssistantEnabled && (ws.orgRole === "lead" || ws.orgRole === "analyst") ? () => setDocsAssistantOpen((v) => !v) : undefined
@@ -2774,7 +2823,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           baselineVersions={spine?.baselines.map((b) => b.version) ?? []}
           flags={flags}
           doc={doc}
-          newerVersion={follow.hasNewer && followBusy ? { onApply: follow.apply } : null}
+          newerVersion={follow.hasNewer && followBusy ? { onApply: applyNewer, ...(staleWriteMessage ? { message: staleWriteMessage } : {}) } : null}
           // Mode 1 v3: không có step ⇒ không có nút "xem tại step", mục trống mời tạo CR
           onSelectStep={mode1 ? undefined : setSelectedStepId}
           mode1={mode1}

@@ -3619,6 +3619,26 @@
       "download": "Download",
       "downloading": "Downloading…",
       "downloadFailed": "Could not download the file. Try again later."
+    },
+    "liveWrite": {
+      "cr": "{name} just wrote {cr} to {where}",
+      "edit": "{name} just edited {where}",
+      "step": "{name} just had AI draft {where}",
+      "undo": "{name} just undid a change in {where}",
+      "someone": "A member",
+      "whereOne": "section {section}",
+      "whereMany": "{count} sections",
+      "staleBanner": "{name} just wrote to the section you are editing. The version you see is out of date.",
+      "update": "Update",
+      "dismiss": "Dismiss"
+    },
+    "bell": {
+      "label": "Notifications",
+      "aria": "Notifications ({count} new)",
+      "tabProject": "This project",
+      "tabAll": "All",
+      "projectEmpty": "No one has written to the document since you opened the project.",
+      "projectHint": "Only shown while this page is open. Click a row to go to that section."
     }
   },
   "aiFollow": {

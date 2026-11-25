@@ -35,6 +35,11 @@ export interface UseDocumentFollowResult {
   behind: boolean;
   /** Áp ngay (nút "Cập nhật" trên dải báo), bỏ qua khoảng tối thiểu. */
   apply: () => void;
+  /**
+   * Hỏi `/version` ngay, không chờ nhịp (FLF-487: luồng SSE báo có người vừa ghi). Vẫn theo mọi luật của nhịp thường:
+   * tab ẩn, đang có luồng SSE chạy step / chat, lượt hỏi đang bay ⇒ bỏ qua.
+   */
+  pollNow: () => void;
 }
 
 interface Observation {
@@ -65,6 +70,8 @@ export function useDocumentFollow({
   const [fallbackBaseline, setFallbackBaseline] = useState<string | null>(null);
   const shownRef = useRef(shownRevision);
   const lastApplyAt = useRef(0);
+  /** Lượt hỏi của effect đang chạy — `pollNow` gọi qua đây; null khi tắt (không bật, đang stream). */
+  const pollRef = useRef<(() => void) | null>(null);
   const onApplyRef = useRef(onApply);
   const onSpineOnlyRef = useRef(onSpineOnly);
   useEffect(() => {
@@ -104,10 +111,12 @@ export function useDocumentFollow({
         });
     };
     poll();
+    pollRef.current = poll;
     const timer = setInterval(poll, VERSION_TICK_MS);
     document.addEventListener("visibilitychange", poll);
     return () => {
       cancelled = true;
+      pollRef.current = null;
       clearInterval(timer);
       document.removeEventListener("visibilitychange", poll);
     };
@@ -143,5 +152,7 @@ export function useDocumentFollow({
     onApplyRef.current();
   }, [observed]);
 
-  return { hasNewer, behind: hasNewer || spineBehind, apply };
+  const pollNow = useCallback(() => pollRef.current?.(), []);
+
+  return { hasNewer, behind: hasNewer || spineBehind, apply, pollNow };
 }

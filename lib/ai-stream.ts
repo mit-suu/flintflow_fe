@@ -22,6 +22,42 @@ export const readSseData = (block: string): string | null => {
 };
 
 /**
+ * Đọc thân một response SSE tới hết, phát từng khối `data: {...}` thành event kiểu `T`. Huỷ bằng `signal` ⇒ huỷ reader
+ * (không trông vào fetch tự cắt body — có môi trường để `read()` treo mãi) và kết thúc im lặng.
+ */
+export const consumeSseBody = async <T>(body: ReadableStream<Uint8Array>, onEvent: (event: T) => void, signal?: AbortSignal): Promise<void> => {
+  const reader = body.getReader();
+  signal?.addEventListener("abort", () => void reader.cancel().catch(() => undefined), { once: true });
+  const decoder = new TextDecoder("utf-8");
+  let buffer = "";
+
+  while (true) {
+    const { value, done } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
+
+    // SSE events are separated by a blank line
+    const chunks = buffer.split("\n\n");
+    buffer = chunks.pop() || "";
+
+    for (const chunk of chunks) {
+      const jsonStr = readSseData(chunk);
+      if (!jsonStr) continue;
+
+      let event: T;
+      try {
+        event = JSON.parse(jsonStr) as T;
+      } catch (parseErr) {
+        console.warn("[ai-stream] Failed to parse SSE event JSON:", jsonStr, parseErr);
+        continue;
+      }
+      onEvent(event);
+    }
+  }
+};
+
+/**
  * POST JSON tới một endpoint SSE và phát từng khối `data: {...}` thành event kiểu `T`.
  * Lỗi HTTP/mạng gọi `onError` rồi ném lại; huỷ bằng `signal` thì kết thúc im lặng.
  */
@@ -53,37 +89,7 @@ export const streamSse = async <T>(
       throw new Error("Response body is not readable");
     }
 
-    const reader = res.body.getReader();
-    // Huỷ giữa luồng (nút dừng): không trông vào fetch tự cắt body — có môi trường để `read()` treo mãi.
-    // Huỷ reader thì `read()` đang chờ trả `done` và vòng dưới thoát.
-    signal?.addEventListener("abort", () => void reader.cancel().catch(() => undefined), { once: true });
-    const decoder = new TextDecoder("utf-8");
-    let buffer = "";
-
-    while (true) {
-      const { value, done } = await reader.read();
-      if (done) break;
-
-      buffer += decoder.decode(value, { stream: true }).replace(/\r\n/g, "\n");
-
-      // SSE events are separated by a blank line
-      const chunks = buffer.split("\n\n");
-      buffer = chunks.pop() || "";
-
-      for (const chunk of chunks) {
-        const jsonStr = readSseData(chunk);
-        if (!jsonStr) continue;
-
-        let event: T;
-        try {
-          event = JSON.parse(jsonStr) as T;
-        } catch (parseErr) {
-          console.warn("[ai-stream] Failed to parse SSE event JSON:", jsonStr, parseErr);
-          continue;
-        }
-        onEvent(event);
-      }
-    }
+    await consumeSseBody<T>(res.body, onEvent, signal);
   } catch (err: unknown) {
     if ((err as { name?: unknown } | null)?.name === "AbortError") {
       return;
