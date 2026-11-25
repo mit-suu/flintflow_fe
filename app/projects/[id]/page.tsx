@@ -2495,7 +2495,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               {...(runner.state.phaseGate ? { phaseSummary: runner.state.phaseGate.summary } : {})}
               stepId={runnerStep}
               actions={gate.actions}
-              regenerateUsed={gate.regenerate_used}
               busy={runner.state.busy}
               payload={gate.payload}
               message={runner.state.phaseGate ? runner.state.phaseGate.message_vi : gate.payload?.message_vi}
