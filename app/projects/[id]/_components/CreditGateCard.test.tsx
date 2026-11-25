@@ -41,6 +41,15 @@ describe("CreditGateCard (FLF-332 - cổng cứng xác nhận credit)", () => {
     expect(screen.queryByRole("status")).toBeNull();
   });
 
+  it("FLF-449: có lưu ý (cảnh báo PDF khi đính kèm) ⇒ hiện trước nút Chạy; không có ⇒ không hiện", () => {
+    const pdfNote = "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx.";
+    const { unmount } = renderWithIntl(<CreditGateCard {...base} available={120} notes={[pdfNote]} onRun={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByRole("note")).toHaveTextContent(pdfNote);
+    unmount();
+    renderWithIntl(<CreditGateCard {...base} available={120} onRun={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.queryByRole("note")).toBeNull();
+  });
+
   it("đang chạy ⇒ hai nút khoá, nút Chạy đổi chữ", () => {
     renderWithIntl(<CreditGateCard {...base} available={120} busy onRun={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Đang chạy…" })).toBeDisabled();

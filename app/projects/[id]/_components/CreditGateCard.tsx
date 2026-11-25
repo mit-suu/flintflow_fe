@@ -17,6 +17,8 @@ export interface CreditGateRequest {
   total: number;
   /** Credit khả dụng của ví org; null khi không biết (Viewer, ví chưa có). */
   available: number | null;
+  /** Lưu ý trước khi chạy (đã dịch), vd cảnh báo PDF khi đính kèm (FLF-449). */
+  notes?: string[];
 }
 
 interface CreditGateCardProps extends CreditGateRequest {
@@ -31,7 +33,7 @@ interface CreditGateCardProps extends CreditGateRequest {
  * hiện số credit ước tính và số dư; **người dùng bấm Chạy mới gọi AI**, Huỷ thì không trừ credit, tiến độ giữ nguyên.
  * Component độc lập, nhận dữ liệu qua props để agent (đợt sau) hiện lại trong chat.
  */
-export default function CreditGateCard({ title, lines, total, available, busy = false, onRun, onCancel }: CreditGateCardProps) {
+export default function CreditGateCard({ title, lines, total, available, notes = [], busy = false, onRun, onCancel }: CreditGateCardProps) {
   const t = useTranslations("workspace.creditGate");
   const short = available !== null && available < total;
   return (
@@ -53,6 +55,12 @@ export default function CreditGateCard({ title, lines, total, available, busy = 
           ))}
         </ul>
       )}
+      {notes.map((note) => (
+        <p key={note} role="note" className="flex items-start gap-2 rounded-inner bg-accent-gold-soft px-3 py-2 text-caption leading-relaxed text-on-surface">
+          <Icon name="warning" size={14} className="shrink-0 mt-0.5 text-accent-gold-text" />
+          <span>{note}</span>
+        </p>
+      ))}
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-outline-variant pt-2">
         <span className="text-body font-bold">{t("total", { credits: total })}</span>
         {available !== null && <span className={`text-caption ${short ? "text-error font-bold" : "text-on-surface-muted"}`}>{t("available", { credits: available })}</span>}

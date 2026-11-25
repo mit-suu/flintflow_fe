@@ -145,6 +145,8 @@ export interface DocxPrecheck {
   heading_overlap?: number;
 }
 
+export type ReferenceParseWarning = "pdf_no_text" | "images_skipped";
+
 /** Tài liệu đính kèm của project (`/projects/:id/documents`). Không có `url` / `fileName`: file tải qua `downloadReferenceDocument`. */
 export interface ProjectDocument {
   _id: string;
@@ -156,6 +158,11 @@ export interface ProjectDocument {
   extension?: string | null;
   parseStatus: "pending" | "success" | "failed";
   parseError?: string | null;
+  /**
+   * FLF-449: điều BE biết chắc đã mất khi trích chữ - `images_skipped` (hình / sơ đồ trong .docx không được đọc), `pdf_no_text`
+   * (PDF không có lớp chữ, đi cùng `parseStatus: "failed"`). BE cũ / tài liệu cũ ⇒ thiếu hoặc `[]`.
+   */
+  parseWarnings?: ReferenceParseWarning[];
   tokenCount?: number | null;
   summary?: string | null;
   summaryStatus: "pending" | "success" | "failed";

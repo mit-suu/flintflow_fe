@@ -104,12 +104,20 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
         {docs.map((d) => {
           const ex = extractions[d._id] ?? null;
           const unreadable = d.parseStatus !== "success";
+          // FLF-449 việc 27: lý do cụ thể khi BE biết (PDF scan, .doc Word 97-2003), ảnh trong .docx không được đọc
+          const warnings = d.parseWarnings ?? [];
+          const unreadableLabel = warnings.includes("pdf_no_text")
+            ? t("noText")
+            : d.parseStatus === "failed" && (d.extension ?? d.originalName.slice(d.originalName.lastIndexOf("."))).toLowerCase() === ".doc"
+              ? t("legacyDoc")
+              : t("unreadable");
           return (
             <li key={d._id} className="flex flex-wrap items-center gap-2 text-body rounded-inner px-2 py-1.5 odd:bg-surface-container-low">
               <span className="font-bold text-on-surface truncate min-w-0 max-w-[200px]" title={d.originalName}>
                 {d.originalName}
               </span>
-              {unreadable && <span className="text-caption text-accent-gold-text">{t("unreadable")}</span>}
+              {unreadable && <span className="text-caption text-accent-gold-text">{unreadableLabel}</span>}
+              {!unreadable && warnings.includes("images_skipped") && <span className="text-caption text-accent-gold-text">{t("imagesSkipped")}</span>}
               {ex && (
                 <span className={`px-2 py-0.5 rounded-full text-caption font-bold ${ex.status === "approved" ? "bg-success-soft text-success" : "bg-primary-soft text-primary-hover"}`}>
                   {t(`status.${ex.status}`, { count: ex.items.length })}

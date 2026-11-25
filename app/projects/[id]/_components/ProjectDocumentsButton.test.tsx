@@ -118,6 +118,24 @@ describe("ProjectDocumentsButton - nút Tài liệu ở đầu khung chat", () =
     expect(within(dialog).getByText("Tệp email.pdf đã có trong dự án.")).toBeInTheDocument();
   });
 
+  it("E2E 24/11 #1: đang chờ cổng credit ⇒ thẻ xác nhận hiện ngay trong popup (thẻ trong chat bị popup che); Chạy gọi onRun", async () => {
+    serve([]);
+    let resolveAdd: (v: { cancelled: false; duplicates: string[] }) => void = () => undefined;
+    const onAdd = vi.fn().mockImplementation(() => new Promise((r) => (resolveAdd = r)));
+    const onRun = vi.fn(() => resolveAdd({ cancelled: false, duplicates: [] }));
+    const confirm = { title: "Đọc 1 tài liệu đính kèm", lines: [{ label: "notes.pdf", credits: 2 }], total: 2, available: 100, notes: ["PDF: bảng nhiều cột"], onRun, onCancel: vi.fn() };
+    const { rerender } = renderWithIntl(<ProjectDocumentsButton projectId={P} mode1={false} onAdd={onAdd} />);
+    const dialog = await open();
+    fireEvent.change(dialog.querySelector('input[type="file"]') as HTMLInputElement, { target: { files: [new File(["a"], "notes.pdf")] } });
+    await waitFor(() => expect(onAdd).toHaveBeenCalledTimes(1));
+    rerender(<ProjectDocumentsButton projectId={P} mode1={false} onAdd={onAdd} creditConfirm={confirm} />);
+    expect(await within(dialog).findByText("PDF: bảng nhiều cột")).toBeInTheDocument();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Chạy" }));
+    expect(onRun).toHaveBeenCalledTimes(1);
+    rerender(<ProjectDocumentsButton projectId={P} mode1={false} onAdd={onAdd} creditConfirm={null} />);
+    expect(await within(dialog).findByRole("button", { name: "Thêm tài liệu" })).toBeEnabled();
+  });
+
   it("Viewer (readOnly): không có Thêm tài liệu, không có Xoá", async () => {
     serve([doc("d1", "minutes.txt")]);
     renderWithIntl(<ProjectDocumentsButton projectId={P} mode1={false} readOnly onAdd={vi.fn()} />);

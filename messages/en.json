@@ -966,7 +966,8 @@
           "keep": "Keep as reference",
           "drop": "Remove this file",
           "maybeSrs": "If this is the SRS you want FlintFlow to complete, move it to the SRS slot."
-        }
+        },
+        "pdfWarning": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead."
       },
       "slots": {
         "drop": "Drag a file here or click to choose",
@@ -2889,7 +2890,8 @@
       "cancel": "Cancel",
       "pipelineTitle": "Draft the rest of the SRS",
       "unitLine": "Phase {unit} · {steps, plural, =1 {1 step} other {# steps}}",
-      "attachmentsTitle": "Read {count, plural, =1 {1 attached document} other {# attached documents}}"
+      "attachmentsTitle": "Read {count, plural, =1 {1 attached document} other {# attached documents}}",
+      "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead."
     },
     "aiError": {
       "title": "{what}: the AI failed{retried, select, yes {, retried twice} other {}} - credits refunded",
@@ -5256,7 +5258,10 @@
       "confirmUnknown": "The AI reads the whole document once and spends credits. Run?",
       "cancel": "Cancel",
       "run": "Run",
-      "view": "View"
+      "view": "View",
+      "noText": "No readable text in the file",
+      "legacyDoc": "Cannot read .doc files, save it as .docx",
+      "imagesSkipped": "Images / diagrams in the file are not read"
     },
     "extraction": {
       "aria": "Requirements extracted from {name}",
