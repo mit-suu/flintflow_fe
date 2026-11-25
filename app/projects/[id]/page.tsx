@@ -350,8 +350,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // E2E 24/11 #3: "Mở trong khung chat" ở trang một CR ⇒ `?openCr=CR-007` ⇒ khung chat mở đúng CR đó (nếu là CR đang mở của mình)
   // Theo dõi query (không chỉ lúc mount): Link trong cùng route không mount lại trang.
   const { reloadOpen } = crChat;
-  const searchParams = useSearchParams();
-  const wantedCr = searchParams?.get("openCr") ?? null;
+  const openCrParams = useSearchParams();
+  const wantedCr = openCrParams?.get("openCr") ?? null;
   useEffect(() => {
     if (!wantedCr) return;
     reloadOpen(wantedCr);
