@@ -47,7 +47,7 @@ export interface PairEdit {
 
 export interface MigrationPairing {
   pairs: SectionPair[];
-  followers: { old_key: string; kind: "element" | "continuation"; parent_old_key: string | null }[];
+  followers: { old_key: string; kind: "element" | "continuation" | "child"; parent_old_key: string | null }[];
   ignored_new: string[];
   split: { old_key: string; new_keys: string[] }[];
   /** Heading con của mẫu đích nằm cùng mục với heading cha (thuộc mục cha, không thiếu). Bản ghi cũ không có. */
