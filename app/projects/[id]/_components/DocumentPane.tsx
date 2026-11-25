@@ -1043,7 +1043,9 @@ function DocumentPaneView({
           </h3>
           {document &&
             (versionMenu ? (
-              // Chip version là lối vào danh sách version của tài liệu đang đọc (cùng hình chip, thêm mũi tên)
+              // Chip version là lối vào danh sách version của tài liệu đang đọc (cùng hình chip, thêm mũi tên).
+              // Bọc `min-w-0 max-w-full`: pane hẹp thì chip co lại và cắt "…" thay vì tràn đè lên chip vấn đề bên phải.
+              <div className="min-w-0 max-w-full">
               <AnchoredPopover
                 label={t("versionsTitle")}
                 widthClassName="w-[420px]"
@@ -1053,17 +1055,25 @@ function DocumentPaneView({
                     {...aria}
                     onClick={toggle}
                     title={t("versionsTitle")}
-                    className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-caption text-on-surface-variant bg-surface-container-high hover:bg-surface-container-highest px-2 py-0.5 rounded-full font-mono cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    className="min-w-0 max-w-full whitespace-nowrap inline-flex items-center gap-1 text-caption text-on-surface-variant bg-surface-container-high hover:bg-surface-container-highest px-2 py-0.5 rounded-full font-mono cursor-pointer transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
-                    {document.version}
+                    <span className="truncate min-w-0" title={document.version}>
+                      {document.version}
+                    </span>
                     <Icon name="chevron-down" size={11} />
                   </button>
                 )}
               >
                 {versionMenu}
               </AnchoredPopover>
+              </div>
             ) : (
-              <span className="shrink-0 whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono">{document.version}</span>
+              <span
+                title={document.version}
+                className="min-w-0 max-w-full truncate whitespace-nowrap text-caption text-on-surface-variant bg-surface-container-high px-2 py-0.5 rounded-full font-mono"
+              >
+                {document.version}
+              </span>
             ))}
           {document?.watermark && !isSignedVersion(document.version, baselineVersions) && (
             <span className="shrink-0 whitespace-nowrap text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{document.watermark === "DRAFT" ? t("status.draft") : document.watermark}</span>
