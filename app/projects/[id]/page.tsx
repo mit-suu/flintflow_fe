@@ -3119,6 +3119,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             setTranslateTarget(undefined);
           }}
           onDone={handleTranslated}
+          onAlreadyComplete={handleTranslated}
         />
       )}
 

@@ -42,9 +42,12 @@ describe("WorkspacePage - dịch tài liệu (FLF-265)", () => {
 
     const warning = await screen.findByText("100 mục chưa dịch");
     expect(screen.getByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("VI");
-    fireEvent.click(within(warning.parentElement as HTMLElement).getByRole("button", { name: "Dịch tài liệu" }));
+    fireEvent.click(within(warning.parentElement as HTMLElement).getByRole("button", { name: "Dịch 100 mục còn thiếu" }));
 
+    // FLF-490: báo số mục + credit trước, chưa có lượt run nào
     const dialog = await screen.findByRole("dialog", { name: "Dịch tài liệu" });
+    expect(await within(dialog).findByText("100 mục · ~6 credit")).toBeInTheDocument();
+    expect(mockTranslation.runCalls).toBe(0);
     fireEvent.click(await within(dialog).findByRole("button", { name: "Dịch ngay" }));
     expect(await within(dialog).findByText("Đã dịch xong 100 mục.")).toBeInTheDocument();
     expect(mockTranslation.missing).toBe(0);
@@ -60,7 +63,27 @@ describe("WorkspacePage - dịch tài liệu (FLF-265)", () => {
     expect(await screen.findByTitle(/^Ngôn ngữ tài liệu/)).toHaveTextContent("EN");
     await screen.findByText(/1\. Product Overview/);
     expect(screen.queryByText(/mục chưa dịch/)).toBeNull();
-    expect(screen.queryByRole("button", { name: "Dịch tài liệu" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /mục còn thiếu/ })).toBeNull();
+  }, 30_000);
+
+  it("banner còn ghi N mục nhưng phần thiếu đã dịch ở nơi khác ⇒ hộp báo đã đủ, tài liệu tự tải lại, banner mất, không có lượt run", async () => {
+    mockState.project.documentLanguage = "vi";
+    renderWithIntl(<WorkspacePage />);
+
+    const warning = await screen.findByText("100 mục chưa dịch");
+    // Giả lập tab khác dịch xong sau khi tài liệu đã tải: lần đọc ước tính đầu thấy 0 thiếu
+    mockServer.use(
+      http.get("*/projects/:projectId/translations/status", () => {
+        mockTranslation.missing = 0;
+        return HttpResponse.json({ data: { locale: "vi", source_locale: "en", total: 100, missing: 0, batches: 0, estimated_credits: 0 }, error: null });
+      })
+    );
+    fireEvent.click(within(warning.parentElement as HTMLElement).getByRole("button", { name: "Dịch 100 mục còn thiếu" }));
+
+    const dialog = await screen.findByRole("dialog", { name: "Dịch tài liệu" });
+    expect(await within(dialog).findByText(/đã dịch đủ/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.queryByText(/mục chưa dịch/)).toBeNull());
+    expect(mockTranslation.runCalls).toBe(0);
   }, 30_000);
 });
 

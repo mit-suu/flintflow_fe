@@ -1946,6 +1946,8 @@
       "untranslatedTitle": "Các mục này đang hiện chữ gốc cho tới khi được dịch",
       "untranslated": "{count} mục chưa dịch",
       "translate": "Dịch tài liệu",
+      "translateMissing": "Dịch {count} mục còn thiếu",
+      "translateMissingTitle": "Báo số credit trước, bạn đồng ý mới dịch",
       "emptyDocument": "Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.",
       "draftSection": "Nhờ AI soạn",
       "screenMockup": {
@@ -2169,6 +2171,7 @@
       "language": "Ngôn ngữ",
       "untranslated": "Còn {count} mục chưa dịch - file sẽ in chữ gốc ở các mục này. Vẫn tải được.",
       "translateFirst": "Dịch tài liệu trước",
+      "translateMissingAction": "Dịch {count} mục còn thiếu",
       "translateBeforeExport": "Dịch {count} mục còn thiếu (~{credits} credit) rồi xuất?",
       "translateThenExport": "Dịch rồi xuất",
       "exportAsIs": "Xuất luôn (giữ chữ gốc)",

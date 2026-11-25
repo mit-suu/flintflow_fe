@@ -181,6 +181,22 @@ describe("TranslateDialog (FLF-265)", () => {
     expect(mockTranslation.runCalls).toBe(0);
   });
 
+  it("onAlreadyComplete (FLF-490): không có initialStatus, ước tính về missing 0 ⇒ gọi đúng một lần, không gọi onDone", async () => {
+    mockTranslation.missing = 0;
+    const onAlreadyComplete = vi.fn();
+    const { onDone } = openDialog({ onAlreadyComplete });
+    expect(await screen.findByText(/đã dịch đủ/)).toBeInTheDocument();
+    expect(onAlreadyComplete).toHaveBeenCalledTimes(1);
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("onAlreadyComplete: initialStatus còn thiếu ⇒ không gọi", async () => {
+    const onAlreadyComplete = vi.fn();
+    openDialog({ onAlreadyComplete, initialStatus: { locale: "vi", source_locale: "en", total: 120, missing: 42, batches: 2, estimated_credits: 4 } });
+    expect(await screen.findByText("42 mục · ~4 credit")).toBeInTheDocument();
+    expect(onAlreadyComplete).not.toHaveBeenCalled();
+  });
+
   it("bấm Dừng ⇒ dừng sau lượt đang chạy (không gọi lượt sau); Dịch tiếp ⇒ đọc lại ước tính", async () => {
     const runs = holdRuns();
     const statusReads = countStatusReads();
