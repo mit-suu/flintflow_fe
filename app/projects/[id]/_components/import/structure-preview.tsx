@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import type { CreditEstimate, StructurePreview as Preview } from "@/types/import";
 import StructureAbsorb, { StructureAbsorbLoading } from "./structure-absorb";
+import ForeignProjectNotice from "./foreign-project-notice";
 
 /**
  * Màn đọc khung khi file còn đang tải / BE đang đọc khung — cùng khung với `StructurePreview` (tên file, tiêu đề, trang tài liệu
@@ -58,6 +59,8 @@ interface StructurePreviewProps {
   unsureKind?: boolean;
   /** Khoá "đã xem hiệu ứng hợp nhất" — theo lần import. */
   playKey?: string;
+  /** FLF-458: file vừa tải lên lấy từ một project FlintFlow khác (I-1); `undefined` = không. */
+  foreignProject?: { project_id: string; name: string | null } | null;
 }
 
 /**
@@ -65,7 +68,7 @@ interface StructurePreviewProps {
  * tự trong file (Có / Còn trống / Ngoài phạm vi), báo cáo thiếu sót sơ bộ, một dòng credit + nút Bắt đầu. Không hỏi thêm gì:
  * cấu trúc đích đã chốt ở hộp Tạo dự án.
  */
-export default function StructurePreview({ fileName, preview, estimate, credits, busy = false, downloading = false, onStart, onDownloadGapReport, onPickAnother, footer, textSections, startBlocked = false, unsureKind = false, playKey = "preview" }: StructurePreviewProps) {
+export default function StructurePreview({ fileName, preview, estimate, credits, busy = false, downloading = false, onStart, onDownloadGapReport, onPickAnother, footer, textSections, startBlocked = false, unsureKind = false, playKey = "preview", foreignProject = null }: StructurePreviewProps) {
   const t = useTranslations("workspace.import.preview");
   const summary = preview?.summary ?? null;
   const counted = summary ? summary.present + summary.missing : 0;
@@ -134,6 +137,8 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
           </div>
         )}
       </header>
+
+      {foreignProject && <ForeignProjectNotice name={foreignProject.name} />}
 
       {unsureKind && (
         <p role="status" className="flex items-start gap-2 rounded-card bg-accent-gold-soft px-4 py-3 text-body text-accent-gold-text">

@@ -191,6 +191,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
           onDownloadGapReport={() => void download("gap")}
           onPickAnother={() => setPickAnother(true)}
           unsureKind={doc.preflight.document_kind?.kind === "unknown"}
+          foreignProject={doc.foreign_project ?? null}
           playKey={doc.id}
           startBlocked={imp.busy === "drop"}
           textSections={<TextSections sections={imp.data?.text_sections ?? []} busy={imp.busy === "drop" || imp.busy === "start"} onChange={(keys) => void imp.setDropText(keys)} />}

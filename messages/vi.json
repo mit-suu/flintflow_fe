@@ -3344,7 +3344,11 @@
         },
         "start": "Bắt đầu",
         "starting": "Đang bắt đầu…",
-        "unsureKind": "FlintFlow chưa chắc đây là tài liệu SRS. Bạn vẫn bắt đầu được - hãy xem kỹ các mục bên dưới, hoặc chọn file khác."
+        "unsureKind": "FlintFlow chưa chắc đây là tài liệu SRS. Bạn vẫn bắt đầu được - hãy xem kỹ các mục bên dưới, hoặc chọn file khác.",
+        "foreignProject": {
+          "named": "File này lấy từ dự án \"{name}\" - FlintFlow coi đây là file mới, mọi mục mặc định được đặt ở trạng thái Bỏ chữ, bạn chọn lại mục nào muốn giữ nội dung.",
+          "unnamed": "File này lấy từ một dự án FlintFlow khác - FlintFlow coi đây là file mới, mọi mục mặc định được đặt ở trạng thái Bỏ chữ, bạn chọn lại mục nào muốn giữ nội dung."
+        }
       },
       "progress": {
         "title": "FlintFlow đang đọc file",

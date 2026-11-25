@@ -3344,7 +3344,11 @@
         },
         "start": "Start",
         "starting": "Starting…",
-        "unsureKind": "FlintFlow is not sure this is an SRS document. You can still start - check the sections below carefully, or choose another file."
+        "unsureKind": "FlintFlow is not sure this is an SRS document. You can still start - check the sections below carefully, or choose another file.",
+        "foreignProject": {
+          "named": "This file comes from project \"{name}\" - FlintFlow treats it as a new file, so every section defaults to Drop text; pick the ones you want to keep content for.",
+          "unnamed": "This file comes from another FlintFlow project - FlintFlow treats it as a new file, so every section defaults to Drop text; pick the ones you want to keep content for."
+        }
       },
       "progress": {
         "title": "FlintFlow is reading the file",

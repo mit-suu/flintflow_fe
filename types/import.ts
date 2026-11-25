@@ -81,6 +81,11 @@ export interface ImportedDocument {
   status: ImportStatus;
   preflight: { status: "accepted" | "rejected"; issues: PreflightIssue[]; document_kind?: DocumentKind | null };
   stamp: DocStamp | null;
+  /**
+   * FLF-458: file nhận lúc tạo dự án mang dấu của một project FlintFlow khác (dấu đã bị bỏ, xem `stamp`) — màn đọc khung
+   * báo "File này lấy từ dự án <tên>". `name: null` khi project gốc khác tổ chức hoặc không còn.
+   */
+  foreign_project?: { project_id: string; name: string | null } | null;
   confirmed_latest_at: IsoDateTime | null;
   paused: Paused | null;
   /** Section đang/sắp trích (I-4); resume chạy tiếp từ đây. */
