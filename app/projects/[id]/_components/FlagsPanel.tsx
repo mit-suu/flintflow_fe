@@ -193,7 +193,7 @@ export default function FlagsPanel({
   const [showAll, setShowAll] = useState<Record<string, boolean>>({});
   // Mở sẵn tab có việc: chỉ sang "Nên xem" khi không còn gì phải xử lý mà vẫn có gợi ý
   const [tab, setTab] = useState<IssueTab>(() =>
-    !flags.some((f) => isOpen(f) && f.level === "red") && outdatedCount === 0 && flags.some((f) => isOpen(f) && f.level === "yellow")
+    !flags.some((f) => isOpen(f) && f.level === "red") && (outdatedCount > 0 || flags.some((f) => isOpen(f) && f.level === "yellow"))
       ? "suggestions"
       : "blocking"
   );
@@ -548,6 +548,13 @@ export default function FlagsPanel({
       <div role="tabpanel" id="doc-issues-panel" aria-labelledby={`doc-issues-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "blocking" && (
           <>
+            {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
+            {redGroups.length === 0 && emptyNote(t("noBlocking"))}
+          </>
+        )}
+
+        {tab === "suggestions" && (
+          <>
             {showOutdated && (
               <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -570,15 +577,11 @@ export default function FlagsPanel({
                 </button>
               </section>
             )}
-            {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
-            {redGroups.length === 0 &&
-              !showOutdated &&
-              emptyNote(t("noBlocking"))}
+
+            {yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`))}
+            {yellowGroups.length === 0 && !showOutdated && emptyNote(t("noSuggestions"))}
           </>
         )}
-
-        {tab === "suggestions" &&
-          (yellowGroups.length > 0 ? yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`)) : emptyNote(t("noSuggestions")))}
 
         {tab === "waived" &&
           (waivedFlags.length > 0 ? (

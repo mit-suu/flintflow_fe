@@ -11,6 +11,7 @@ import type {
   OwnerStepDraftRequest,
   PatchLocationRequest,
   PendingSection,
+  RevertCrRequest,
 } from "@/types/change-request";
 import { apiCall } from "./client";
 
@@ -83,3 +84,6 @@ export const closeCr = (projectId: string, crId: string, reason: string) =>
 
 export const cancelCr = (projectId: string, crId: string, reason: string) =>
   apiCall<CrDetail>(`${cr(projectId, crId)}/cancel`, post({ reason }));
+
+/** Hoàn tác một CR đã ghi: BE tạo CR mới (nguồn `revert`, đã chạy kiểm) — 409 `CR_OWN_OPEN` khi người này còn CR dở. */
+export const revertCr = (projectId: string, crId: string, body: RevertCrRequest) => apiCall<CrDetail>(`${cr(projectId, crId)}/revert`, post(body));

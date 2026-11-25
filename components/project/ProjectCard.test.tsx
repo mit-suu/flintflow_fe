@@ -192,17 +192,11 @@ describe("ProjectCard - màu và nhãn theo source mode", () => {
     expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
   });
 
-  it("menu có 'Ký pháp ERD' cho mọi mode (kể cả import); Viewer không có menu", () => {
-    const onChangeErdNotation = vi.fn();
-    const props = { progress: null, onRename: noop, onDelete: noop, onHardDelete: noop, onChangeErdNotation };
-    const imported = { ...baseProject, mode: "import" as const };
-    const { rerender } = renderWithIntl(<ProjectCard project={imported} {...props} />);
+  it("menu thẻ không có cài đặt sơ đồ (ký pháp ERD, mức Sequence Diagram, giao diện màn hình) - chỉnh trong workspace", () => {
+    renderWithIntl(<ProjectCard project={baseProject} progress={null} onRename={noop} onDelete={noop} onHardDelete={noop} />);
     fireEvent.click(screen.getByRole("button", { name: "Tuỳ chọn cho Lumen" }));
-    fireEvent.click(screen.getByRole("menuitem", { name: "Ký pháp ERD" }));
-    expect(onChangeErdNotation).toHaveBeenCalledWith(imported);
-
-    rerender(<ProjectCard project={baseProject} {...props} readOnly />);
-    expect(screen.queryByRole("button", { name: "Tuỳ chọn cho Lumen" })).toBeNull();
+    const labels = screen.getAllByRole("menuitem").map((i) => i.textContent);
+    for (const label of ["Ký pháp ERD", "Mức Sequence Diagram", "Giao diện màn hình"]) expect(labels).not.toContain(label);
   });
 });
 

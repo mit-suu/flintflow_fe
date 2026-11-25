@@ -57,6 +57,8 @@ export interface UseTemplateMigration {
   markReady: () => Promise<Migration | null>;
   cancel: () => Promise<Migration | null>;
   apply: () => Promise<Migration | null>;
+  /** Bước Áp dụng: chốt (`ready`, ghi lựa chọn chọn sẵn) nếu chưa, rồi áp dụng — một thao tác với người dùng. */
+  readyAndApply: () => Promise<Migration | null>;
   revert: () => Promise<Migration | null>;
   clearNotices: () => void;
 }
@@ -192,6 +194,18 @@ export function useTemplateMigration(projectId: string, { detail = false, enable
     markReady: () => run("ready", () => markMigrationReady(projectId, id)),
     cancel: () => run("cancel", () => cancelTemplateMigration(projectId, id)),
     apply: () => run("apply", () => applyTemplateMigration(projectId, id)),
+    readyAndApply: () =>
+      run("apply", async () => {
+        if (current?.state === "ready") return applyTemplateMigration(projectId, id);
+        await markMigrationReady(projectId, id);
+        try {
+          return await applyTemplateMigration(projectId, id);
+        } catch (err) {
+          // Đã chốt mà áp dụng lỗi: đọc lại để màn hiện đúng trạng thái `ready` của BE
+          await reload();
+          throw err;
+        }
+      }),
     revert: () => run("revert", () => revertTemplateMigration(projectId, latestApplied?.id ?? id)),
   };
 }

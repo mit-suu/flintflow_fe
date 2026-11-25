@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
 import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrDetail, type CrLocation, type CrStatus } from "@/types/change-request";
-import { fromApprovedPreview, inApprovedBatch, isFailing, type CrChat, type CrChatPrefill, type CrChatSource } from "../../hooks/mode1/useCrChat";
+import { canKeepViolations, fromApprovedPreview, inApprovedBatch, isFailing, isWarningPending, type CrChat, type CrChatPrefill, type CrChatSource } from "../../hooks/mode1/useCrChat";
 import ClarifyPanel from "./ClarifyPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import { OthersPending, ProposalDiff, useLocTitle } from "./LocationDisplay";
@@ -289,6 +289,8 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   const missing = loc.conclusion === null;
   const accepted = !failed && !missing && chat.isAccepted(loc);
   const busy = chat.busy !== null;
+  const warned = isWarningPending(loc);
+  const keepable = !!chat.detail && canKeepViolations(chat.detail, loc);
   const editing = chat.redraftFor === loc.location_id;
   const openEdit = () => chat.startRedraft(loc.location_id);
   // Sơ đồ gốc (§4.13): BE tự đề xuất, không có gì để AI soạn lại — chỉ Đồng ý (thay hình) hoặc Giữ hình gốc
@@ -320,6 +322,16 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
       {loc.reason && !missing && !diagram && <p className="text-on-surface-muted">{t("reason", { reason: humanizeText(loc.reason) })}</p>}
       <AssumptionsNote assumptions={p?.assumptions} />
 
+      {warned && loc.warning && (
+        // C-4: AI cảnh báo yêu cầu ở chỗ này - chưa chọn "Vẫn làm" hay bỏ thì chưa gửi duyệt được
+        <div className="rounded-[8px] bg-[#FBF4E4] px-2.5 py-1.5 text-[#8A6D1F]" aria-label={t("warningAria")}>
+          <p className="font-bold">{t("warningTitle")}</p>
+          <p>{humanizeText(loc.warning.reason)}</p>
+          <p className="text-caption mt-0.5">{t("proceedHint")}</p>
+        </div>
+      )}
+      {(loc.kept_violations?.length ?? 0) > 0 && <p className="text-[#8A6D1F]">{t("keptNote")}</p>}
+
       {failed && (
         // FLF-375: không in thông báo luật nội bộ (op_not_allowed, path…) — AI nói bằng lời chỗ nào chưa sửa được
         <div className="rounded-[8px] bg-white border border-[#F2CACA] px-2.5 py-1.5" aria-label={t("failedAria")}>
@@ -341,6 +353,17 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
       {chat.canRedraft && (failed || missing || editing) ? (
         <>
           <EditPanel loc={loc} chat={chat} editing={editing} />
+          {keepable && (
+            // C-5: chỉ lỗi luật (cờ đỏ mới) - lỗi "chữ cũ không còn khớp" không có lựa chọn này
+            <div className="flex flex-col gap-1">
+              <div>
+                <button type="button" disabled={busy} onClick={() => chat.keep(loc)} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
+                  {t("keep")}
+                </button>
+              </div>
+              <p className="text-caption text-on-surface-muted">{t("keepHint")}</p>
+            </div>
+          )}
           <div>
             <button type="button" disabled={busy} onClick={() => chat.reject(loc)} className={`${btn} text-[#B03030] px-0`}>
               {missing ? t("skipMissing") : t("dropThis")}
@@ -349,9 +372,15 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
         </>
       ) : !accepted && !missing ? (
         <div className="flex flex-wrap gap-1.5">
-          <button type="button" disabled={busy} onClick={() => chat.accept(loc)} className={`${btn} bg-[#1F7A45] text-white`}>
-            {t("accept")}
-          </button>
+          {warned ? (
+            <button type="button" disabled={busy || !chat.canRedraft} onClick={() => chat.proceed(loc)} className={`${btn} bg-on-surface text-surface`}>
+              {t("proceed")}
+            </button>
+          ) : (
+            <button type="button" disabled={busy} onClick={() => chat.accept(loc)} className={`${btn} bg-[#1F7A45] text-white`}>
+              {t("accept")}
+            </button>
+          )}
           {chat.canRedraft && !diagram && (
             <button type="button" disabled={busy} onClick={openEdit} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
               {t("redo")}
@@ -409,7 +438,7 @@ function ApprovedBatch({ locations, failing, chat }: { locations: CrLocation[]; 
  * FLF-375: phần phải quyết riêng (thẻ có nút riêng, "Đồng ý tất cả" không duyệt luôn) — trượt kiểm, AI chưa đề xuất, thay
  * sơ đồ gốc (§4.13), hoặc có lưu ý của AI.
  */
-const needsOwnCard = (l: CrLocation): boolean => isFailing(l) || l.conclusion === null || isDiagramLocation(l) || (l.verify?.ai_flags.length ?? 0) > 0 || !!l.conflict;
+const needsOwnCard = (l: CrLocation): boolean => isFailing(l) || l.conclusion === null || isDiagramLocation(l) || (l.verify?.ai_flags.length ?? 0) > 0 || !!l.conflict || isWarningPending(l) || (l.kept_violations?.length ?? 0) > 0;
 
 const SHORT = 40;
 const short = (s: string): string => (s.length > SHORT ? `${s.slice(0, SHORT - 1)}…` : s);
@@ -643,7 +672,15 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
 
   const errorBox = chat.error && (
     <div role="alert" className="bg-error-container text-error rounded-control px-3 py-2 text-body flex items-start gap-2">
-      <span className="flex-1">{chat.error}</span>
+      <span className="flex-1 flex flex-col gap-1.5 items-start">
+        {chat.error}
+        {chat.ownOpen && (
+          // CR_OWN_OPEN: mỗi người một CR mở - mở lại CR đang dở thay vì tạo mới
+          <button type="button" disabled={busy} onClick={() => void chat.openOwn()} className={`${btn} bg-on-surface text-surface`}>
+            {chat.ownOpen.crId ? t("openOwn", { crId: chat.ownOpen.crId }) : t("openOwnAny")}
+          </button>
+        )}
+      </span>
       <button type="button" onClick={chat.clearError} aria-label={t("errorClose")} className="font-bold">
         ✕
       </button>
@@ -674,6 +711,14 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
               })}
             </p>
             <p className="text-on-surface-muted">{t("sentNext")}</p>
+            <div className="flex flex-col gap-1">
+              <div>
+                <button type="button" disabled={busy || !me} onClick={() => void chat.revert(chat.sent!, me)} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
+                  {t("revert")}
+                </button>
+              </div>
+              <p className="text-caption text-on-surface-muted">{t("revertHint")}</p>
+            </div>
           </AiBubble>
         )}
         {!chat.sent && !chat.pending && !chat.loading && (
@@ -748,7 +793,7 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
           />
         </AiBubble>
       )}
-      {chat.withdrawAsk && c.status === "awaiting_answers" && (
+      {chat.withdrawAsk && (c.status === "awaiting_answers" || chat.withdrawAfterAnswer) && (
         <WithdrawCard
           crId={c.cr_id}
           answers={chat.withdrawAsk}
@@ -797,6 +842,9 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
               </li>
             ))}
           </ul>
+          {c.status === "impact_review" && !c.paused && d.propose_estimate && (
+            <p className="text-[#8A6D1F]">{t("estimate", { locations: d.propose_estimate.locations, batches: d.propose_estimate.batches, credits: d.propose_estimate.credits })}</p>
+          )}
           {c.status === "impact_review" && !c.paused && (
             <div>
               <button type="button" disabled={busy} onClick={chat.proposeNow} className={`${btn} bg-on-surface text-surface`}>
