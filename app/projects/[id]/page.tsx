@@ -1453,9 +1453,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     if (rightPanel === null) {
       chat.capTo(null);
       brief.capTo(null);
+      panel.capTo(null);
       return;
     }
-    const taken = (railShown ? rail.width : 0) + panel.width;
+    // Rail chỉ chiếm chỗ khi thật sự hiện (mode 1 / phóng to không có rail dù `railShown`)
+    const railTaken = !mode1 && !focusMode && railShown ? rail.width : 0;
+    /*
+     * Khung chat đã co tới `CHAT_MIN` mà vẫn thiếu chỗ (màn ~940px) ⇒ panel phải cũng phải nhường, nếu không
+     * `main` (`overflow-hidden`) cắt mất mép phải của panel. Trần không phụ thuộc `panel.width` nên không dao động:
+     * panel đang hẹp hơn trần thì trần không có tác dụng — ở màn rộng (≥1280) bố cục giữ nguyên.
+     * Tay kéo `ResizeHandle` có `-mx-[5px]` nên không chiếm bề ngang, không cần trừ.
+     */
+    const flexMin = briefHidden ? 0 : briefPane ? BRIEF_MIN : DOC_MIN;
+    panel.capTo(Math.max(PANEL_MIN, viewport - railTaken - (focusMode ? 0 : CHAT_MIN) - flexMin));
+    const taken = railTaken + panel.width;
     if (briefPane && !briefHidden) {
       // Pha Brief: chat co giãn (flex-1), cột tóm tắt mới là cái cố định ⇒ co nó
       brief.capTo(viewport - taken - CHAT_MIN);
@@ -1465,7 +1476,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       chat.capTo(viewport - taken - DOC_MIN);
       brief.capTo(null);
     }
-  }, [rightPanel, viewport, railShown, rail.width, panel.width, briefPane, briefHidden, chat, brief]);
+  }, [rightPanel, viewport, mode1, focusMode, railShown, rail.width, panel, briefPane, briefHidden, chat, brief]);
 
   // Chỉ tính "đang chạy ở nơi khác" khi tab này không giữ lượt nào: lượt của chính tab (đang ở cổng, đang chờ trả lời)
   // cũng làm `running` bật nhưng ô chat vẫn phải dùng được để yêu cầu sửa / trả lời.
