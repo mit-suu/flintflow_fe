@@ -5291,7 +5291,13 @@
       "noText": "Không đọc được chữ trong file",
       "legacyDoc": "Chưa đọc được file .doc, hãy lưu lại thành .docx",
       "imagesSkipped": "Hình / sơ đồ trong file không được đọc",
-      "confirmBatches": "Tài liệu dài, AI đọc thành {batches} lượt, tốn ~{credits} credit. Chạy chứ?"
+      "confirmBatches": "Tài liệu dài, AI đọc thành {batches} lượt, tốn ~{credits} credit. Chạy chứ?",
+      "summaryPending": "chưa đọc bằng AI",
+      "summarize": "Đọc bằng AI",
+      "summarizing": "Đang đọc…",
+      "summarizeFailed": "Không đọc được tài liệu",
+      "confirmSummarizeAria": "Xác nhận credit trước khi AI đọc tài liệu",
+      "confirmSummarize": "AI đọc và tóm tắt tài liệu này, tốn ~{credits} credit. Chạy chứ?"
     },
     "extraction": {
       "aria": "Danh sách yêu cầu rút từ {name}",

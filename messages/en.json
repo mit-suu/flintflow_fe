@@ -5291,7 +5291,13 @@
       "noText": "No readable text in the file",
       "legacyDoc": "Cannot read .doc files, save it as .docx",
       "imagesSkipped": "Images / diagrams in the file are not read",
-      "confirmBatches": "The document is long: the AI reads it in {batches} passes for ~{credits} credits. Run?"
+      "confirmBatches": "The document is long: the AI reads it in {batches} passes for ~{credits} credits. Run?",
+      "summaryPending": "not read by AI yet",
+      "summarize": "Read with AI",
+      "summarizing": "Reading…",
+      "summarizeFailed": "Could not read the document",
+      "confirmSummarizeAria": "Confirm credits before the AI reads the document",
+      "confirmSummarize": "The AI reads and summarizes this document for ~{credits} credits. Run?"
     },
     "extraction": {
       "aria": "Requirements extracted from {name}",
