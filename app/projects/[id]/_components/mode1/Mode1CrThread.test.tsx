@@ -289,6 +289,25 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
     expect(S().crs.get("CR-001")!.locations[0].reason).toBe("Bỏ vì mục đã được Minh sửa");
   });
 
+  it("FLF-480 (B18): bảng nhiều hàng ở thẻ xung đột ⇒ giữ từng hàng, chỗ đổi tô màu", async () => {
+    const d = await proposalsOf(1);
+    const loc = d.locations[0];
+    loc.conflict = {
+      at_proposal: "Mã | Nội dung\nM1 | Chào\nM2 | Tạm biệt",
+      current: "Mã | Nội dung\nM1 | Xin chào\nM2 | Tạm biệt",
+      proposal: "Mã | Nội dung\nM1 | Chào\nM2 | Hẹn gặp lại",
+      changed_by: "Minh",
+      changed_at: null,
+      proposed_at: null
+    };
+    d.change_request.status = "manual_fix";
+    renderWithIntl(<Harness />);
+    const card = within(await screen.findByLabelText("Chỗ bị người khác sửa trong lúc chờ")).getByRole("article");
+    expect(card.textContent).not.toContain("|");
+    expect(within(card).getAllByRole("insertion").map((e) => e.textContent)).toEqual(expect.arrayContaining(["Xin"]));
+    expect(within(card).getAllByText("M2").length).toBeGreaterThanOrEqual(3);
+  });
+
   it("yêu cầu gốc đụng thẳng phần vừa sửa ⇒ AI hỏi lại trong chat với gợi ý; chọn gợi ý ⇒ AI soạn lại theo câu trả lời", async () => {
     const d = await proposalsOf(1);
     const loc = d.locations[0];

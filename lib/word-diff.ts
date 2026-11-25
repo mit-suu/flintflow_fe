@@ -35,3 +35,47 @@ export const diffTokens = (a: string, b: string): DiffToken[] => {
   }
   return out;
 };
+
+/**
+ * FLF-480 (B18): so theo **dòng** trước, rồi theo từ trong cặp dòng đổi — giữ được xuống dòng (bảng 5.3 là mỗi hàng một
+ * dòng `ô | ô`). Trả mỗi dòng của `b` (và dòng chỉ có ở `a` dạng `del`) là một dãy token.
+ */
+export const diffLines = (a: string, b: string): DiffToken[][] => {
+  const x = a.split("\n");
+  const y = b.split("\n");
+  const n = x.length;
+  const m = y.length;
+  const lcs: Uint16Array[] = Array.from({ length: n + 1 }, () => new Uint16Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) lcs[i][j] = x[i] === y[j] ? lcs[i + 1][j + 1] + 1 : Math.max(lcs[i + 1][j], lcs[i][j + 1]);
+  const out: DiffToken[][] = [];
+  let i = 0;
+  let j = 0;
+  const flush = (dels: string[], inss: string[]) => {
+    const k = Math.max(dels.length, inss.length);
+    for (let r = 0; r < k; r++) {
+      if (r < dels.length && r < inss.length) out.push(diffTokens(dels[r], inss[r]));
+      else if (r < inss.length) out.push(diffTokens("", inss[r]));
+      else out.push(diffTokens(dels[r], ""));
+    }
+  };
+  let dels: string[] = [];
+  let inss: string[] = [];
+  while (i < n || j < m) {
+    if (i < n && j < m && x[i] === y[j]) {
+      flush(dels, inss);
+      dels = [];
+      inss = [];
+      out.push(diffTokens(x[i], y[j]));
+      i++;
+      j++;
+    } else if (j < m && (i >= n || lcs[i][j + 1] >= lcs[i + 1][j])) {
+      inss.push(y[j]);
+      j++;
+    } else {
+      dels.push(x[i]);
+      i++;
+    }
+  }
+  flush(dels, inss);
+  return out;
+};
