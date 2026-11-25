@@ -5365,6 +5365,7 @@
       "stale": "The document changed while this was being prepared, so nothing was applied. Review your choices on this step and continue.",
       "applyingElsewhere": "This template change is being applied in another session. Wait for it to finish, then reload.",
       "refresh": "Reload",
+      "untranslatedNote": "{count, plural, one {# passage} other {# passages}} could not be translated and keep the original text{sections, select, none {} other { in these sections: {sections}}}. Fix them through a change request.",
       "appliedNote": "The document now follows template {name} (version {version}).",
       "changeAgain": "Switch to another template",
       "cancelMigration": "Cancel template change",
