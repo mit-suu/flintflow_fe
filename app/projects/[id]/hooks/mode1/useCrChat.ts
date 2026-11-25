@@ -248,9 +248,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
    * hoặc không đọc được ⇒ giữ nguyên trạng thái hiện có).
    */
   const detailRef = useRef(detail);
-  detailRef.current = detail;
   const busyRef = useRef<CrChatBusy | null>(null);
-  busyRef.current = busy;
+  useEffect(() => {
+    detailRef.current = detail;
+    busyRef.current = busy;
+  }, [detail, busy]);
   const refreshOpen = useCallback(async (): Promise<CrDetail | null | undefined> => {
     const cur = detailRef.current;
     if (!cur) return undefined;
