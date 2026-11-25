@@ -2226,6 +2226,7 @@
     "diff": {
       "title": "Preview changes",
       "deleted": "(deleted)",
+      "notYet": "(none)",
       "none": "No changes.",
       "impact": "Impact",
       "rerender": "Diagrams to re-render: {ids}",

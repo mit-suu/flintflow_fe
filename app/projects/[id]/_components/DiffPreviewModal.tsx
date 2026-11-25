@@ -48,12 +48,12 @@ const short = (
   value: unknown,
   field: string | undefined,
   names: RefNames,
-  deletedText: string,
+  absentText: string,
   humanValue: (value: unknown, field: string | undefined, names?: RefNames) => string
 ): string => {
   if (value === undefined) return "-";
   if (value === null) return "-";
-  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return deletedText;
+  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return absentText;
   const text = humanValue(value, field, names);
   return text.length > 160 ? `${text.slice(0, 160)}…` : text;
 };
@@ -252,7 +252,7 @@ export default function DiffPreviewModal({
                       const a = readable(change.value, field, names, humanValue);
                       return (
                         <>
-                          <DiffCell side="before" before={b} after={a} tone="text-[#B03030]" fallback={short(change.before, field, names, t("deleted"), humanValue)} />
+                          <DiffCell side="before" before={b} after={a} tone="text-[#B03030]" fallback={short(change.before, field, names, t("notYet"), humanValue)} />
                           <DiffCell side="after" before={b} after={a} tone="text-[#1F7A45]" fallback={short(change.value, field, names, t("deleted"), humanValue)} />
                         </>
                       );

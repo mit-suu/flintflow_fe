@@ -267,4 +267,21 @@ describe("DiffPreviewModal FLF-486 A2", () => {
     const cells = container.querySelectorAll("tbody td");
     expect(cells[1].textContent).not.toBe(cells[2].textContent);
   });
+
+  it("FLF-486: mục thêm mới ghi (chưa có) ở cột Trước, mục bị xoá vẫn ghi (xoá) ở cột Sau", () => {
+    const preview: PreviewResult = {
+      ...basePreview,
+      changes: [
+        { op: "add", path: "use_cases[id=UC09]", before: { _absent: true }, value: { id: "UC09", name: "Send Reminder" }, reason: null },
+        { op: "remove", path: "actors[id=A04]", before: { id: "A04", name: "Patron", kind: "human" }, value: { _absent: true }, reason: null },
+      ],
+    };
+    renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    expect(screen.getAllByText("(chưa có)")).toHaveLength(1);
+    expect(screen.getAllByText("(xoá)")).toHaveLength(1);
+    const rows = screen.getAllByRole("row");
+    const added = rows.find((r) => r.textContent?.includes("Send Reminder"))!;
+    expect(added).toHaveTextContent("(chưa có)");
+    expect(added).not.toHaveTextContent("(xoá)");
+  });
 });

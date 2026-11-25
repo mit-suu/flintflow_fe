@@ -2226,6 +2226,7 @@
     "diff": {
       "title": "Xem trước thay đổi",
       "deleted": "(xoá)",
+      "notYet": "(chưa có)",
       "none": "Không có thay đổi nào.",
       "impact": "Phạm vi ảnh hưởng",
       "rerender": "Diagram render lại: {ids}",
