@@ -12,6 +12,7 @@ export const REFERENCE_EXTENSIONS = [".docx", ".pdf", ".doc", ".md", ".txt"] as 
 
 const extensionOf = (name: string) => name.slice(name.lastIndexOf(".")).toLowerCase();
 export const isDocx = (file: File) => extensionOf(file.name) === ".docx";
+const isPdf = (file: File) => extensionOf(file.name) === ".pdf";
 export const isReferenceType = (file: File) => (REFERENCE_EXTENSIONS as readonly string[]).includes(extensionOf(file.name));
 
 export interface ReferenceFile {
@@ -417,6 +418,13 @@ export function ReferenceSlot({ files, hasSrs, disabled, onAdd, onRemove, onKeep
                 removeLabel={t("remove", { name: ref.file.name })}
                 busyLabel={ref.precheck === undefined && isDocx(ref.file) ? t("checking") : undefined}
               >
+                {isPdf(ref.file) && (
+                  // FLF-449 (AC-21.2): PDF cảnh báo trước khi tải - bảng nhiều cột / bản scan
+                  <p className="flex items-start gap-1.5 px-1 text-caption leading-relaxed text-accent-gold-text">
+                    <Icon name="warning" size={14} className="shrink-0 mt-0.5" />
+                    <span>{t("pdfWarning")}</span>
+                  </p>
+                )}
                 {maybeSrs(ref) && (
                   <p className="flex flex-wrap items-center gap-x-1 px-1 text-caption leading-relaxed text-on-surface-muted">
                     <span>{t("suggest.maybeSrs")}</span>

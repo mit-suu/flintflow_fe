@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
 import { uploadProjectDocument } from "@/lib/api/documents";
-import { uploadReferenceDocument, versionCandidatesOf } from "./reference-upload";
+import { hasPdfFile, uploadReferenceDocument, versionCandidatesOf } from "./reference-upload";
 import type { DocumentVersionCandidate } from "@/types/document";
 
 vi.mock("@/lib/api/documents", () => ({ uploadProjectDocument: vi.fn() }));
@@ -52,5 +52,13 @@ describe("FLF-398 - uploadReferenceDocument", () => {
     expect(versionCandidatesOf(possible())).toEqual([CANDIDATE]);
     expect(versionCandidatesOf(duplicate())).toBeNull();
     expect(versionCandidatesOf(new Error("x"))).toBeNull();
+  });
+});
+
+describe("FLF-449 - hasPdfFile (cảnh báo PDF trước khi tải, AC-21.2)", () => {
+  it("xét theo đuôi, không phân biệt hoa thường", () => {
+    expect(hasPdfFile([new File(["x"], "bien-ban.docx"), new File(["x"], "Hop dong.PDF")])).toBe(true);
+    expect(hasPdfFile([{ name: "notes.md" }, { name: "pdf-notes.txt" }])).toBe(false);
+    expect(hasPdfFile([])).toBe(false);
   });
 });

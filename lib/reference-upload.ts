@@ -25,6 +25,12 @@ export const versionCandidatesOf = (err: unknown): DocumentVersionCandidate[] | 
   return Array.isArray(candidates) && candidates.length ? (candidates as DocumentVersionCandidate[]) : null;
 };
 
+/**
+ * FLF-449 việc 27 (AC-21.2): có file PDF trong lô sắp tải không - xét theo đuôi, chưa đọc file. PDF bảng nhiều cột có thể
+ * trích lộn thứ tự, PDF scan không có lớp chữ ⇒ cảnh báo trước khi tải.
+ */
+export const hasPdfFile = (files: readonly { name: string }[]): boolean => files.some((f) => f.name.toLowerCase().endsWith(".pdf"));
+
 const isDuplicate = (err: unknown): err is ApiClientError => err instanceof ApiClientError && err.code === "DUPLICATE_DOCUMENT";
 
 export async function uploadReferenceDocument(projectId: string, file: File, choose: DocumentVersionChooser): Promise<ReferenceUploadResult> {

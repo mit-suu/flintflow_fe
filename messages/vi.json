@@ -4,6 +4,15 @@
     "description": "Công cụ đặc tả phần mềm bằng AI cho doanh nghiệp"
   },
   "common": {
+    "optionAnalysis": {
+      "pros": "Ưu",
+      "cons": "Nhược",
+      "risks": "Rủi ro, giả định",
+      "whyRecommended": "Vì sao khuyến nghị",
+      "showDetails": "Xem ưu, nhược",
+      "hideDetails": "Ẩn ưu, nhược",
+      "detailsLabel": "Ưu, nhược và rủi ro của phương án {label}"
+    },
     "localeSwitcher": {
       "label": "Ngôn ngữ",
       "vi": "Tiếng Việt",
@@ -966,7 +975,8 @@
           "keep": "Giữ làm tham khảo",
           "drop": "Bỏ file này",
           "maybeSrs": "Nếu đây là SRS bạn muốn FlintFlow hoàn thiện, hãy chuyển sang ô SRS."
-        }
+        },
+        "pdfWarning": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx."
       },
       "slots": {
         "drop": "Kéo thả file vào đây hoặc bấm để chọn",
@@ -1758,18 +1768,13 @@
     },
     "gate": {
       "title": "Cổng chốt",
-      "noRegenerate": "Đã hết lượt Regenerate",
       "revisionLabel": "Cần sửa gì?",
-      "acceptAsIsLabel": "Lý do chấp nhận bản hiện tại (bắt buộc)",
       "sendRevision": "Gửi yêu cầu sửa",
-      "confirmAcceptAsIs": "Xác nhận duyệt như hiện tại",
       "aria": "Cổng chốt",
       "warnNoOps": "AI không soạn được nội dung nào ở lượt này",
       "warnEmpty": "Chạy xong nhưng mục vẫn trống",
       "warnEmptySections": "{base}. Còn trống: {titles}. Duyệt vẫn chốt được bước nhưng cờ \"mục trống\" sẽ còn, bạn bổ sung qua chat hoặc bỏ qua cờ ở panel Kiểm tra nếu mục này không áp dụng.",
-      "warnNoOpsHint": "{base} - bạn nhắn tôi cần bổ sung gì qua chat, hoặc làm lại ở menu ⋯ nhé.",
-      "regenerate": "↻ Làm lại · còn {count} lần",
-      "acceptAsIs": "✓ Duyệt như hiện tại",
+      "warnNoOpsHint": "{base} - bạn nhắn tôi cần bổ sung gì qua chat nhé.",
       "leadOnly": "Chỉ Lead ký được baseline. Bạn nộp baseline để Lead duyệt ở panel Kiểm tra.",
       "signBaseline": "Ký baseline",
       "finishKeepFirst": "Gửi hoặc huỷ lý do \"Giữ nguyên\" trước khi đi tiếp",
@@ -2894,7 +2899,8 @@
       "cancel": "Huỷ",
       "pipelineTitle": "Soạn phần còn lại của SRS",
       "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
-      "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}"
+      "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}",
+      "pdfNote": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx."
     },
     "aiError": {
       "title": "{what}: AI lỗi{retried, select, yes {, đã thử lại 2 lần} other {}} - credit đã hoàn",
@@ -5277,12 +5283,16 @@
       "confirmUnknown": "AI đọc cả tài liệu một lần và tốn credit. Chạy chứ?",
       "cancel": "Huỷ",
       "run": "Chạy",
-      "view": "Xem"
+      "view": "Xem",
+      "noText": "Không đọc được chữ trong file",
+      "legacyDoc": "Chưa đọc được file .doc, hãy lưu lại thành .docx",
+      "imagesSkipped": "Hình / sơ đồ trong file không được đọc",
+      "confirmBatches": "Tài liệu dài, AI đọc thành {batches} lượt, tốn ~{credits} credit. Chạy chứ?"
     },
     "extraction": {
       "aria": "Danh sách yêu cầu rút từ {name}",
       "title": "{name} - {count, plural, =1 {1 yêu cầu} other {# yêu cầu}}",
-      "intro": "Nhãn là gợi ý của AI. Tick mục đưa vào; bỏ mục nào ghi lý do; mục cùng nhóm thành một change request (đổi tên nhóm để tách). Mục Trùng chỉ cần tick - tài liệu thành nguồn của phần tử.",
+      "intro": "Nhãn là gợi ý của AI. Tick mục đưa vào; bỏ mục nào ghi lý do; mục cùng nhóm thành một change request (đổi tên nhóm để tách). Mục Trùng chỉ cần tick - tài liệu thành nguồn của phần tử. Mục Suy ra không được tích sẵn: muốn đưa vào thì chọn một phương án.",
       "creditsUsed": "đã dùng {credits} credit",
       "approvedAt": "danh sách đã duyệt",
       "labels": {
@@ -5290,7 +5300,8 @@
         "modification": "Sửa đổi",
         "duplicate": "Trùng",
         "contradiction": "Mâu thuẫn",
-        "ambiguous": "Mơ hồ"
+        "ambiguous": "Mơ hồ",
+        "inferred": "Suy ra"
       },
       "group": "Nhóm",
       "groupAria": "Nhóm của {id}",
@@ -5308,8 +5319,31 @@
       "requesterPlaceholder": "Ai đưa ra yêu cầu (vd PM Lan)",
       "create": "{count, plural, =0 {Duyệt danh sách} =1 {Tạo 1 change request} other {Tạo # change request}}",
       "creating": "Đang tạo…",
-      "problems": "{count, plural, =1 {Còn 1 mục} other {Còn # mục}} thiếu lý do bỏ hoặc câu trả lời.",
-      "approveFailed": "Không duyệt được danh sách"
+      "problems": "{count, plural, =1 {Còn 1 mục} other {Còn # mục}} thiếu lý do bỏ, câu trả lời hoặc phương án.",
+      "approveFailed": "Không duyệt được danh sách",
+      "paragraph": "đoạn {n}",
+      "openParagraph": "Mở {source}",
+      "speaker": "Người nói: {name}",
+      "sidesTitle": "Mỗi bên nói gì",
+      "unknownSpeaker": "Không rõ người nói",
+      "situationAria": "Hiện trạng và mong muốn",
+      "current": "Hiện trạng",
+      "desired": "Mong muốn",
+      "inference": {
+        "symptom": "Triệu chứng",
+        "rootCause": "Gốc rễ",
+        "rationale": "Vì sao suy ra",
+        "servesGoal": "Phục vụ mục tiêu: {goal}",
+        "optionsAria": "Phương án cho {id}",
+        "recommended": "Khuyến nghị",
+        "recommendationReason": "Vì sao khuyến nghị: {reason}",
+        "noRecommendation": "Chưa đủ căn cứ để khuyến nghị - hai phương án ngang nhau, bạn chọn.",
+        "pros": "Ưu",
+        "cons": "Nhược",
+        "risks": "Rủi ro / giả định",
+        "chosen": "Đã chọn: {label}",
+        "pickHint": "Muốn đưa mục này vào thì chọn một phương án."
+      }
     },
     "templateMigration": {
       "loading": "Đang tải…",

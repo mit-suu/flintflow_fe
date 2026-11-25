@@ -145,14 +145,35 @@ export interface StepsResponse {
   steps: StepSummary[];
 }
 
-/** Một lựa chọn của thẻ hỏi (theo AskUserQuestion). "Khác…" không nằm ở đây — FE tự thêm. */
-export interface QuestionOption {
+/**
+ * Một phương án (FLF-449 N1, `OptionAnalysis` của BE): dùng cho thẻ hỏi và các chỗ AI đưa phương án khác (cờ nghi sai
+ * nghiệp vụ, mục Suy ra). `pros` / `cons` / `risks` thiếu = rỗng.
+ */
+export interface OptionAnalysis {
   label: string;
   /** Chọn phương án này được/mất gì. */
   description?: string;
   /** Bản so sánh monospace (bố cục màn, cấu trúc bảng). */
   preview?: string;
+  /** Ưu. */
+  pros?: string[];
+  /** Nhược. */
+  cons?: string[];
+  /** Rủi ro / giả định đi kèm. */
+  risks?: string[];
+  /** Phương án được khuyến nghị. Run-state cũ không có cờ mà chỉ có đuôi "(Khuyến nghị)" trên `label`. */
+  recommended?: boolean;
 }
+
+/** Bộ phương án: khuyến nghị là tuỳ chọn (03 #3), có thì kèm lý do. */
+export interface OptionSet {
+  options: OptionAnalysis[];
+  recommendation_reason?: string;
+  evidence?: { quote: string; para_id?: string; source: "document" | "brief" | "srs" };
+}
+
+/** Một lựa chọn của thẻ hỏi (theo AskUserQuestion). "Khác…" không nằm ở đây — FE tự thêm. */
+export type QuestionOption = OptionAnalysis;
 
 /**
  * Câu hỏi trong `answer_needed` / run-state. Không có `options` ⇒ câu mở, trả lời bằng ô chat.
@@ -167,6 +188,8 @@ export interface Question {
   multiple?: boolean;
   /** Câu mở đã hỏi ngay trong lời AI (`reply`) — không render thành thẻ/dòng riêng, nhưng vẫn trả lời được bằng ô chat. */
   inline?: boolean;
+  /** FLF-449: vì sao khuyến nghị phương án có `recommended` — hiện ở khối "Vì sao khuyến nghị". */
+  recommendation_reason?: string;
 }
 
 export type PipelineErrorCode =

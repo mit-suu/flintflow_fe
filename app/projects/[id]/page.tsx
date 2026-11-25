@@ -12,6 +12,7 @@ import ScreenMockupDialog from "@/components/project/ScreenMockupDialog";
 import { onProjectModeMaybeChanged, signalProjectModeMaybeChanged } from "@/lib/project-mode-signal";
 import { setStepScreenNames } from "@/lib/constants/step-registry";
 import { describeConversation, editUseCaseIntent } from "@/lib/use-case-intent";
+import { hasPdfFile } from "@/lib/reference-upload";
 import { ApiClientError } from "@/lib/api/client";
 import Badge, { type BadgeTone } from "@/components/ui/Badge";
 import { createBaseline, rejectBaseline, submitBaseline } from "@/lib/api/export";
@@ -317,6 +318,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         lines: files.map((f) => ({ label: f.name, credits: cost })),
         total,
         available: balance,
+        // FLF-449 (AC-21.2): PDF cảnh báo trước khi tải - bảng nhiều cột / bản scan
+        notes: hasPdfFile(files) ? [t("creditGate.pdfNote")] : undefined,
       });
     },
     [confirmCredits, t]
@@ -344,6 +347,18 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     ws.user?.id ?? null
   );
+  // E2E 24/11 #3: "Mở trong khung chat" ở trang một CR ⇒ `?openCr=CR-007` ⇒ khung chat mở đúng CR đó (nếu là CR đang mở của mình)
+  // Theo dõi query (không chỉ lúc mount): Link trong cùng route không mount lại trang.
+  const { reloadOpen } = crChat;
+  const openCrParams = useSearchParams();
+  const wantedCr = openCrParams?.get("openCr") ?? null;
+  useEffect(() => {
+    if (!wantedCr) return;
+    reloadOpen(wantedCr);
+    const url = new URL(window.location.href);
+    url.searchParams.delete("openCr");
+    router.replace(`${url.pathname}${url.search}`, { scroll: false });
+  }, [wantedCr, reloadOpen, router]);
   // FLF-411 U2-4: dự án mode 1 (import) không có step ⇒ BE từ chối `POST /resume` (409); chỉ đọc Spine, không gọi resume
   const spineState = useSpine(projectId, ws.ready, ws.canEdit && !mode1);
   const { progress, steps, reload: reloadProgress } = useProgress(projectId, spineState.version);
@@ -2256,8 +2271,13 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 projectName={ws.project?.name}
                 mode1={mode1}
                 refreshToken={ws.documentsVersion}
+                creditConfirm={creditGate.pending ? { ...creditGate.pending, onRun: creditGate.run, onCancel: creditGate.cancel } : null}
                 // Duyệt danh sách rút (mode 1) tạo change request ⇒ tải lại tài liệu, gói thay đổi (pill), mục đang chờ
-                onCrsCreated={() => onSpineChanged()}
+                onCrsCreated={() => {
+                  onSpineChanged();
+                  // E2E 24/11 #3: CR vừa tạo từ danh sách rút hiện ngay trong khung chat, không phải tải lại trang
+                  crChat.reloadOpen();
+                }}
                 onAdd={async (files) => {
                   if (!(await confirmAttachments(files))) return { cancelled: true };
                   const uploaded = await ws.uploadDocuments(files);
@@ -2501,7 +2521,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               {...(runner.state.phaseGate ? { phaseSummary: runner.state.phaseGate.summary } : {})}
               stepId={runnerStep}
               actions={gate.actions}
-              regenerateUsed={gate.regenerate_used}
               busy={runner.state.busy}
               payload={gate.payload}
               message={runner.state.phaseGate ? runner.state.phaseGate.message_vi : gate.payload?.message_vi}

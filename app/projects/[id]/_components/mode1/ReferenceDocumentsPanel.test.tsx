@@ -1,10 +1,13 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { API_BASE_URL } from "@/lib/api/client";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/intl";
 import { mockServer } from "@/mocks/server";
 import { mode1Handlers, resetMode1Extraction, MODE1_DOC_ID } from "@/mocks/mode1/handlers";
 import { resetMode1MockState, MODE1_PROJECT_ID } from "@/mocks/mode1/state";
 import { useProjectDocuments } from "../../hooks/useProjectDocuments";
+import type { ProjectDocument } from "@/types/document";
 import ReferenceDocumentsPanel from "./ReferenceDocumentsPanel";
 
 /** Danh sách lấy qua hook thật (như nút Tài liệu ở đầu khung chat). */
@@ -46,6 +49,15 @@ describe("ReferenceDocumentsPanel (FLF-338 - tài liệu tham khảo ⇒ rút y�
     expect(screen.queryByRole("button", { name: "Rút lại" })).toBeNull();
   });
 
+  it("FLF-449: tài liệu dài nhiều lô ⇒ thẻ credit báo số lượt và tổng credit theo ước tính của BE", async () => {
+    mockServer.use(http.get(`${API_BASE_URL}/projects/:projectId/documents/:documentId/extract/estimate`, () => HttpResponse.json({ data: { batches: 3, credits: 9, cost_per_batch: 3 }, error: null })));
+    renderWithIntl(<Harness onCrsCreated={vi.fn()} />);
+    await screen.findByText("minutes.txt");
+    fireEvent.click(screen.getByRole("button", { name: "Rút yêu cầu" }));
+    const dialog = await screen.findByRole("dialog", { name: "Xác nhận credit trước khi rút yêu cầu" });
+    expect(dialog).toHaveTextContent("Tài liệu dài, AI đọc thành 3 lượt, tốn ~9 credit. Chạy chứ?");
+  });
+
   it("Huỷ ở thẻ credit ⇒ không gọi AI; Xoá tài liệu ⇒ biến mất", async () => {
     renderWithIntl(<Harness onCrsCreated={vi.fn()} />);
     await screen.findByText("minutes.txt");
@@ -64,5 +76,53 @@ describe("ReferenceDocumentsPanel (FLF-338 - tài liệu tham khảo ⇒ rút y�
     await screen.findByText("minutes.txt");
     expect(screen.queryByRole("button", { name: "Rút yêu cầu" })).toBeNull();
     expect(screen.getByRole("button", { name: "Xoá" })).toBeInTheDocument();
+  });
+});
+
+describe("ReferenceDocumentsPanel - cảnh báo sau khi tải (FLF-449 việc 27)", () => {
+  const doc = (id: string, name: string, extra: Partial<ProjectDocument> = {}): ProjectDocument => ({
+    _id: id,
+    projectId: MODE1_PROJECT_ID,
+    uploadedBy: "u1",
+    originalName: name,
+    mimeType: "x",
+    size: 1,
+    extension: name.slice(name.lastIndexOf(".")),
+    parseStatus: "success",
+    summaryStatus: "success",
+    createdAt: "",
+    updatedAt: "",
+    ...extra,
+  });
+
+  it("ảnh trong .docx bị bỏ / PDF không có chữ / .doc cũ ⇒ nhãn riêng từng dòng; BE cũ không có parseWarnings ⇒ không nhãn", () => {
+    const docs = [
+      doc("d1", "email.docx", { parseWarnings: ["images_skipped"] }),
+      doc("d2", "ban-scan.pdf", { parseStatus: "failed", parseWarnings: ["pdf_no_text"] }),
+      doc("d3", "yeu-cau-cu.doc", { parseStatus: "failed", parseWarnings: [] }),
+      doc("d4", "minutes.txt"),
+    ];
+    renderWithIntl(<ReferenceDocumentsPanel projectId={MODE1_PROJECT_ID} docs={docs} onRemove={vi.fn()} onCrsCreated={vi.fn()} canExtract={false} />);
+    const row = (name: string) => screen.getByText(name).closest("li") as HTMLElement;
+    expect(row("email.docx")).toHaveTextContent("Hình / sơ đồ trong file không được đọc");
+    expect(row("ban-scan.pdf")).toHaveTextContent("Không đọc được chữ trong file");
+    expect(row("ban-scan.pdf")).not.toHaveTextContent("chưa đọc được chữ");
+    expect(row("yeu-cau-cu.doc")).toHaveTextContent("Chưa đọc được file .doc, hãy lưu lại thành .docx");
+    expect(row("minutes.txt")).not.toHaveTextContent(/không được đọc|Không đọc được|chưa đọc được/);
+  });
+
+  it("bản tiếng Anh", () => {
+    renderWithIntl(
+      <ReferenceDocumentsPanel
+        projectId={MODE1_PROJECT_ID}
+        docs={[doc("d1", "email.docx", { parseWarnings: ["images_skipped"] }), doc("d2", "scan.pdf", { parseStatus: "failed", parseWarnings: ["pdf_no_text"] })]}
+        onRemove={vi.fn()}
+        onCrsCreated={vi.fn()}
+        canExtract={false}
+      />,
+      "en",
+    );
+    expect(screen.getByText("Images / diagrams in the file are not read")).toBeInTheDocument();
+    expect(screen.getByText("No readable text in the file")).toBeInTheDocument();
   });
 });

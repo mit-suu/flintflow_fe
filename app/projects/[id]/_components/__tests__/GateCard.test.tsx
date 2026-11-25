@@ -12,7 +12,7 @@ const helpersT = (locale: "vi" | "en") =>
 const tVi = helpersT("vi");
 const tEn = helpersT("en");
 
-const ALL: GateAction[] = ["accept", "revision", "regenerate"];
+const ALL: GateAction[] = ["accept", "revision"];
 
 const openMenu = () => fireEvent.click(screen.getByRole("button", { name: "Thêm lựa chọn" }));
 
@@ -24,22 +24,22 @@ describe("GateCard - FLF-337 Chấp nhận, không hỏi lại phần này", () 
       { kind: "add", collection: "glossary", id: "G01", title_vi: "Thuật ngữ", section_id: "fixed:5" },
       { kind: "update", collection: "glossary", id: "G02", title_vi: "Thuật ngữ", section_id: "fixed:5" },
     ] } as GateReadyEvent;
-    renderWithIntl(<GateCard stepId="S-2.1" actions={ALL} regenerateUsed={0} payload={payload} onAcceptSkipSections={onSkip} onAction={onAction} />);
+    renderWithIntl(<GateCard stepId="S-2.1" actions={ALL} payload={payload} onAcceptSkipSections={onSkip} onAction={onAction} />);
     openMenu();
     fireEvent.click(screen.getByRole("menuitem", { name: "Chấp nhận, không hỏi lại phần này" }));
     expect(onSkip).toHaveBeenCalledWith(["fixed:5"]);
     expect(onAction).toHaveBeenCalledWith("accept");
 
-    renderWithIntl(<GateCard stepId="S-2.2" actions={ALL} regenerateUsed={0} payload={{ ...payload, summary: [] }} onAcceptSkipSections={onSkip} onAction={onAction} />);
-    fireEvent.click(screen.getAllByRole("button", { name: "Thêm lựa chọn" })[1]);
-    expect(screen.queryByRole("menuitem", { name: /không hỏi lại/ })).toBeNull();
+    // Bước không chạm section: menu ⋯ không còn mục nào ⇒ không vẽ nút ⋯ (chỉ còn nút của thẻ đầu)
+    renderWithIntl(<GateCard stepId="S-2.2" actions={ALL} payload={{ ...payload, summary: [] }} onAcceptSkipSections={onSkip} onAction={onAction} />);
+    expect(screen.getAllByRole("button", { name: "Thêm lựa chọn" })).toHaveLength(1);
   });
 });
 
 describe("GateCard - tin nhắn AI + chip", () => {
   it("hiện lời AI (message_vi), chip Đúng rồi đi tiếp / Tôi muốn sửa, và không còn khung form cũ", () => {
     const payload = { type: "gate_ready", step_id: "B-0.1", actions: ALL, regenerate_used: 0, calls_used: 2, message_vi: "Mình hiểu đây là app đặt lịch khám. Bạn xem giúp nhé." } as GateReadyEvent;
-    renderWithIntl(<GateCard stepId="B-0.1" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="B-0.1" actions={ALL} payload={payload} onAction={vi.fn()} />);
 
     const gate = screen.getByLabelText("Cổng chốt");
     expect(gate).toHaveTextContent("Mình hiểu đây là app đặt lịch khám. Bạn xem giúp nhé.");
@@ -52,7 +52,7 @@ describe("GateCard - tin nhắn AI + chip", () => {
   it("Đúng rồi, đi tiếp gọi onAction('accept'); Tôi muốn sửa chỉ đưa con trỏ vào ô chat", () => {
     const onAction = vi.fn();
     const onWantEdit = vi.fn();
-    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={1} onWantEdit={onWantEdit} onAction={onAction} />);
+    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} onWantEdit={onWantEdit} onAction={onAction} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Tôi muốn sửa" }));
     expect(onWantEdit).toHaveBeenCalledTimes(1);
@@ -62,47 +62,34 @@ describe("GateCard - tin nhắn AI + chip", () => {
     expect(onAction).toHaveBeenCalledWith("accept");
   });
 
-  it("menu ⋯: Làm lại hiện số lượt còn lại và gọi regenerate", () => {
-    const onAction = vi.fn();
-    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={1} onAction={onAction} />);
+  // FLF-449 (BF nguyên tắc 6): nội dung step vừa soạn chỉ có Chấp nhận; chưa ưng thì chat. BE cũ còn gửi regenerate /
+  // accept_as_is trong `actions` thì thẻ cũng không vẽ nút cho hai lệnh đó.
+  it("FLF-449: không còn Làm lại / Duyệt như hiện tại, kể cả khi BE cũ gửi regenerate / accept_as_is", () => {
+    const payload = { type: "gate_ready", step_id: "S-3.1", actions: ALL, regenerate_used: 3, calls_used: 2, summary: [
+      { kind: "add", collection: "actors", id: "A01", title_vi: "Admin", section_id: "fixed:2.1" },
+    ] } as GateReadyEvent;
+    renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "revision", "regenerate", "accept_as_is"]} payload={payload} onAcceptSkipSections={vi.fn()} onAction={vi.fn()} />);
+    expect(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tôi muốn sửa" })).toBeInTheDocument();
     openMenu();
-    const regenerate = screen.getByRole("menuitem", { name: /Làm lại · còn 2 lần/ });
-    expect(regenerate).not.toBeDisabled();
-    fireEvent.click(regenerate);
-    expect(onAction).toHaveBeenCalledWith("regenerate");
+    expect(screen.getAllByRole("menuitem").map((item) => item.textContent)).toEqual(["Chấp nhận, không hỏi lại phần này"]);
+    expect(screen.queryByText(/Làm lại|Duyệt như hiện tại|Lý do chấp nhận/)).toBeNull();
   });
 
-  it("hết 3 lượt Làm lại ⇒ mục tắt, Duyệt như hiện tại xuất hiện; chưa hết thì không có", () => {
-    const { unmount } = renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} onAction={vi.fn()} />);
-    openMenu();
-    expect(screen.queryByRole("menuitem", { name: /Duyệt như hiện tại/ })).not.toBeInTheDocument();
-    unmount();
-
-    renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "revision", "accept_as_is"]} regenerateUsed={3} onAction={vi.fn()} />);
-    openMenu();
-    expect(screen.getByRole("menuitem", { name: /Làm lại · còn 0 lần/ })).toBeDisabled();
-    expect(screen.getByRole("menuitem", { name: /Duyệt như hiện tại/ })).toBeInTheDocument();
+  it("FLF-449: không có mục nào trong menu ⋯ ⇒ không vẽ nút ⋯; chỉ còn Chấp nhận và chat để sửa", () => {
+    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} onAction={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: "Thêm lựa chọn" })).toBeNull();
+    expect(screen.getAllByRole("button").map((b) => b.textContent)).toEqual(["Đúng rồi, đi tiếp", "Tôi muốn sửa"]);
   });
 
-  it("Duyệt như hiện tại bắt buộc lý do trước khi gửi", () => {
-    const onAction = vi.fn();
-    renderWithIntl(<GateCard stepId="S-3.1" actions={["accept", "accept_as_is"]} regenerateUsed={3} onAction={onAction} />);
-
-    openMenu();
-    fireEvent.click(screen.getByRole("menuitem", { name: /Duyệt như hiện tại/ }));
-    const confirm = screen.getByRole("button", { name: "Xác nhận duyệt như hiện tại" });
-    expect(confirm).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText(/Lý do chấp nhận/), { target: { value: "   " } });
-    expect(confirm).toBeDisabled();
-
-    fireEvent.change(screen.getByLabelText(/Lý do chấp nhận/), { target: { value: "Khách hàng đồng ý bản này" } });
-    fireEvent.click(confirm);
-    expect(onAction).toHaveBeenCalledWith("accept_as_is", "Khách hàng đồng ý bản này");
+  it("chữ hướng dẫn khi lượt không ghi được gì chỉ mời chat, không nhắc Làm lại", () => {
+    renderWithIntl(<GateCard stepId="S-7.2" actions={ALL} wroteOps={false} onAction={vi.fn()} />);
+    expect(screen.getByRole("status")).toHaveTextContent("qua chat");
+    expect(screen.getByRole("status")).not.toHaveTextContent(/làm lại|menu/i);
   });
 
-  it("busy thì khoá chip chính và mục Làm lại", () => {
-    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} busy onAction={vi.fn()} />);
+  it("busy thì khoá chip chính và Tôi muốn sửa", () => {
+    renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} busy onAction={vi.fn()} />);
     expect(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ })).toBeDisabled();
     expect(screen.getByRole("button", { name: "Tôi muốn sửa" })).toBeDisabled();
   });
@@ -111,7 +98,7 @@ describe("GateCard - tin nhắn AI + chip", () => {
   // "Mở lại" lại rơi vào đúng vòng đó cho tới khi cạn trần 8 lượt gọi model (gặp thật 2026-09-20).
   describe("cảnh báo lượt chạy không ghi được gì (L11b)", () => {
     it("lô op rỗng ⇒ nói thẳng bằng một câu, vẫn cho Duyệt", () => {
-      renderWithIntl(<GateCard stepId="S-7.2" actions={ALL} regenerateUsed={0} wroteOps={false} onAction={vi.fn()} />);
+      renderWithIntl(<GateCard stepId="S-7.2" actions={ALL} wroteOps={false} onAction={vi.fn()} />);
       expect(screen.getByRole("status")).toHaveTextContent("AI không soạn được nội dung nào ở lượt này");
       expect(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ }), "vẫn là quyết định của người dùng").not.toBeDisabled();
     });
@@ -130,7 +117,7 @@ describe("GateCard - tin nhắn AI + chip", () => {
         new_assumptions: [],
         no_change_reason: "Nền tảng đã chốt ở bước Kể hết ý tưởng - không cần hỏi lại.",
       } as unknown as GateReadyEvent;
-      renderWithIntl(<GateCard stepId="B-0.2" actions={ALL} regenerateUsed={0} wroteOps={false} payload={settled} onAction={vi.fn()} />);
+      renderWithIntl(<GateCard stepId="B-0.2" actions={ALL} wroteOps={false} payload={settled} onAction={vi.fn()} />);
       expect(screen.queryByText(/AI không soạn được nội dung nào ở lượt này/)).not.toBeInTheDocument();
       expect(screen.getByText(/Nền tảng đã chốt ở bước Kể hết ý tưởng/)).toBeInTheDocument();
     });
@@ -140,7 +127,6 @@ describe("GateCard - tin nhắn AI + chip", () => {
         <GateCard
           stepId="S-7.2"
           actions={ALL}
-          regenerateUsed={0}
           wroteOps
           emptySections={[{ section_id: "fixed:5.2", title: "Common Requirements" }]}
           onAction={vi.fn()}
@@ -154,7 +140,7 @@ describe("GateCard - tin nhắn AI + chip", () => {
     });
 
     it("chạy bình thường thì không có cảnh báo nào", () => {
-      renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} regenerateUsed={0} wroteOps emptySections={[]} onAction={vi.fn()} />);
+      renderWithIntl(<GateCard stepId="S-3.1" actions={ALL} wroteOps emptySections={[]} onAction={vi.fn()} />);
       expect(screen.queryByRole("status")).not.toBeInTheDocument();
     });
   });
@@ -180,7 +166,7 @@ describe("GateCard - dự án cũ chưa có message_vi", () => {
   };
 
   it("dựng một câu tạm từ tóm tắt; không hiện giả định, credit, số cờ hay thời gian", () => {
-    renderWithIntl(<GateCard stepId="S-4.3" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-4.3" actions={ALL} payload={payload} onAction={vi.fn()} />);
     const gate = screen.getByLabelText("Cổng chốt");
     expect(gate).toHaveTextContent(/Tôi đã cập nhật: thêm 2 quyền \(Admin tạo trên Manage Staff; Admin xoá trên Manage Staff\), sửa 1 chức năng/);
     expect(gate).toHaveTextContent("Bạn xem giúp, ổn thì mình đi tiếp nhé.");
@@ -243,7 +229,6 @@ describe("GateCard - dự án cũ chưa có message_vi", () => {
       <GateCard
         stepId="B-0.1"
         actions={ALL}
-        regenerateUsed={0}
         payload={brief}
         settledAssumptionIds={new Set(["AS2"])}
         onConfirmAssumptions={onConfirmAssumptions}
@@ -263,7 +248,6 @@ describe("GateCard - dự án cũ chưa có message_vi", () => {
       <GateCard
         stepId="B-1.6"
         actions={ALL}
-        regenerateUsed={0}
         phaseSummary={[]}
         message="Tôi tạm hiểu là không gửi SMS."
         payload={{ ...payload, new_assumptions: [{ id: "AS-STEP", text: "Của bước cuối" }] }}
@@ -281,7 +265,7 @@ describe("GateCard - dự án cũ chưa có message_vi", () => {
     const onConfirmAssumptions = vi.fn().mockResolvedValue(undefined);
     const onAction = vi.fn();
     renderWithIntl(
-      <GateCard stepId="B-1.2" actions={ALL} regenerateUsed={0} payload={{ ...payload, new_assumptions: [] }} onConfirmAssumptions={onConfirmAssumptions} onAction={onAction} />
+      <GateCard stepId="B-1.2" actions={ALL} payload={{ ...payload, new_assumptions: [] }} onConfirmAssumptions={onConfirmAssumptions} onAction={onAction} />
     );
     fireEvent.click(screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ }));
     await waitFor(() => expect(onAction).toHaveBeenCalledWith("accept"));
@@ -294,7 +278,7 @@ describe("GateCard - dự án cũ chưa có message_vi", () => {
     const onAction = vi.fn();
     const brief: GateReadyEvent = { ...payload, new_assumptions: [{ id: "AS1", text: "A" }] };
     renderWithIntl(
-      <GateCard stepId="B-1.2" actions={ALL} regenerateUsed={0} payload={brief} onConfirmAssumptions={onConfirmAssumptions} onAction={onAction} />
+      <GateCard stepId="B-1.2" actions={ALL} payload={brief} onConfirmAssumptions={onConfirmAssumptions} onAction={onAction} />
     );
     const accept = screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ });
     fireEvent.click(accept);
@@ -310,7 +294,6 @@ describe("GateCard - dự án cũ chưa có message_vi", () => {
       <GateCard
         stepId="S-5.3@S03"
         actions={ALL}
-        regenerateUsed={0}
         payload={{ ...payload, summary: [], new_assumptions: [], no_change_reason: "Bước sổ sách của vòng màn hình - không có nội dung để ghi." }}
         onAction={vi.fn()}
       />
@@ -337,7 +320,6 @@ describe("GateCard - cờ và bảng", () => {
       <GateCard
         stepId="S-9.5"
         actions={ALL}
-        regenerateUsed={0}
         blockingFlags={[{ id: "FL031", message: "Giả định AS28 chưa được xác nhận", remediation_step: "S-9.1" }]}
         onGoToStep={onGoToStep}
         onAction={vi.fn()}
@@ -352,10 +334,11 @@ describe("GateCard - cờ và bảng", () => {
   });
 
   it("S-9.5 với Analyst (canSignOff=false): không có Ký baseline / Duyệt như hiện tại, nhắc nộp cho Lead", () => {
-    renderWithIntl(<GateCard stepId="S-9.5" actions={ALL} regenerateUsed={3} canSignOff={false} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-9.5" actions={ALL} canSignOff={false} onAction={vi.fn()} />);
     expect(screen.queryByRole("button", { name: "Ký baseline" })).toBeNull();
     expect(screen.getByText(/Chỉ Lead ký được baseline/)).toBeInTheDocument();
-    fireEvent.click(screen.getByRole("button", { name: "Thêm lựa chọn" }));
+    // FLF-449: không còn Duyệt như hiện tại; menu ⋯ không có mục nào ⇒ không có nút ⋯
+    expect(screen.queryByRole("button", { name: "Thêm lựa chọn" })).toBeNull();
     expect(screen.queryByText(/Duyệt như hiện tại/)).toBeNull();
   });
 
@@ -363,7 +346,7 @@ describe("GateCard - cờ và bảng", () => {
 
   it("cờ mới: câu nêu cờ + Sửa theo đề xuất gọi onFixFlag", () => {
     const onFixFlag = vi.fn();
-    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[flag]} onFixFlag={onFixFlag} onKeepFlag={vi.fn()} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} newFlags={[flag]} onFixFlag={onFixFlag} onKeepFlag={vi.fn()} onAction={vi.fn()} />);
     expect(screen.getByText(/Vấn đề cần xử lý:/)).toBeInTheDocument();
     expect(screen.getByText(/Use case UC03 chưa có chức năng/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Sửa theo đề xuất" }));
@@ -372,7 +355,7 @@ describe("GateCard - cờ và bảng", () => {
 
   it("Giữ nguyên mở ô lý do (≥ 20 ký tự) rồi mới waive; lỗi hiện ngay dưới chip", async () => {
     const onKeepFlag = vi.fn().mockRejectedValueOnce(new Error("Không bỏ qua được")).mockResolvedValueOnce(undefined);
-    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[flag]} onFixFlag={vi.fn()} onKeepFlag={onKeepFlag} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} newFlags={[flag]} onFixFlag={vi.fn()} onKeepFlag={onKeepFlag} onAction={vi.fn()} />);
 
     fireEvent.click(screen.getByRole("button", { name: "Giữ nguyên" }));
     const confirm = screen.getByRole("button", { name: "Xác nhận giữ nguyên" });
@@ -391,7 +374,7 @@ describe("GateCard - cờ và bảng", () => {
 
   it("FLF-411 U1-4: ô lý do Giữ nguyên đang mở ⇒ khoá Đúng rồi, đi tiếp; huỷ ô ⇒ mở lại", () => {
     const onAction = vi.fn();
-    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[flag]} onFixFlag={vi.fn()} onKeepFlag={vi.fn()} onAction={onAction} />);
+    renderWithIntl(<GateCard stepId="S-3.5" actions={ALL} newFlags={[flag]} onFixFlag={vi.fn()} onKeepFlag={vi.fn()} onAction={onAction} />);
     const accept = screen.getByRole("button", { name: /Đúng rồi, đi tiếp/ });
     expect(accept).toBeEnabled();
 
@@ -406,7 +389,7 @@ describe("GateCard - cờ và bảng", () => {
 
   it("cờ không waive được ⇒ chỉ có Sửa theo đề xuất", () => {
     renderWithIntl(
-      <GateCard stepId="S-3.5" actions={ALL} regenerateUsed={0} newFlags={[{ ...flag, waivable: false }]} onFixFlag={vi.fn()} onKeepFlag={vi.fn()} onAction={vi.fn()} />
+      <GateCard stepId="S-3.5" actions={ALL} newFlags={[{ ...flag, waivable: false }]} onFixFlag={vi.fn()} onKeepFlag={vi.fn()} onAction={vi.fn()} />
     );
     expect(screen.queryByRole("button", { name: "Giữ nguyên" })).toBeNull();
   });
@@ -421,7 +404,7 @@ describe("GateCard - cờ và bảng", () => {
       summary: [],
       table: { title_vi: "Ưu tiên MoSCoW", columns: ["Yêu cầu", "Mức"], rows: [["Đặt lịch", "Must"]], truncated: 2 },
     } as unknown as GateReadyEvent;
-    renderWithIntl(<GateCard stepId="S-9.4" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-9.4" actions={ALL} payload={payload} onAction={vi.fn()} />);
     expect(screen.getByText(/Xem bảng: Ưu tiên MoSCoW \(3 dòng\)/)).toBeInTheDocument();
     expect(screen.getByText("Must")).toBeInTheDocument();
     expect(screen.getByText(/và 2 dòng nữa/)).toBeInTheDocument();
@@ -437,7 +420,7 @@ describe("GateCard - cờ và bảng", () => {
       summary: [],
       table: { title_vi: "Tầm nhìn và mục tiêu", columns: ["Brief của bạn", "Bản đưa vào SRS"], rows: [["Ứng dụng đặt lịch khám", "Appointment booking app"]], truncated: 0 },
     } as unknown as GateReadyEvent;
-    const { container } = renderWithIntl(<GateCard stepId="S-1.1" actions={ALL} regenerateUsed={0} payload={payload} onAction={vi.fn()} />);
+    const { container } = renderWithIntl(<GateCard stepId="S-1.1" actions={ALL} payload={payload} onAction={vi.fn()} />);
     expect(container.querySelector("details")?.hasAttribute("open")).toBe(true);
     expect(screen.getByText("Bản đưa vào SRS")).toBeInTheDocument();
     expect(screen.getByText("Appointment booking app")).toBeInTheDocument();
@@ -449,7 +432,6 @@ describe("GateCard - cờ và bảng", () => {
       <GateCard
         stepId="S-3.6"
         actions={ALL}
-        regenerateUsed={0}
         payload={stepGate}
         phaseSummary={[{ kind: "add", collection: "actors", id: "A01", title_vi: "Bệnh nhân" }]}
         message="Xong phần Người dùng rồi, bạn xem giúp nhé."
@@ -460,7 +442,7 @@ describe("GateCard - cờ và bảng", () => {
     expect(screen.queryByText(/Lời của bước cuối/)).toBeNull();
 
     // Giai đoạn cũ chưa có message_vi ⇒ câu tạm dựng từ tóm tắt cả giai đoạn
-    renderWithIntl(<GateCard stepId="S-3.6" actions={ALL} regenerateUsed={0} payload={stepGate} phaseSummary={[{ kind: "add", collection: "actors", id: "A01", title_vi: "Bệnh nhân" }]} onAction={vi.fn()} />);
+    renderWithIntl(<GateCard stepId="S-3.6" actions={ALL} payload={stepGate} phaseSummary={[{ kind: "add", collection: "actors", id: "A01", title_vi: "Bệnh nhân" }]} onAction={vi.fn()} />);
     expect(screen.getAllByLabelText("Cổng chốt")[1]).toHaveTextContent("thêm 1 actor (Bệnh nhân)");
   });
 });

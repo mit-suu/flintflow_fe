@@ -8,6 +8,7 @@ import { downloadVersion, listVersions } from "@/lib/api/versions";
 import { versionFileName, versionLineage, type DocVersion } from "@/types/doc-version";
 import { useProjectDocuments } from "../hooks/useProjectDocuments";
 import AnchoredPopover from "./AnchoredPopover";
+import CreditGateCard, { type CreditGateRequest } from "./CreditGateCard";
 import ReferenceDocumentsPanel from "./mode1/ReferenceDocumentsPanel";
 import { useMode1Labels } from "./mode1/i18n";
 
@@ -29,6 +30,11 @@ interface ProjectDocumentsButtonProps {
   onAdd: (files: File[]) => Promise<AddDocumentsResult>;
   /** Duyệt danh sách rút xong (CR đã tạo). */
   onCrsCreated?: () => void;
+  /**
+   * Cổng credit đang chờ (cùng trạng thái với thẻ trong khung chat). Đang thêm tài liệu từ popup ⇒ hiện ngay trong popup: thẻ
+   * trong chat nằm sau popup nên người dùng không thấy để bấm, popup kẹt "Đang tải lên…" (E2E 24/11 #1).
+   */
+  creditConfirm?: (CreditGateRequest & { onRun: () => void; onCancel: () => void }) | null;
 }
 
 /** Bản import có file gốc người dùng tải lên (`variant=original`); chỉ dự án nhập SRS. */
@@ -51,7 +57,7 @@ function useOriginalSrs(projectId: string, enabled: boolean, refreshToken: numbe
  * Nút "Tài liệu (n)" ở đầu khung chat: mở danh sách tài liệu của cả dự án (file SRS gốc + tài liệu tham khảo), Rút yêu cầu,
  * Xoá, Thêm tài liệu. Giống nhau ở mọi chế độ; phần chỉ có ở dự án nhập SRS ẩn đi ở dự án AI soạn.
  */
-export default function ProjectDocumentsButton({ projectId, projectName, mode1, readOnly = false, refreshToken = 0, onAdd, onCrsCreated }: ProjectDocumentsButtonProps) {
+export default function ProjectDocumentsButton({ projectId, projectName, mode1, readOnly = false, refreshToken = 0, onAdd, onCrsCreated, creditConfirm = null }: ProjectDocumentsButtonProps) {
   const t = useTranslations("workspace.projectDocuments");
   const tv = useTranslations("mode1.versions");
   const L = useMode1Labels();
@@ -173,6 +179,7 @@ export default function ProjectDocumentsButton({ projectId, projectName, mode1, 
           {!readOnly && (
             <>
               <input ref={fileRef} type="file" multiple accept=".pdf,.docx,.txt,.md" className="hidden" onChange={(e) => void pickFiles(e)} aria-hidden tabIndex={-1} />
+              {adding && creditConfirm && <CreditGateCard {...creditConfirm} />}
               <button
                 type="button"
                 disabled={adding}

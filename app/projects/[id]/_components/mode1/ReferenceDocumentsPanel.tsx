@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { estimateActionCost } from "@/lib/api/chat";
-import { extractRequirements, getExtraction } from "@/lib/api/extraction";
+import { estimateExtraction, extractRequirements, getExtraction } from "@/lib/api/extraction";
 import type { ProjectDocument } from "@/types/document";
 import type { Extraction } from "@/types/extraction";
 import ExtractionList from "./ExtractionList";
@@ -38,7 +38,7 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
   const viewer = useReferenceViewer();
   const [extractions, setExtractions] = useState<Record<string, Extraction | null>>({});
   const [openDoc, setOpenDoc] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState<{ documentId: string; cost: number | null } | null>(null);
+  const [confirming, setConfirming] = useState<{ documentId: string; cost: number | null; batches: number } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -57,10 +57,18 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
 
   const askExtract = async (documentId: string) => {
     setError(null);
+    // FLF-449: tài liệu dài chia lô, mỗi lô một lượt ⇒ credit = số lô × giá một lượt (BE ước tính); lỗi thì lùi về giá một lượt
+    const estimate = await estimateExtraction(projectId, documentId)
+      .then((r) => r.data ?? null)
+      .catch(() => null);
+    if (estimate && estimate.batches > 0) {
+      setConfirming({ documentId, cost: estimate.credits, batches: estimate.batches });
+      return;
+    }
     const cost = await estimateActionCost("extract_requirements")
       .then((r) => r.data?.cost ?? null)
       .catch(() => null);
-    setConfirming({ documentId, cost });
+    setConfirming({ documentId, cost, batches: 1 });
   };
 
   const runExtract = async (documentId: string) => {
@@ -104,12 +112,20 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
         {docs.map((d) => {
           const ex = extractions[d._id] ?? null;
           const unreadable = d.parseStatus !== "success";
+          // FLF-449 việc 27: lý do cụ thể khi BE biết (PDF scan, .doc Word 97-2003), ảnh trong .docx không được đọc
+          const warnings = d.parseWarnings ?? [];
+          const unreadableLabel = warnings.includes("pdf_no_text")
+            ? t("noText")
+            : d.parseStatus === "failed" && (d.extension ?? d.originalName.slice(d.originalName.lastIndexOf("."))).toLowerCase() === ".doc"
+              ? t("legacyDoc")
+              : t("unreadable");
           return (
             <li key={d._id} className="flex flex-wrap items-center gap-2 text-body rounded-inner px-2 py-1.5 odd:bg-surface-container-low">
               <span className="font-bold text-on-surface truncate min-w-0 max-w-[200px]" title={d.originalName}>
                 {d.originalName}
               </span>
-              {unreadable && <span className="text-caption text-accent-gold-text">{t("unreadable")}</span>}
+              {unreadable && <span className="text-caption text-accent-gold-text">{unreadableLabel}</span>}
+              {!unreadable && warnings.includes("images_skipped") && <span className="text-caption text-accent-gold-text">{t("imagesSkipped")}</span>}
               {ex && (
                 <span className={`px-2 py-0.5 rounded-full text-caption font-bold ${ex.status === "approved" ? "bg-success-soft text-success" : "bg-primary-soft text-primary-hover"}`}>
                   {t(`status.${ex.status}`, { count: ex.items.length })}
@@ -145,7 +161,7 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
               {confirming?.documentId === d._id && (
                 // §3.6 cổng cứng: báo credit, người dùng xác nhận mới gọi AI
                 <div role="dialog" aria-label={t("confirmAria")} className="w-full flex flex-wrap items-center gap-2 rounded-inner bg-primary-soft px-3 py-2">
-                  <span className="flex-1 min-w-[180px] text-body text-primary-hover">{confirming.cost === null ? t("confirmUnknown") : t("confirm", { credits: confirming.cost })}</span>
+                  <span className="flex-1 min-w-[180px] text-body text-primary-hover">{confirming.cost === null ? t("confirmUnknown") : confirming.batches > 1 ? t("confirmBatches", { batches: confirming.batches, credits: confirming.cost }) : t("confirm", { credits: confirming.cost })}</span>
                   <button type="button" onClick={() => setConfirming(null)} className="px-2.5 py-1 rounded-full text-caption font-bold bg-surface-container-lowest text-on-surface-variant cursor-pointer">
                     {t("cancel")}
                   </button>
