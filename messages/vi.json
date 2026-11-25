@@ -4228,6 +4228,8 @@
       "readyText": "✓ Mọi đề xuất đã đạt kiểm tra. Xác nhận để ghi ngay vào bản nháp chung - Lead sẽ duyệt cả gói khi phát hành.",
       "submit": "Xác nhận & ghi vào bản nháp",
       "readyMore": "Còn muốn sửa thêm? Gõ tiếp ở ô chat - lệnh mới được gộp vào {crId}.",
+      "removesContent": "Thay đổi này xoá nội dung: {items}. Xoá nội dung luôn cần bạn xác nhận, kể cả ở mức Chỉ ở mốc chốt.",
+      "removesContentMore": "và {count, plural, =1 {1 mục khác} other {# mục khác}}.",
       "notRequester": "Đề xuất này đang treo ở {who} - chỉ người đó xác nhận được (người xác nhận đứng tên thay đổi). Bạn xem được mọi chỗ; cần đổi khác thì tạo change request của bạn.",
       "pausedWhat": "Bước AI",
       "continue": "Tiếp tục",

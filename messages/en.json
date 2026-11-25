@@ -4228,6 +4228,8 @@
       "readyText": "✓ All proposals passed the check. Confirm to write them to the shared draft now - the Lead approves the whole package at release.",
       "submit": "Confirm & write to draft",
       "readyMore": "Want more edits? Keep typing in the chat box - new edits are merged into {crId}.",
+      "removesContent": "This change removes content: {items}. Removing content always needs your confirmation, even at the Milestones only review level.",
+      "removesContentMore": "and {count, plural, =1 {1 more item} other {# more items}}.",
       "notRequester": "This proposal is pending with {who} - only they can confirm it (the confirmer signs the change). You can read everything; to change something else, open your own change request.",
       "pausedWhat": "AI step",
       "continue": "Continue",
