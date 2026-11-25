@@ -253,3 +253,18 @@ describe("P06 (BarberGo #23) - hộp xem trước có ngữ nghĩa hộp thoại
     expect(onCancel).toHaveBeenCalled();
   });
 });
+
+describe("DiffPreviewModal FLF-486 A2", () => {
+  it("câu thêm cuối đoạn dài: ô Sau tô câu mới, hai ô khác nhau", () => {
+    const A = Array.from({ length: 30 }, (_, i) => `tu${i}`).join(" ");
+    const preview: PreviewResult = {
+      ...basePreview,
+      changes: [{ op: "set", path: "project.vision", before: A, value: `${A} Phiên bản 1.0 gồm 15 use case.`, reason: "" }],
+    };
+    const { container } = renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    const ins = Array.from(container.querySelectorAll("ins")).map((e) => e.textContent).join(" ");
+    expect(ins).toContain("Phiên bản 1.0 gồm 15 use case.");
+    const cells = container.querySelectorAll("tbody td");
+    expect(cells[1].textContent).not.toBe(cells[2].textContent);
+  });
+});
