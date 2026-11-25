@@ -7,6 +7,7 @@ import type { Spine } from "@/types/spine";
 import { elementNames, isInternalCollection, parseElementPath, refNames, type RefNames } from "./mode1/spine-labels";
 import { CR_SOURCE_KINDS } from "./mode1/labels";
 import { SectionNamesContext, useMode1Labels } from "./mode1/i18n";
+import { diffTokens, focusTokens } from "@/lib/word-diff";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
@@ -32,6 +33,17 @@ interface DiffPreviewModalProps {
  * `deletedText`: chữ cho giá trị đã bị xoá (`workspace.diff.deleted`). `humanValue` (FLF-411 #23): chỉ phần người đọc được —
  * tên + mô tả của phần tử, enum qua nhãn, tham chiếu qua tên; không mã, không khoá thô (`flows_in`).
  */
+const readable = (
+  value: unknown,
+  field: string | undefined,
+  names: RefNames,
+  humanValue: (value: unknown, field: string | undefined, names?: RefNames) => string
+): string | null => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return null;
+  return humanValue(value, field, names);
+};
+
 const short = (
   value: unknown,
   field: string | undefined,
@@ -43,8 +55,36 @@ const short = (
   if (value === null) return "-";
   if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return deletedText;
   const text = humanValue(value, field, names);
-  return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  return text.length > 160 ? `${text.slice(0, 160)}…` : text;
 };
+
+/**
+ * FLF-486 (A1/A2): hai bên cùng có chữ và khác nhau ⇒ so theo từ, chỉ giữ vài từ quanh chỗ đổi (câu thêm ở cuối đoạn dài
+ * không còn bị cắt mất); ô Trước vẽ phần xoá, ô Sau vẽ phần thêm. Giá trị nhiều dòng giữ cách hiện cũ.
+ */
+function DiffCell({ side, before, after, fallback, tone }: { side: "before" | "after"; before: string | null; after: string | null; fallback: string; tone: string }) {
+  if (before === null || after === null || before === after || before.includes("\n") || after.includes("\n")) {
+    return <td className={`border border-[#ECEAE5] px-2 py-1 align-top ${tone}`}>{fallback}</td>;
+  }
+  const kept = focusTokens(diffTokens(before, after)).filter((tk) => tk.kind === "same" || tk.kind === (side === "before" ? "del" : "ins"));
+  // gom các từ liền nhau cùng loại thành một đoạn
+  const segs: { kind: "same" | "del" | "ins"; text: string }[] = [];
+  for (const tk of kept) {
+    const last = segs[segs.length - 1];
+    if (last && last.kind === tk.kind) last.text += ` ${tk.text}`;
+    else segs.push({ kind: tk.kind, text: tk.text });
+  }
+  return (
+    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#4B4842]">
+      {segs.map((sg, i) => {
+        const sep = i > 0 ? " " : "";
+        if (sg.kind === "del") return <span key={i}>{sep}<del className="text-[#B03030]">{sg.text}</del></span>;
+        if (sg.kind === "ins") return <span key={i}>{sep}<ins className="no-underline rounded px-0.5 bg-[#E6F4EA] text-[#1F7A45]">{sg.text}</ins></span>;
+        return <span key={i} className={sg.text === "…" ? "text-[#A8A49C]" : undefined}>{sep}{sg.text}</span>;
+      })}
+    </td>
+  );
+}
 
 /** Field cuối của path: `use_cases[id=UC27].actor_ids` ⇒ `actor_ids`; path trỏ cả phần tử ⇒ undefined. */
 const lastField = (path: string): string | undefined => /\.([a-z_]+)$/.exec(path)?.[1];
@@ -206,8 +246,17 @@ export default function DiffPreviewModal({
                 {visibleChanges.map((change, i) => (
                   <tr key={i}>
                     <td className="border border-[#ECEAE5] px-2 py-1 align-top">{changeLabel(change, allNames)}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, lastField(change.path), names, t("deleted"), humanValue)}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value, lastField(change.path), names, t("deleted"), humanValue)}</td>
+                    {(() => {
+                      const field = lastField(change.path);
+                      const b = readable(change.before, field, names, humanValue);
+                      const a = readable(change.value, field, names, humanValue);
+                      return (
+                        <>
+                          <DiffCell side="before" before={b} after={a} tone="text-[#B03030]" fallback={short(change.before, field, names, t("deleted"), humanValue)} />
+                          <DiffCell side="after" before={b} after={a} tone="text-[#1F7A45]" fallback={short(change.value, field, names, t("deleted"), humanValue)} />
+                        </>
+                      );
+                    })()}
                   </tr>
                 ))}
               </tbody>
