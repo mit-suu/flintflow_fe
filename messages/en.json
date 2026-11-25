@@ -4274,6 +4274,8 @@
       }
     },
     "crChat": {
+      "hiddenOpen": "{crId} is still open.",
+      "reopenInChat": "Reopen in chat",
       "draftLocked": "The draft is waiting for the Lead to review the change package - it is locked, so no new change request can be opened. Continue after the Lead approves or asks for revisions.",
       "hintLocked": "The draft is waiting for the Lead's review - no new change request yet",
       "hintNew": "Type a document edit, e.g. Add a performance requirement for the search screen",

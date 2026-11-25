@@ -229,3 +229,54 @@ describe("useCrChat - tải lại lúc đang ghi (FLF-480 B17)", () => {
     expect(result.current.pending).toBe("thêm mục 3.3");
   });
 });
+
+describe("useCrChat - 'Phiên mới' bỏ CR đang mở khỏi khung chat (FLF-480 B17)", () => {
+  const withStatus = (status: string, crId = "CR-002") => ({ ...detail, change_request: { ...detail.change_request, cr_id: crId, status } }) as unknown as CrDetail;
+  beforeEach(() => window.sessionStorage.clear());
+
+  it("CR awaiting_answers ⇒ leaveOpen ẩn khỏi chat, tải lại không nạp lại; reloadOpen('CR-002') mở lại", async () => {
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-002", status: "awaiting_answers", created_by: "u1" }] });
+    api.getCr.mockReset().mockResolvedValue({ data: withStatus("awaiting_answers") });
+    const { result } = renderHookWithIntl(() => useCrChat("p-hide", true, undefined, "u1"));
+    await waitFor(() => expect(result.current.detail?.change_request.cr_id).toBe("CR-002"));
+
+    await act(async () => result.current.leaveOpen());
+    expect(result.current.detail).toBeNull();
+    expect(result.current.hiddenOpen).toBe("CR-002");
+    expect(window.sessionStorage.getItem("ff-cr-chat:p-hide:hidden")).toBe("CR-002");
+
+    await act(async () => result.current.reloadOpen());
+    await waitFor(() => expect(api.listCrs.mock.calls.length).toBeGreaterThan(1));
+    expect(result.current.detail).toBeNull();
+    expect(result.current.hiddenOpen).toBe("CR-002");
+
+    act(() => result.current.reloadOpen("CR-002"));
+    await waitFor(() => expect(result.current.detail?.change_request.cr_id).toBe("CR-002"));
+    expect(result.current.hiddenOpen).toBeNull();
+    expect(window.sessionStorage.getItem("ff-cr-chat:p-hide:hidden")).toBeNull();
+  });
+
+  it("tải lại trang trong cùng tab (hook mới, cùng sessionStorage) ⇒ CR đã ẩn không tự quay lại", async () => {
+    window.sessionStorage.setItem("ff-cr-chat:p-hide2:hidden", "CR-002");
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-002", status: "awaiting_answers", created_by: "u1" }] });
+    api.getCr.mockReset().mockResolvedValue({ data: withStatus("awaiting_answers") });
+    const { result } = renderHookWithIntl(() => useCrChat("p-hide2", true, undefined, "u1"));
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.detail).toBeNull();
+    expect(result.current.hiddenOpen).toBe("CR-002");
+  });
+
+  it("CR ready_to_submit mà BE đã ghi xong ⇒ leaveOpen không ẩn: báo đã ghi, tải lại tài liệu, không có dòng 'vẫn đang mở'", async () => {
+    const onWritten = vi.fn();
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-002", status: "ready_to_submit", created_by: "u1" }] });
+    api.getCr.mockReset().mockResolvedValueOnce({ data: withStatus("ready_to_submit") }).mockResolvedValue({ data: withStatus("written") });
+    const { result } = renderHookWithIntl(() => useCrChat("p-hide3", true, onWritten, "u1"));
+    await waitFor(() => expect(result.current.detail?.change_request.status).toBe("ready_to_submit"));
+
+    await act(async () => result.current.leaveOpen());
+    expect(result.current.detail).toBeNull();
+    expect(result.current.sent).toBe("CR-002");
+    expect(onWritten).toHaveBeenCalledWith("CR-002", []);
+    expect(result.current.hiddenOpen).toBeNull();
+  });
+});

@@ -122,6 +122,24 @@ const writeStore = (key: string, value: string | null): void => {
   }
 };
 
+/** FLF-480 (B17): CR đã ẩn khỏi khung chat ("Phiên mới") — nhớ theo tab, không theo tài khoản (tab mới vẫn thấy CR dở). */
+const hiddenKey = (projectId: string) => `ff-cr-chat:${projectId}:hidden`;
+const readHidden = (projectId: string): string | null => {
+  try {
+    return window.sessionStorage.getItem(hiddenKey(projectId));
+  } catch {
+    return null;
+  }
+};
+const writeHidden = (projectId: string, crId: string | null): void => {
+  try {
+    if (crId === null) window.sessionStorage.removeItem(hiddenKey(projectId));
+    else window.sessionStorage.setItem(hiddenKey(projectId), crId);
+  } catch {
+    /* chặn lưu — chỉ mất tiện ích nhớ theo tab */
+  }
+};
+
 const EMPTY: ReadonlySet<string> = new Set();
 
 /** Tiêu đề CR từ lệnh sửa đầu tiên: dòng đầu, ≤ 120 ký tự. */
@@ -178,6 +196,9 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   const [withdrawSent, setWithdrawSent] = useState<CrDetail | null>(null);
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
+  /** FLF-480 (B17): CR còn mở nhưng người dùng đã bỏ khỏi khung chat bằng "Phiên mới" (vẫn mở ở BE: mỗi người một CR mở). */
+  const [hidden, setHidden] = useState<string | null>(() => (typeof window === "undefined" ? null : readHidden(projectId)));
+  const hiddenRef = useRef(hidden);
   const alive = useRef(true);
   const sendingRef = useRef(false);
   // CR vừa ghi bản nháp ⇒ trang tải lại Spine / tài liệu / version (giữ hàm mới nhất, không làm đổi `submit`)
@@ -229,7 +250,16 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       .catch(() => undefined);
     fetchOwnOpenCr(projectId, myUserId, preferCr)
       .then((full) => {
-        if (!cancelled && alive.current && full) setDetail(full);
+        if (cancelled || !alive.current) return;
+        const skip = hiddenRef.current;
+        // CR đang ẩn không tự quay lại khung chat (trừ khi người dùng chủ động mở lại: `preferCr`); CR ẩn đã đóng ⇒ thôi nhớ
+        if (full && full.change_request.cr_id === skip && preferCr !== skip) return;
+        if (skip && full?.change_request.cr_id !== skip) {
+          hiddenRef.current = null;
+          setHidden(null);
+          writeHidden(projectId, null);
+        }
+        if (full) setDetail(full);
       })
       .catch(() => undefined)
       .finally(() => !cancelled && alive.current && setLoading(false));
@@ -237,10 +267,20 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       cancelled = true;
     };
   }, [projectId, enabled, myUserId, reloadSeq, preferCr]);
-  const reloadOpen = useCallback((prefer?: string | null) => {
-    if (prefer !== undefined) setPreferCr(prefer);
-    setReloadSeq((n) => n + 1);
-  }, []);
+  /** Bỏ trạng thái ẩn (người dùng chủ động mở lại CR). */
+  const unhide = useCallback(() => {
+    hiddenRef.current = null;
+    setHidden(null);
+    writeHidden(projectId, null);
+  }, [projectId]);
+  const reloadOpen = useCallback(
+    (prefer?: string | null) => {
+      if (prefer !== undefined) setPreferCr(prefer);
+      if (prefer && prefer === hiddenRef.current) unhide();
+      setReloadSeq((n) => n + 1);
+    },
+    [unhide]
+  );
 
   /**
    * FLF-480 (B17): đọc lại CR đang mở. Tải lại trang lúc BE còn đang ghi ("Xác nhận & ghi") nạp CR ở `ready_to_submit`; BE ghi xong
@@ -252,7 +292,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   useEffect(() => {
     detailRef.current = detail;
     busyRef.current = busy;
-  }, [detail, busy]);
+    hiddenRef.current = hidden;
+  }, [detail, busy, hidden]);
   const refreshOpen = useCallback(async (): Promise<CrDetail | null | undefined> => {
     const cur = detailRef.current;
     if (!cur) return undefined;
@@ -538,6 +579,34 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     [detail, sendToCr, refreshOpen, projectId, t]
   );
 
+  /**
+   * FLF-480 (B17), "Phiên mới": CR đã đóng ở nơi khác ⇒ `refreshOpen` tự dọn (báo ghi / tải lại tài liệu như thường); còn mở ⇒ ẩn
+   * khỏi khung chat (CR vẫn mở ở BE, lệnh mới gặp 409 `CR_OWN_OPEN` và hiện thẻ "mở lại").
+   */
+  const leaveOpen = async (): Promise<void> => {
+    const cur = detailRef.current;
+    if (cur) {
+      const fresh = await refreshOpen();
+      if (fresh === null) return;
+      const crId = cur.change_request.cr_id;
+      hiddenRef.current = crId;
+      setHidden(crId);
+      writeHidden(projectId, crId);
+      setPreferCr(null);
+      setDetail(null);
+    }
+    setPending(null);
+    setPendingSeed(null);
+    setPrefill(null);
+    setRedraftFor(null);
+    setReplies([]);
+    setWithdrawAsk(null);
+    setWithdrawSent(null);
+    setSent(null);
+    setError(null);
+    setOwnOpen(null);
+  };
+
   const withCr = <T,>(fn: (id: string, d: CrDetail) => T): T | undefined => (detail ? fn(detail.change_request.cr_id, detail) : undefined);
 
   return {
@@ -545,6 +614,10 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     detail,
     /** Nạp lại CR đang mở của mình (sau khi tạo CR từ danh sách rút); `prefer` = mở đúng CR đó nếu còn mở và của mình. */
     reloadOpen,
+    /** FLF-480 (B17): "Phiên mới" ⇒ bỏ CR đang mở khỏi khung chat (xem `leaveOpen`). */
+    leaveOpen,
+    /** CR còn mở đã ẩn khỏi khung chat (để hiện dòng "Mở lại trong khung chat"); `null` = không có. */
+    hiddenOpen: detail ? null : hidden,
     pending,
     sent,
     busy,
@@ -575,6 +648,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         const full = id ? (await getCr(projectId, id)).data : myUserId ? await fetchOwnOpenCr(projectId, myUserId) : null;
         if (!alive.current) return;
         if (!full) throw new Error("CR_OWN_OPEN_NOT_FOUND");
+        unhide();
         setDetail(full);
         setPending(null);
         setPendingSeed(null);

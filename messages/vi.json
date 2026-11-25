@@ -4274,6 +4274,8 @@
       }
     },
     "crChat": {
+      "hiddenOpen": "{crId} vẫn đang mở.",
+      "reopenInChat": "Mở lại trong khung chat",
       "draftLocked": "Bản nháp đang chờ Lead duyệt gói thay đổi - tạm khoá, chưa mở change request mới được. Chờ Lead duyệt hoặc yêu cầu sửa rồi làm tiếp.",
       "hintLocked": "Bản nháp đang chờ Lead duyệt - chưa mở change request mới được",
       "hintNew": "Gõ yêu cầu sửa tài liệu, vd: Thêm yêu cầu hiệu năng cho màn tra cứu",

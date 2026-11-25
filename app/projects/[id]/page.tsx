@@ -297,6 +297,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const tTemplate = useTranslations("mode1.templateMigration.entry");
   const tCard = useTranslations("app.projectCard");
   const tPackage = useTranslations("mode1.reviewPackage");
+  const tCrChat = useTranslations("mode1.crChat");
   const locale = useLocale();
   /** Lỗi hook lưu mã `@key` khi BE không kèm câu (`lib/hook-errors.ts`) — dịch lúc render. */
   const hookError = (error: string | null) => (error ? hookErrorText(error, tHook) : null);
@@ -2367,6 +2368,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               )}
               {/* FLF-443: việc chờ bạn quyết - thẻ một việc mỗi lần, nhường chỗ cho câu hỏi / thẻ duyệt của AI */}
               <ResolveQueueDock controller={resolveQueue} onShowSection={showSection} />
+              {/* FLF-480 (B17): CR còn mở đã ẩn khỏi khung chat bằng "Phiên mới" */}
+              {mode1 && crChat.hiddenOpen && (
+                <p className="mx-3 mb-2 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                  <span>{tCrChat("hiddenOpen", { crId: crChat.hiddenOpen })}</span>
+                  <button type="button" className="font-medium underline" onClick={() => crChat.reloadOpen(crChat.hiddenOpen)}>
+                    {tCrChat("reopenInChat")}
+                  </button>
+                </p>
+              )}
             </>
           }
           onSelectAttachment={ws.selectAttachment}
@@ -2379,7 +2389,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               createDisabled={ws.sending || runner.state.busy}
               readOnly={!canEdit}
               onSelectSession={ws.selectSession}
-              onCreateSession={ws.createSession}
+              onCreateSession={() => {
+                // FLF-480 (B17): "Phiên mới" bỏ CR đang mở khỏi khung chat (CR vẫn mở, có dòng "Mở lại")
+                if (mode1) void crChat.leaveOpen();
+                return ws.createSession();
+              }}
               onDeleteSession={ws.deleteSession}
             />
           }
