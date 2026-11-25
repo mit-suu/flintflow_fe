@@ -30,6 +30,31 @@ describe("DiffPreviewModal", () => {
     expect(screen.getByText("Administrator")).toBeInTheDocument();
   });
 
+  it("FLF-493: removed_items ⇒ khối đỏ nêu mục bị xoá, nút xác nhận đổi nhãn nhưng vẫn bấm được", () => {
+    const onConfirm = vi.fn();
+    renderWithIntl(
+      <DiffPreviewModal
+        preview={{ ...basePreview, removed_items: [{ path: "business_rules[id=BR45]", label: "Doctor may edit treatment notes only within 24 hours" }] }}
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+    const box = screen.getByTestId("diff-removed-items");
+    expect(box).toHaveTextContent("Lượt viết lại này sẽ xoá 1 mục:");
+    expect(box).toHaveTextContent("Doctor may edit treatment notes only within 24 hours");
+    expect(screen.queryByRole("button", { name: "Xác nhận" })).not.toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "Vẫn cập nhật (xoá 1 mục)" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onConfirm).toHaveBeenCalled();
+  });
+
+  it("FLF-493: không có removed_items ⇒ không có khối đỏ, nút xác nhận như cũ", () => {
+    renderWithIntl(<DiffPreviewModal preview={basePreview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    expect(screen.queryByTestId("diff-removed-items")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xác nhận" })).toBeInTheDocument();
+  });
+
   it("FLF-294: sau baseline phải có người yêu cầu + nguồn + lý do mới bấm được; onConfirm nhận change request", () => {
     const onConfirm = vi.fn();
     renderWithIntl(<DiffPreviewModal preview={{ ...basePreview, branch: "post_baseline" }} onCancel={vi.fn()} onConfirm={onConfirm} />);

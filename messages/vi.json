@@ -2270,6 +2270,8 @@
       "reasonPlaceholder": "Ví dụ: Stakeholder đổi yêu cầu ở họp 20/09",
       "reasonNote": "Câu này đi vào mục Record of Changes của tài liệu.",
       "confirmNoChange": "Xác nhận không đổi",
+      "removedTitle": "Lượt viết lại này sẽ xoá {count} mục:",
+      "confirmRemoving": "Vẫn cập nhật (xoá {count} mục)",
       "close": "Đóng"
     },
     "brief": {

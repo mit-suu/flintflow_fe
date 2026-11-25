@@ -125,7 +125,7 @@ export default function DiffPreviewModal({
 }: DiffPreviewModalProps) {
   const t = useTranslations("workspace.diff");
   const titleId = useId();
-  const { pathLabel, humanValue, changeLabel, changeSummary, referrerLabel, ruleLabel, sectionName, violationText, crSource } = useMode1Labels();
+  const { pathLabel, humanValue, changeLabel, changeSummary, referrerLabel, ruleLabel, humanizeText, sectionName, violationText, crSource } = useMode1Labels();
   const documentSections = useContext(SectionNamesContext);
   const [reason, setReason] = useState("");
   const [requester, setRequester] = useState("");
@@ -159,6 +159,8 @@ export default function DiffPreviewModal({
   // không đi đâu ở bước này nên không hỏi, tránh bắt gõ một câu rồi âm thầm vứt đi.
   const needsReason = !confirmWhenInvalid && preview.branch === "post_baseline";
   const hasViolations = preview.violations.length > 0;
+  // FLF-493: hoà giải không có cổng xoá như CR ⇒ nói rõ mục nào sẽ bị xoá (không chặn: có lúc xoá là đúng)
+  const removedItems = preview.removed_items ?? [];
   // BUG-27: "Không có thay đổi nào" mà vẫn có nút Xác nhận là mời user bấm vào chỗ không làm gì.
   // Ngoại lệ: lượt hoà giải trả `no_change` — ở đó xác nhận CÓ nghĩa ("nội dung vẫn đúng", gỡ cờ).
   // Luồng CR của mode 1 v3 (`confirmWhenInvalid`) thì "Tạo CR" vẫn có nghĩa kể cả khi bản xem trước rỗng:
@@ -208,6 +210,17 @@ export default function DiffPreviewModal({
                 {v.path && <span className="text-caption"> ({pathLabel(v.path)})</span>}
               </div>
             ))}
+          </div>
+        )}
+
+        {removedItems.length > 0 && (
+          <div role="alert" data-testid="diff-removed-items" className="bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-3 flex flex-col gap-1.5 text-body text-[#8A4141]">
+            <span className="font-bold">{t("removedTitle", { count: removedItems.length })}</span>
+            <ul className="list-disc pl-5">
+              {removedItems.map((item, i) => (
+                <li key={i}>{item.label ? humanizeText(item.label) : pathLabel(item.path)}</li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -377,7 +390,13 @@ export default function DiffPreviewModal({
               onClick={() => onConfirm(needsReason ? reason.trim() : undefined, changeRequest())}
               className="px-3.5 py-1.5 rounded-full text-body font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {busy ? (busyLabel ?? t("applying")) : preview.no_change && !confirmWhenInvalid ? t("confirmNoChange") : (confirmLabel ?? t("confirm"))}
+              {busy
+                ? (busyLabel ?? t("applying"))
+                : removedItems.length > 0
+                  ? t("confirmRemoving", { count: removedItems.length })
+                  : preview.no_change && !confirmWhenInvalid
+                    ? t("confirmNoChange")
+                    : (confirmLabel ?? t("confirm"))}
             </button>
           )}
         </div>

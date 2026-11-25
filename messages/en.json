@@ -2270,6 +2270,8 @@
       "reasonPlaceholder": "E.g. Stakeholder changed the requirement at the 20/09 meeting",
       "reasonNote": "This sentence goes into the Record of Changes section of the document.",
       "confirmNoChange": "Confirm no change",
+      "removedTitle": "This rewrite will remove {count} items:",
+      "confirmRemoving": "Update anyway (removes {count} items)",
       "close": "Close"
     },
     "brief": {

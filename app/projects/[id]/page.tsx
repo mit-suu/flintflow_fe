@@ -2877,6 +2877,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                     onTemplateChanged={handleTemplateChanged}
                     templateAvailability={templateAvailability}
                     refreshToken={documentRefreshToken}
+                    onRedraw={canEdit ? handleRedrawDiagrams : undefined}
                   />
                 )}
                 {/* FLF-395: dự án mode 2 đã có baseline vẫn đổi mẫu được — thẻ chỉ hiện khi có việc (kẹt, hoàn tác, mục thiếu) */}

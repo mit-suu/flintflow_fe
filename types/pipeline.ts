@@ -81,6 +81,8 @@ export interface PreviewResult {
   notes?: string;
   /** Hoà giải: không có gì cần đổi — xác nhận nguyên trạng để gỡ cờ "đã cũ" (BUG-16). */
   no_change?: boolean;
+  /** FLF-493 (hoà giải): mục lô sẽ xoá (quy tắc, validation, phần tử…) — hộp xem trước nêu rõ, vẫn cho áp. */
+  removed_items?: { path: string; label: string }[];
   /** AI cảnh báo yêu cầu không hợp lý — không bao giờ tự ghi; "Vẫn làm" gửi `preview_id` như xác nhận thường. */
   warning?: string;
   /** Cờ đỏ mới mà bản sửa này sẽ mở (chặn baseline). */
