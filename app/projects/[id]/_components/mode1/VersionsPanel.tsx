@@ -7,7 +7,7 @@ import { ApiClientError } from "@/lib/api/client";
 import { saveBlob } from "@/lib/api/files";
 import { getSpine } from "@/lib/api/spine";
 import { downloadVersion, releaseDocument } from "@/lib/api/versions";
-import { isReleaseVersion, versionFileName, versionLineage, type DocVersion, type DownloadFormat, type DownloadVariant } from "@/types/doc-version";
+import { isReleaseVersion, projectCode, versionFileName, versionLineage, type DocVersion, type DownloadFormat, type DownloadVariant } from "@/types/doc-version";
 import type { DocumentLanguage } from "@/types/project";
 import type { Flag } from "@/types/spine";
 import { useMode1Labels } from "./i18n";
@@ -16,6 +16,7 @@ import { crHref } from "./prefill";
 interface VersionsPanelProps {
   projectId: string;
   projectName?: string;
+  projectCode?: string;
   /** Mới nhất trước. */
   versions: DocVersion[];
   /** Cờ đỏ đang mở — `null` khi chưa tải. */
@@ -46,6 +47,7 @@ interface VersionsPanelProps {
 export default function VersionsPanel({
   projectId,
   projectName,
+  projectCode: propProjectCode,
   versions,
   redOpen,
   selected,
@@ -77,11 +79,16 @@ export default function VersionsPanel({
     setError(null);
     setIncomplete(null);
     try {
+      const current = versions.find((item) => item.version === version);
       const { blob, filename } = await downloadVersion(projectId, version, variant, format, lang);
       // Tên dự phòng khi BE không gửi `Content-Disposition` — cùng quy tắc FLF-334 với BE
       const fallback = versionFileName({
         name: projectName ?? "SRS",
         ...versionLineage(versions, version),
+        // FLF-466: tên có mã dự án, bản nháp mang số phụ của chính nó
+        base: version,
+        numbered: true,
+        code: current?.project_code ?? propProjectCode ?? projectCode(projectId),
         tracked: variant === "tracked",
         original: variant === "original",
         ext: format,
@@ -227,6 +234,7 @@ export default function VersionsPanel({
                   </span>
                   <span className="ml-auto text-caption text-[#A8A49C]">{L.formatDateTime(v.created_at)}</span>
                 </div>
+                {v.system_change && <p className="text-caption text-[#6B6862] leading-relaxed">{L.humanizeText(v.system_change.summary)}</p>}
                 {v.cr_ids.length > 0 && (
                   <div className="flex flex-wrap gap-1 text-caption">
                     {v.cr_ids.map((id) => (
@@ -287,13 +295,20 @@ export default function VersionsPanel({
                     </button>
                   )}
                   {/* BPMN 3.14 (mode 1 v3): bản có đánh dấu của CR — Track Changes + comment, tác giả là mã CR */}
+                  {!v.has_tracked_file && v.tracked_unavailable_reason && (
+                    <span role="note" className="text-caption text-[#8A867E]">
+                      {t(`trackedUnavailable.${v.tracked_unavailable_reason}`)}
+                    </span>
+                  )}
                   {v.has_tracked_file && (
                     <button
                       type="button"
                       onClick={() => void download(v.version, "tracked")}
                       disabled={busy !== null}
                       title={
-                        v.based_on
+                        v.cr_ids.length === 0
+                          ? t("trackedTitleSystem", { base: v.based_on ?? "" })
+                          : v.based_on
                           ? t("trackedTitle", { base: v.based_on, authors: v.cr_ids.join(", ") })
                           : t("trackedTitlePrevious", { authors: v.cr_ids.join(", ") })
                       }

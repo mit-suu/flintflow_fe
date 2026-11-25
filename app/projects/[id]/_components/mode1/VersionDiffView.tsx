@@ -214,7 +214,6 @@ const ROW_STYLE: Record<string, string> = {
   added: "bg-success-soft text-success",
   removed: "bg-error-container text-error line-through",
   modified: "text-on-surface",
-  moved: "text-on-surface",
 };
 
 function TableView({ table, mode }: { table: TableDiff; mode: DiffMode }) {
@@ -272,7 +271,7 @@ function RowGroup({ row, mode, columns }: { row: TableRowDiff; mode: DiffMode; c
     );
   }
   const changed = new Set(row.cells_changed ?? []);
-  const mark = row.change === "added" ? "+" : row.change === "removed" ? "−" : row.change === "modified" ? "~" : "↕";
+  const mark = row.change === "added" ? "+" : row.change === "removed" ? "−" : "~";
   const markLabel = t(`row.${row.change}`);
   const cellsOf = (side: "old" | "new") => (side === "old" ? (row.before ?? []) : (row.after ?? []));
   const line = (side: "old" | "new" | "both") => {

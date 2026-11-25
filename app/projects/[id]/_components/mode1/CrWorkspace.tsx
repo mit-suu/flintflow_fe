@@ -110,6 +110,17 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
       ) : (
         <Step text={t("reviewText")} />
       );
+  } else if (c.status === "released") {
+    next = (
+      <Step
+        tone="ok"
+        text={c.result_doc_version ? t("releasedText", { version: c.result_doc_version, crId: c.cr_id }) : t("releasedNewText", { crId: c.cr_id })}
+      >
+        <Link href={`/projects/${projectId}`} className="px-4 py-2 rounded-[10px] bg-[#1F7A45] text-white text-body font-bold">
+          {t("viewDoc")}
+        </Link>
+      </Step>
+    );
   } else if (c.status === "written") {
     next = (
       <Step
@@ -209,7 +220,7 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
         </div>
       )}
 
-      {c.status === "in_review" || c.status === "written" || c.status === "rejected" ? (
+      {c.status === "in_review" || c.status === "written" || c.status === "released" || c.status === "rejected" ? (
         <ChangeGroupPanel
           groups={groups}
           locations={locations}
