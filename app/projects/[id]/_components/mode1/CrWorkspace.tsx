@@ -5,7 +5,8 @@ import { useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
 import { CR_TERMINAL_STATUSES, type CrLocation } from "@/types/change-request";
 import PageSkeleton from "@/components/ui/PageSkeleton";
-import { useChangeRequest } from "../../hooks/mode1/useChangeRequest";
+import { AiWaitLine } from "@/components/ui/ai-activity";
+import { useChangeRequest, type CrBusy } from "../../hooks/mode1/useChangeRequest";
 import ChangeGroupPanel from "./ChangeGroupPanel";
 import ClarifyPanel from "./ClarifyPanel";
 import { MaterialList } from "./CrMaterials";
@@ -18,6 +19,9 @@ import { crListHref } from "./prefill";
 /** Vị trí AI cần (đề xuất lại): chưa kết luận, hoặc kiểm trượt mà không phải sửa tay — cùng luật `needsProposal` BE. */
 export const needsProposal = (l: CrLocation): boolean => !l.manual && (l.conclusion === null || (l.verify !== null && !l.verify.code_ok));
 
+
+/** Hành động đang chờ AI trả lời (khác ghi quyết định / đóng / huỷ). */
+const AI_BUSY: ReadonlySet<CrBusy> = new Set(["clarify", "propose", "verify", "revise", "resume", "answers", "material"]);
 
 interface CrWorkspaceProps {
   projectId: string;
@@ -38,6 +42,7 @@ interface CrWorkspaceProps {
  */
 export default function CrWorkspace({ projectId, crId, onChanged, readOnly = false, myUserId = null, orgRole = null }: CrWorkspaceProps) {
   const t = useTranslations("mode1.crWorkspace");
+  const tAi = useTranslations("aiActivity.labels");
   const L = useMode1Labels();
   const cr = useChangeRequest(projectId, crId);
   const [dialog, setDialog] = useState<"cancel" | "close" | null>(null);
@@ -178,6 +183,8 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
           </button>
         </div>
       )}
+
+      {cr.busy && AI_BUSY.has(cr.busy) && <AiWaitLine label={tAi("working")} kind="document" />}
 
       {next}
 

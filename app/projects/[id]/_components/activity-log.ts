@@ -11,7 +11,7 @@ import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import en from "@/messages/en.json";
 import vi from "@/messages/vi.json";
 import { workspaceStepLabel as stepLabel } from "./phase-labels";
-import type { ChangeSummary, StepEvent } from "@/types/pipeline";
+import type { ChangeSummary, RunStage, StepEvent } from "@/types/pipeline";
 import { projectFieldText, type GateHelpersT } from "./gate-helpers";
 
 const MESSAGES = { vi, en } as const;
@@ -25,13 +25,19 @@ const gateHelpersFor = (locale: Locale) =>
 /** Sự kiện đã lưu kèm thời điểm: SSE sống ⇒ ms (reducer gắn), run-state sau reload ⇒ ISO (BE gắn). */
 export type LoggedEvent = StepEvent & { at?: number | string };
 
-export type ActivityStatus = "done" | "running" | "failed";
+export type ActivityStatus = "done" | "running" | "failed" | "todo";
 
 export interface ActivityLine {
   key: string;
   kind: "step" | "task";
   text: string;
   status: ActivityStatus;
+  /** Giai đoạn của lượt chạy mà dòng này thuộc về (dòng dựng từ event `stage`) — để biết việc nào còn chưa tới. */
+  stage?: RunStage;
+  /** Thời điểm dòng bắt đầu (ms epoch) — dòng đang làm đếm chữ phụ từ đây. */
+  at?: number;
+  /** Lượt thứ mấy của giai đoạn (soạn lại, kiểm tra lại) — từ 2 hiện nhãn "Lần 2". */
+  round?: number;
   /** Tooltip: mã bước — chỉ để tra cứu, không nằm trong chữ hiện ra. */
   title?: string;
   /** Chi tiết thụt dòng dưới việc — những gì vừa được ghi, bằng lời thường. */
@@ -92,6 +98,23 @@ const taskOf = (event: StepEvent, t: ActivityTranslator, locale: Locale): { text
     case "answer_received":
       // Chỉ là trạng thái lúc AI đang đọc — xong thì lời đáp của AI đã nói điều đó, không để lại thành dòng
       return { text: event.count > 0 ? t("readingAnswers") : t("readingMessage"), transient: true };
+    case "stage":
+      // Giai đoạn thật của lượt chạy (BE phát khi bắt đầu giai đoạn) ⇒ dòng đang làm ngay từ đầu, không phải chờ ghi xong
+      // mới có dòng. Chữ chung chung: không lô, không mã bước. `gate` đã có thẻ chốt riêng.
+      switch (event.stage) {
+        case "intake":
+          return { text: t("stages.intake") };
+        case "ask":
+          return { text: t("stages.ask") };
+        case "draft":
+          return { text: t("drafting") };
+        case "check":
+          return { text: t("stages.check") };
+        case "render":
+          return { text: t("stages.render") };
+        default:
+          return null;
+      }
     case "draft":
       // Lượt soạn lại do bản nháp sai khuôn là việc nội bộ — với user vẫn chỉ là một việc "Soạn nội dung"
       return event.attempt > 1 ? null : { text: t("drafting") };
@@ -124,24 +147,87 @@ export const activityLines = (events: readonly LoggedEvent[], running: boolean, 
   // Việc "tạm" chỉ hiện khi nó là việc cuối và lượt còn đang chạy
   const lastTaskIndex = events.reduce((last, event, index) => (taskOf(event, t, locale) ? index : last), -1);
 
+  // Mỗi giai đoạn của một bước chỉ một dòng (soạn lại / kiểm tra lại ⇒ cùng dòng, tăng `round`); dòng đang làm = giai đoạn
+  // vừa bắt đầu sau cùng. Việc ghi dữ liệu / vẽ sơ đồ gắn vào dòng giai đoạn của nó thay vì thành dòng riêng.
+  const stageRow = new Map<string, ActivityLine>();
+  let currentRow: ActivityLine | null = null;
+
   events.forEach((event, index) => {
     const task = taskOf(event, t, locale);
     if (!task) return;
     if (task.transient && !(running && index === lastTaskIndex)) return;
     if (event.step_id !== currentStep && event.type !== "error") {
       currentStep = event.step_id;
+      currentRow = null;
       // Chữ hiện ra chỉ có tên bước; mã bước nằm ở tooltip
       const label = stepLabel(event.step_id, locale);
       const named = label !== event.step_id;
       lines.push({ key: `step-${event.step_id}-${index}`, kind: "step", text: named ? plainWording(label) : t("nextStep"), title: event.step_id, status: "done", details: [] });
     }
-    lines.push({ key: `${event.type}-${index}`, kind: "task", text: task.text, status: task.failed ? "failed" : "done", details: task.details ?? [] });
+    const at = typeof event.at === "string" ? Date.parse(event.at) : event.at;
+    const stage: RunStage | undefined =
+      event.type === "stage" ? event.stage : event.type === "draft" ? "draft" : event.type === "render" ? "render" : undefined;
+
+    if (stage) {
+      const rowKey = `${event.step_id}|${stage}`;
+      const row = stageRow.get(rowKey);
+      if (row) {
+        // Giai đoạn quay lại (BE báo lại `stage`) ⇒ lượt mới của cùng việc; event `draft` / `render` lẻ chỉ là cùng lượt
+        if (event.type === "stage" && currentRow !== row) {
+          row.round = (row.round ?? 1) + 1;
+          row.at = at;
+          if (stage === "draft") row.text = t("redrafting");
+        }
+        if (task.failed) row.status = "failed";
+        currentRow = row;
+        return;
+      }
+      const created: ActivityLine = { key: `${event.type}-${index}`, kind: "task", text: task.text, status: task.failed ? "failed" : "done", details: [], stage, at, round: 1 };
+      stageRow.set(rowKey, created);
+      lines.push(created);
+      currentRow = created;
+      return;
+    }
+
+    // Ghi dữ liệu ⇒ chi tiết của dòng "Soạn nội dung" của bước (tóm tắt trước, rồi từng mục)
+    const draftRow = stageRow.get(`${event.step_id}|draft`);
+    if (event.type === "ops_applied" && draftRow) {
+      draftRow.details = [task.text, ...(task.details ?? [])];
+      return;
+    }
+    const prev = lines[lines.length - 1];
+    if (prev?.kind === "task" && prev.text === task.text && !task.details?.length) {
+      if (task.failed) prev.status = "failed";
+      return;
+    }
+    lines.push({ key: `${event.type}-${index}`, kind: "task", text: task.text, status: task.failed ? "failed" : "done", details: task.details ?? [], at });
   });
 
   const out = lines.filter((line) => line.kind === "task").length === 0 || lines.filter((line) => line.kind === "step").length > 1
     ? lines
     : lines.filter((line) => line.kind === "task");
-  const last = out.length - 1;
-  if (running && last >= 0 && out[last].kind === "task" && out[last].status !== "failed") out[last].status = "running";
+  const current = currentRow as ActivityLine | null;
+  const active = running ? (current ?? [...out].reverse().find((line) => line.kind === "task") ?? null) : null;
+  if (active && active.status !== "failed") {
+    active.status = "running";
+    // Giai đoạn sau dòng đang làm đã chạy ở lượt trước (soạn lại ⇒ sẽ kiểm tra lại) ⇒ chưa tới
+    const order = (line: ActivityLine) => UPCOMING_ORDER.indexOf(line.stage as (typeof UPCOMING_ORDER)[number]);
+    const activeOrder = order(active);
+    for (const line of out) {
+      if (line !== active && line.kind === "task" && line.status === "done" && activeOrder >= 0 && order(line) > activeOrder) line.status = "todo";
+    }
+    // Như danh sách việc của agent: các giai đoạn chưa xuất hiện của bước hiện mờ ở dưới
+    if (activeOrder >= 0) {
+      const seen = new Set(out.filter((line) => line.kind === "task").map((line) => line.stage));
+      for (const stage of UPCOMING_ORDER.slice(activeOrder + 1)) {
+        if (!seen.has(stage)) out.push({ key: `todo-${stage}`, kind: "task", text: stageText(stage, t), status: "todo", details: [], stage });
+      }
+    }
+  }
   return out;
 };
+
+/** Giai đoạn mọi lượt soạn đều qua, theo thứ tự (vẽ sơ đồ chỉ có ở một số bước ⇒ không báo trước). */
+const UPCOMING_ORDER = ["intake", "draft", "check"] as const;
+const stageText = (stage: (typeof UPCOMING_ORDER)[number], t: ActivityTranslator): string =>
+  stage === "draft" ? t("drafting") : t(`stages.${stage}`);

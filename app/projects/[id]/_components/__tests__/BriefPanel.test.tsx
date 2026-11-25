@@ -71,7 +71,8 @@ describe("BriefPanel (FLF-221)", () => {
     expect(screen.queryByText("Real customers.")).toBeNull();
     expect(screen.queryByText("Chưa xác nhận")).toBeNull();
     expect(screen.queryByText("Đã xác nhận")).toBeNull();
-    expect(screen.queryAllByRole("button")).toHaveLength(0);
+    // Chỉ đọc: nút duy nhất là icon giải thích cạnh tiêu đề, không có nút thao tác
+    expect(screen.queryAllByRole("button").map((b) => b.getAttribute("aria-label"))).toEqual([MESSAGES.vi.workspace.brief.panel.titleTip]);
     expect(screen.getByText("AI đang cập nhật")).toBeTruthy();
   });
 
@@ -157,10 +158,46 @@ describe("BriefPanel (FLF-221)", () => {
     expect(screen.getByText("Điều bạn đã kể (1)")).toBeTruthy();
   });
 
+  it("thẻ mã ngôn ngữ chỉ hiện khi tầm nhìn/mục tiêu lấy từ bản dự phòng và khác ngôn ngữ giao diện", () => {
+    const fallback = { project: project({ vision: "Booking app for small clinics", goals: ["Fewer phone bookings"] }), assumptions: [], addendum: [] };
+    const { unmount } = render(<BriefPanel spine={fallback} documentLanguage="en" />);
+    expect(screen.getAllByText("EN")).toHaveLength(2);
+    expect(screen.getByText("Booking app for small clinics").closest("dd")?.getAttribute("lang")).toBe("en");
+    unmount();
+
+    // Chat thật (addendum lõi) ⇒ ô xám thường, không thẻ
+    const chat = { project: project({ vision: "English vision" }), assumptions: [], addendum: [entry("AD01", "vision", "Đặt lịch khám")] };
+    const second = render(<BriefPanel spine={chat} documentLanguage="en" />);
+    expect(screen.queryByText("EN")).toBeNull();
+    expect(screen.getByText("Đặt lịch khám").closest("dd")?.hasAttribute("lang")).toBe(false);
+    second.unmount();
+
+    // Bản dự phòng cùng ngôn ngữ giao diện ⇒ không thẻ
+    render(<BriefPanel spine={fallback} documentLanguage="vi" />);
+    expect(screen.queryByText("VI")).toBeNull();
+  });
+
+  it("có icon giải thích cạnh tiêu đề và nhãn các ô có câu giải thích", () => {
+    const spine = {
+      project: project({ stakes: "internal" }),
+      assumptions: [],
+      addendum: [entry("AD01", "vision", "Đặt lịch khám"), entry("AD02", "users", "Lễ tân")],
+    };
+    render(<BriefPanel spine={spine} />);
+    expect(screen.getByRole("button", { name: MESSAGES.vi.workspace.brief.panel.titleTip })).toBeTruthy();
+    // Nhãn focus được bằng bàn phím để mở tooltip
+    expect(screen.getByText("Mức độ quan trọng").getAttribute("tabindex")).toBe("0");
+    expect(screen.getByText("Tầm nhìn").getAttribute("tabindex")).toBe("0");
+    expect(screen.getByText("Điều bạn đã kể (1)").getAttribute("tabindex")).toBe("0");
+  });
+
   it("briefVisionGoals: ưu tiên lõi khi có cả hai; topic hoa-thường/khoảng trắng vẫn khớp", () => {
     const both = briefVisionGoals({ project: project({ vision: "EN", goals: ["EN goal"] }), addendum: [entry("AD01", " VISION ", "Tầm nhìn VI")] });
     expect(both.vision).toBe("Tầm nhìn VI");
     expect(both.goals).toEqual([]);
+    expect(both.fromProject).toBe(false);
+    expect(briefVisionGoals({ project: project({ vision: "EN" }), addendum: [] }).fromProject).toBe(true);
+    expect(briefVisionGoals({ project: project(), addendum: [] }).fromProject).toBe(false);
     expect(isBriefCoreTopic(" Goals ")).toBe(true);
     expect(isBriefCoreTopic("users")).toBe(false);
   });

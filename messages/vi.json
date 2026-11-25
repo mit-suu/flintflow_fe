@@ -2277,7 +2277,10 @@
         "desktop_app": "Desktop",
         "api_service": "API",
         "cli": "CLI",
-        "embedded": "Nhúng"
+        "embedded": "Nhúng",
+        "responsive_web": "Web (responsive)",
+        "mobile_web": "Web trên điện thoại",
+        "pwa": "Web app cài được (PWA)"
       },
       "stakes": {
         "internal": "Nội bộ",
@@ -2312,7 +2315,15 @@
         "vision": "Tầm nhìn",
         "goalsCount": "Mục tiêu ({count})",
         "notesCount": "Điều bạn đã kể ({count})",
-        "understoodCount": "Những điều tôi đang hiểu ({count})"
+        "understoodCount": "Những điều tôi đang hiểu ({count})",
+        "docExcerpt": "{code}",
+        "docExcerptTitle": "Ngôn ngữ tài liệu: {language}",
+        "titleTip": "Tóm tắt ý tưởng được tổng hợp từ cuộc trò chuyện, làm cơ sở để soạn tài liệu SRS.",
+        "stakesTip": "Phạm vi sử dụng và yêu cầu tuân thủ của hệ thống.",
+        "visionTip": "Giá trị cốt lõi mà hệ thống mang lại.",
+        "goalsTip": "Các kết quả đo được mà dự án cần đạt.",
+        "notesTip": "Thông tin bạn cung cấp, được giữ nguyên khi soạn tài liệu.",
+        "understoodTip": "Những điểm FlintFlow tự suy ra, chờ bạn xác nhận. Cần xác nhận hết trước khi chốt baseline."
       },
       "summary": {
         "vision": "Tầm nhìn",
@@ -2744,9 +2755,6 @@
     },
     "activityLog": {
       "aria": "Nhật ký hoạt động của AI",
-      "running": " (đang làm)",
-      "failed": " (lỗi)",
-      "done": " (xong)",
       "collections": {
         "project": "thông tin dự án",
         "addendum": "ghi chú",
@@ -2763,7 +2771,11 @@
         "business_rules": "quy tắc",
         "messages": "thông báo",
         "glossary": "thuật ngữ",
-        "permissions": "phân quyền"
+        "permissions": "phân quyền",
+        "common_requirements": "yêu cầu chung",
+        "references": "tài liệu tham chiếu",
+        "verifications": "cách kiểm chứng",
+        "deployment_nodes": "nút triển khai"
       },
       "verbs": {
         "add": "Thêm",
@@ -2786,7 +2798,15 @@
       "renderFailed": "Chưa vẽ được một sơ đồ",
       "rendered": "Vẽ sơ đồ",
       "flagsFound": "Phát hiện {count} lỗi cần sửa",
-      "nextStep": "Bước tiếp theo"
+      "nextStep": "Bước tiếp theo",
+      "stages": {
+        "intake": "Đọc dữ liệu dự án",
+        "ask": "Chuẩn bị câu hỏi cho bạn",
+        "check": "Kiểm tra lại nội dung",
+        "render": "Vẽ sơ đồ"
+      },
+      "redrafting": "Soạn lại cho chuẩn hơn",
+      "round": "Lần {n}"
     },
     "describeChange": {
       "collections": {
@@ -3215,7 +3235,10 @@
         "desktop_app": "Desktop",
         "api_service": "API",
         "cli": "CLI",
-        "embedded": "Nhúng"
+        "embedded": "Nhúng",
+        "responsive_web": "Web (responsive)",
+        "mobile_web": "Web trên điện thoại",
+        "pwa": "Web app cài được (PWA)"
       },
       "stakes": {
         "internal": "Nội bộ",
@@ -3357,6 +3380,27 @@
           "check": "Kiểm tra"
         },
         "sections": "{done}/{total} mục",
+        "foundTotal": "Đã tìm thấy:",
+        "foundSeparator": " · ",
+        "foundLine": "+ {label}: {names}",
+        "foundMore": "và {count} mục khác",
+        "foundDiagram": "sơ đồ",
+        "diagramKinds": {
+          "context": "context",
+          "usecase": "use case",
+          "screen_flow": "luồng màn hình",
+          "erd": "ERD",
+          "class": "class",
+          "state_machine": "vòng đời trạng thái",
+          "sequence": "sequence",
+          "activity": "activity",
+          "deployment": "deployment"
+        },
+        "announce": "Đã đọc {done}/{total} mục",
+        "figure": "Hình",
+        "tableMoreRows": "và {count} dòng khác",
+        "outlineLabel": "Các mục của file",
+        "outlineJump": "Xem mục {title}",
         "state": {
           "done": "xong",
           "active": "đang làm",
@@ -3494,6 +3538,65 @@
       "download": "Tải về",
       "downloading": "Đang tải…",
       "downloadFailed": "Không tải được file. Thử lại sau."
+    }
+  },
+  "aiFollow": {
+    "reading": "Đang đọc {index}/{total}",
+    "writing": "Đang soạn {index}/{total}",
+    "prev": "Mục trước (phím [)",
+    "next": "Mục kế tiếp (phím ])",
+    "follow": "Theo dõi AI"
+  },
+  "aiActivity": {
+    "status": {
+      "running": " (đang làm)",
+      "done": " (xong)",
+      "failed": " (lỗi)",
+      "todo": " (chưa tới)"
+    },
+    "almostDone": "Sắp xong…",
+    "labels": {
+      "replying": "Đang soạn câu trả lời…",
+      "readingReference": "Đang xem tài liệu tham khảo…",
+      "checking": "Đang kiểm tra…",
+      "working": "AI đang xử lý…",
+      "verifying": "Đang kiểm tra tài liệu…"
+    },
+    "hints": {
+      "generic": {
+        "1": "Đang sắp xếp ý…",
+        "2": "Đang viết chi tiết…",
+        "3": "Đang rà lại kết quả…"
+      },
+      "chat": {
+        "1": "Đang sắp xếp ý…",
+        "2": "Đang viết câu trả lời…",
+        "3": "Đang rà lại nội dung…"
+      },
+      "reference": {
+        "1": "Đang đọc tài liệu…",
+        "2": "Đang tìm phần liên quan…",
+        "3": "Đang tóm ý chính…"
+      },
+      "document": {
+        "1": "Đang sắp xếp ý…",
+        "2": "Đang viết chi tiết…",
+        "3": "Đang rà lại nội dung…"
+      },
+      "check": {
+        "1": "Đang đối chiếu các mục…",
+        "2": "Đang tìm chỗ chưa khớp…",
+        "3": "Đang tổng hợp kết quả…"
+      },
+      "diagram": {
+        "1": "Đang xác định các thành phần…",
+        "2": "Đang nối các thành phần…",
+        "3": "Đang vẽ lại…"
+      }
+    },
+    "steps": {
+      "thinking": "Đang suy nghĩ",
+      "searchKnowledge": "Đang tìm trong kho kiến thức"
     }
   },
   "errors": {

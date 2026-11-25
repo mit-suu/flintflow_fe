@@ -26,15 +26,16 @@ describe("activityLines (FLF-221)", () => {
 
   it("mỗi việc một dòng kèm mục vừa ghi; không số đếm nội bộ, không thời lượng; một bước lẻ không có dòng tiêu đề", () => {
     const lines = activityLines(events, false);
-    expect(lines.map((l) => l.text)).toEqual(["Soạn nội dung", "Ghi +2 actor ~1 use case", "Phát hiện 1 lỗi cần sửa"]);
-    expect(lines[1].details).toEqual(["Thêm actor: A01", "Thêm actor: A02", "Cập nhật use case: UC1"]);
-    expect(lines[2].status).toBe("failed");
+    expect(lines.map((l) => l.text)).toEqual(["Soạn nội dung", "Phát hiện 1 lỗi cần sửa"]);
+    // Việc ghi dữ liệu là chi tiết của dòng "Soạn nội dung": tóm tắt trước, rồi từng mục
+    expect(lines[0].details).toEqual(["Ghi +2 actor ~1 use case", "Thêm actor: A01", "Thêm actor: A02", "Cập nhật use case: UC1"]);
+    expect(lines[1].status).toBe("failed");
   });
 
   it("en: cùng các dòng bằng tiếng Anh (dữ liệu BE giữ nguyên)", () => {
     const lines = activityLines(events, false, "en");
-    expect(lines.map((l) => l.text)).toEqual(["Draft content", "Write +2 actor ~1 use case", "Found 1 error to fix"]);
-    expect(lines[1].details).toEqual(["Add actor: A01", "Add actor: A02", "Update use case: UC1"]);
+    expect(lines.map((l) => l.text)).toEqual(["Draft content", "Found 1 error to fix"]);
+    expect(lines[0].details).toEqual(["Write +2 actor ~1 use case", "Add actor: A01", "Add actor: A02", "Update use case: UC1"]);
   });
 
   it("đọc tin/câu trả lời chỉ hiện lúc đang đọc, xong thì biến mất; câu hỏi và cổng duyệt không thành dòng", () => {
@@ -44,7 +45,10 @@ describe("activityLines (FLF-221)", () => {
     ];
     expect(activityLines(reading, true).map((l) => [l.text, l.status])).toEqual([["Đọc tin nhắn của bạn", "running"]]);
     expect(activityLines(reading, false)).toEqual([]);
-    expect(activityLines([...reading, { type: "draft", step_id: "B-0.1", attempt: 1 }], true).map((l) => l.text)).toEqual(["Soạn nội dung"]);
+    expect(activityLines([...reading, { type: "draft", step_id: "B-0.1", attempt: 1 }], true).map((l) => [l.text, l.status])).toEqual([
+      ["Soạn nội dung", "running"],
+      ["Kiểm tra lại nội dung", "todo"],
+    ]);
   });
 
   it("field dự án viết bằng lời thường; bước tự duyệt không thành dòng; nhiều bước thì có tiêu đề từng bước", () => {
@@ -91,7 +95,9 @@ describe("activityLines (FLF-221)", () => {
 
   it("đang chạy ⇒ dòng cuối là việc đang làm", () => {
     const lines = activityLines(events.slice(0, 3), true);
-    expect(lines.at(-1)).toMatchObject({ text: "Soạn nội dung", status: "running" });
+    expect(lines.find((l) => l.status === "running")).toMatchObject({ text: "Soạn nội dung", stage: "draft" });
+    // Giai đoạn chưa tới hiện mờ ở dưới như danh sách việc
+    expect(lines.at(-1)).toMatchObject({ text: "Kiểm tra lại nội dung", status: "todo" });
   });
 
   it("summaryCounts gộp theo loại và nhóm", () => {

@@ -89,10 +89,10 @@ describe("VerificationPane", () => {
     expect(screen.getByText("Không còn vấn đề nào chặn việc chốt bản.")).toBeInTheDocument();
   });
 
-  it("flagsLoading = true hiện spinner, không render FlagsPanel", () => {
+  it("flagsLoading = true hiện dòng chờ, không render FlagsPanel", () => {
     renderWithIntl(<VerificationPane {...baseProps} flags={[]} flagsLoading={true} flagsError={null} flagsBusy={false} />);
 
-    expect(screen.getByText("Đang tải danh sách vấn đề…")).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("Đang tải danh sách vấn đề")
     expect(screen.queryByText("Không còn vấn đề nào chặn việc chốt bản.")).not.toBeInTheDocument();
   });
 

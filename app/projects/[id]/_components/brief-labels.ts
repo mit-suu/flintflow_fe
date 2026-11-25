@@ -75,7 +75,7 @@ export const STAKES_LABEL: Record<string, string> = {
   regulated: "Có quản lý ngành",
 };
 
-const FORM_FACTOR_KEYS = ["web_app", "mobile_app", "desktop_app", "api_service", "cli", "embedded"] as const;
+const FORM_FACTOR_KEYS = ["web_app", "responsive_web", "mobile_web", "pwa", "mobile_app", "desktop_app", "api_service", "cli", "embedded"] as const;
 type FormFactorKey = (typeof FORM_FACTOR_KEYS)[number];
 const STAKES_KEYS = ["internal", "production", "regulated"] as const;
 type StakesKey = (typeof STAKES_KEYS)[number];
@@ -93,8 +93,14 @@ export const formFactorList = (value: string[] | string | null | undefined): str
   Array.isArray(value) ? value.filter((v) => v.trim() !== "") : value ? [value] : [];
 
 /** "Web · Mobile" — nền tảng chính đứng đầu; không có nền tảng nào ⇒ null. */
+/** Giá trị lạ (AI / dữ liệu cũ ghi khoá chưa có nhãn) ⇒ chữ đọc được, không lộ khoá thô: `cloud_native_app` → "Cloud native app". */
+const humanizeKey = (value: string): string => {
+  const words = value.replace(/[_-]+/g, " ").trim();
+  return words ? words.charAt(0).toUpperCase() + words.slice(1) : value;
+};
+
 export const formFactorLabel = (value: string[] | string | null | undefined, t: BriefLabelsTranslator): string | null => {
-  const labels = formFactorList(value).map((v) => (isOneOf(FORM_FACTOR_KEYS, v) ? t(`formFactor.${v}`) : v));
+  const labels = formFactorList(value).map((v) => (isOneOf(FORM_FACTOR_KEYS, v) ? t(`formFactor.${v}`) : humanizeKey(v)));
   return labels.length === 0 ? null : labels.join(" · ");
 };
 
@@ -157,19 +163,21 @@ export interface BriefGoal {
 
 /**
  * Tầm nhìn + mục tiêu của Brief bằng ngôn ngữ user: đọc `content` của addendum lõi; dự án cũ chưa có addendum lõi
- * thì rơi về `project.vision` / `project.goals`.
+ * thì rơi về `project.vision` / `project.goals`. Bản dự phòng này (dự án cũ, import, mẫu) viết theo ngôn ngữ tài liệu
+ * ⇒ trả kèm `fromProject` để nơi hiển thị biết mà gắn thẻ ngôn ngữ; lấy từ chat thì `fromProject = false`.
  */
-export const briefVisionGoals = (spine: Pick<Spine, "project" | "addendum">): { vision: string | null; goals: BriefGoal[] } => {
+export const briefVisionGoals = (
+  spine: Pick<Spine, "project" | "addendum">
+): { vision: string | null; goals: BriefGoal[]; fromProject: boolean } => {
   const core = spine.addendum.filter((entry) => isBriefCoreTopic(entry.topic) && entry.content.trim() !== "");
   if (core.length === 0) {
-    return {
-      vision: spine.project.vision?.trim() || null,
-      goals: spine.project.goals.filter((g) => g.trim() !== "").map((text, i) => ({ id: `project-goal-${i}`, text })),
-    };
+    const vision = spine.project.vision?.trim() || null;
+    const goals = spine.project.goals.filter((g) => g.trim() !== "").map((text, i) => ({ id: `project-goal-${i}`, text }));
+    return { vision, goals, fromProject: Boolean(vision || goals.length) };
   }
   const vision = core.find((entry) => normalizeTopic(entry.topic) === BRIEF_VISION_TOPIC)?.content.trim() || null;
   const goals = core
     .filter((entry) => normalizeTopic(entry.topic) === BRIEF_GOALS_TOPIC)
     .map((entry) => ({ id: entry.id, text: entry.content.trim() }));
-  return { vision, goals };
+  return { vision, goals, fromProject: false };
 };

@@ -91,19 +91,19 @@ describe("ChatPane - chờ câu trả lời tri thức", () => {
   it("hiện dòng chờ có role=status khi knowledgePending", () => {
     renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Đang tra kho tri thức…");
+    expect(screen.getByRole("status")).toHaveTextContent("Đang tìm trong kho kiến thức");
   });
 
   it("không chờ tri thức ⇒ không có dòng đó", () => {
     renderPane(withPipelineFlag(true));
 
-    expect(screen.queryByText("Đang tra kho tri thức…")).not.toBeInTheDocument();
+    expect(screen.queryByText("Đang tìm trong kho kiến thức")).not.toBeInTheDocument();
   });
 
   it("dòng chờ thắng bong bóng chữ chạy - lượt tri thức không có chữ nên bong bóng đó sẽ rỗng", () => {
     renderPane(withPipelineFlag(true), vi.fn(), vi.fn(), { knowledgePending: true, isStreaming: true, streamingMessage: "" });
 
-    expect(screen.getByRole("status")).toHaveTextContent("Đang tra kho tri thức…");
+    expect(screen.getByRole("status")).toHaveTextContent("Đang tìm trong kho kiến thức");
     expect(screen.queryByText("", { selector: ".animate-ping" })).not.toBeInTheDocument();
   });
 });

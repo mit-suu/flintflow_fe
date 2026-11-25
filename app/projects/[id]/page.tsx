@@ -1052,7 +1052,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // trống rồi bật Brief / tài liệu ra sau một nhịp. Không có bản nhớ ⇒ chưa dựng khung phải (khung chat chiếm hết chỗ).
   const boot = useWorkspaceBoot();
   const rememberedPane = boot.memory?.id === projectId ? boot.memory.pane : "none";
-  const briefPane = !mode1 && (phaseUnknown ? rememberedPane === "brief" : (shownPhase ?? "").startsWith("B-"));
+  // AI đang soạn mục tài liệu (bước ngoài Brief) ⇒ khung phải là tài liệu để thấy dải quét, dù bước đang xem là Brief
+  const writingDocument = runner.state.busy && runner.state.activeSectionIds.length > 0;
+  const briefPane = !mode1 && !writingDocument && (phaseUnknown ? rememberedPane === "brief" : (shownPhase ?? "").startsWith("B-"));
   // Đang pha Brief mà Brief chưa có gì ⇒ không dựng khung phải
   const briefHidden = phaseUnknown ? rememberedPane === "none" : briefPane && spine !== null && !briefHasData(spine);
   // Khung phải đang hiện — nhớ cho lần vào sau (khung đang tải giữ đúng bố cục, xem `lib/workspace-memory`)
@@ -2583,7 +2585,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         </div>
 
         {briefHidden ? null : briefPane ? (
-          <BriefPanel spine={spine} updating={runner.state.busy} width={brief.width} />
+          <BriefPanel spine={spine} updating={runner.state.busy} width={brief.width} documentLanguage={documentLanguage} />
         ) : (
         <DocumentPane
           projectId={projectId}
@@ -2616,6 +2618,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           hasDiagrams={(sectionId) => diagramsOfSection(sectionId).length > 0}
           // FLF-410: dự án import, Lead/Analyst — mục chứa ảnh gốc của màn
           screenMockupOf={mode1 && canEdit ? screenMockupOf : undefined}
+          // Mục AI đang soạn trong lượt chạy: dải quét + thanh "Đang soạn x/y ‹ ›"
+          aiWritingSectionIds={runner.state.busy ? runner.state.activeSectionIds : undefined}
+          aiWritingSince={runner.state.startedAt}
           onScreenMockup={mode1 && canEdit ? handleScreenMockup : undefined}
           // Khung sơ đồ vẽ lỗi trong tài liệu: "Thử lại" vẽ lại đúng sơ đồ đó (cùng đường với nút "Vẽ lại" trên cờ)
           onRedrawDiagram={

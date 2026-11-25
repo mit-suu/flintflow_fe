@@ -21,6 +21,11 @@ import type { Flag } from "@/types/flags";
 import type { DocumentLanguage } from "@/types/project";
 import type { RequirementSourceRef } from "@/types/sources";
 import SourceChip, { sectionEntityPath } from "./SourceChip";
+import { AiFollowBar } from "@/components/ui/ai-follow-bar";
+import { useAiFollow } from "@/lib/hooks/use-ai-follow";
+
+/** Mảng rỗng cố định — không tạo mảng mới mỗi lần render (deps của memo/hook ổn định). */
+const EMPTY_IDS: readonly string[] = [];
 import { userErrorMessage } from "@/lib/api/error-messages";
 
 interface DocumentPaneProps {
@@ -116,6 +121,10 @@ interface DocumentPaneProps {
    * truyền / `undefined` ⇒ không có nút.
    */
   screenMockupOf?: (sectionId: string) => { enabled: boolean; pending: boolean } | undefined;
+  /** Mục AI đang soạn trong lượt chạy hiện tại (event `stage.section_ids`): dải quét + thanh theo dõi AI. */
+  aiWritingSectionIds?: readonly string[];
+  /** Mốc bắt đầu lượt chạy (ms epoch) cho đồng hồ của thanh theo dõi. */
+  aiWritingSince?: number | null;
   /** "Vẽ lại bằng mockup" (mở hộp chọn kiểu + phạm vi) / "Dùng ảnh gốc" (0 credit) cho màn của mục. */
   onScreenMockup?: (sectionId: string, action: "redraw" | "original") => Promise<void> | void;
   /**
@@ -421,7 +430,8 @@ function DiagramErrorBox({ diagramId, onRetry }: { diagramId: string; onRetry?: 
 }
 
 /** Trạng thái hiển thị của một vùng (mục / block) so với lượt cập nhật tài liệu — xem `.ff-upd` ở `globals.css`. */
-type UpdateState = "pending" | "fresh" | "settled" | null;
+/** `writing` = AI đang soạn mục trong lượt chạy hiện tại (dải quét ngang, `globals.css`). */
+type UpdateState = "pending" | "writing" | "fresh" | "settled" | null;
 
 /** Vùng "vừa cập nhật" giữ nền cho tới khi vào khung nhìn chừng này rồi mới nhạt dần. */
 export const FRESH_HOLD_MS = 2000;
@@ -670,6 +680,7 @@ function SectionView({
   issues,
   onOpenIssues,
   pending,
+  writing = false,
   regionState,
   onSelectStep,
   emptyHint,
@@ -708,6 +719,8 @@ function SectionView({
   onOpenIssues?: () => void;
   /** Mục đang chờ bản mới (thao tác của chính tab đang ghi). */
   pending: boolean;
+  /** AI đang soạn mục này trong lượt chạy hiện tại. */
+  writing?: boolean;
   /** Trạng thái của một vùng vừa đổi theo khoá `sectionRegionKey` / `blockRegionKey`. */
   regionState: (regionKey: string) => UpdateState;
   onSelectStep?: (stepId: string) => void;
@@ -736,7 +749,7 @@ function SectionView({
   // Mẫu cố định: mọi mục của mẫu còn trống (kể cả mục map vào mục FlintFlow) đều mời soạn
   const templateEmpty = requiredTemplate ? showEmpty || !section.blocks.some(blockHasRealText) : customEmpty
   const depth = depthOf(section);
-  const updateState: UpdateState = pending ? "pending" : regionState(sectionRegionKey(section.id));
+  const updateState: UpdateState = pending ? "pending" : writing ? "writing" : regionState(sectionRegionKey(section.id));
   // FLF-410: ảnh màn hình của mục = cụm ảnh liền nhau đầu tiên (mockup web + mobile, hoặc ảnh gốc) — nút vẽ lại đặt ngay dưới
   // cụm này, vệt quét chỉ phủ cụm này (sơ đồ khác trong mục không bị phủ)
   const screenImages = screenMockup ? firstImageRun(section.blocks) : null;
@@ -746,7 +759,7 @@ function SectionView({
       data-section-id={section.id}
       data-update-region={sectionRegionKey(section.id)}
       data-update={updateState ?? undefined}
-      aria-busy={updateState === "pending" || undefined}
+      aria-busy={updateState === "pending" || updateState === "writing" || undefined}
       // Mục con thụt vào so với mục cha (inline style: độ sâu là dữ liệu, không phải class tĩnh); −12px bù phần đệm
       // ngang dành cho nền nổi bật, để chữ của mục gốc thẳng hàng với heading nhóm
       style={{ marginLeft: depth * INDENT_PER_LEVEL - 12 }}
@@ -939,6 +952,8 @@ function DocumentPaneView({
   newerVersion = null,
   baselineVersions = [],
   sources,
+  aiWritingSectionIds = EMPTY_IDS,
+  aiWritingSince = null,
 }: Omit<DocumentPaneProps, "doc" | "refreshToken"> & { doc: UseDocumentResult }) {
   const t = useTranslations("workspace.document");
   const tHook = useTranslations("workspace.hookErrors");
@@ -966,6 +981,18 @@ function DocumentPaneView({
 
   // ─── Mục đang / vừa cập nhật ────────────────────────────────────────────────────────────────────────────
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // ─── AI đang soạn: các mục của lượt chạy, theo thứ tự tài liệu ⇒ dải quét + thanh ‹ › ─────────────────────────────
+  const writingSet = useMemo(() => new Set(aiWritingSectionIds), [aiWritingSectionIds]);
+  const writingIds = useMemo(
+    () => (document ? document.sections.filter((section) => writingSet.has(section.id)).map((section) => section.id) : EMPTY_IDS),
+    [document, writingSet],
+  );
+  const aiFollow = useAiFollow({
+    containerRef: scrollRef,
+    activeIds: writingIds,
+    getElement: (id) => scrollRef.current?.querySelector<HTMLElement>(`[data-section-id="${CSS.escape(id)}"]`) ?? null,
+  });
   const progress = useUpdateRegions(scrollRef, lastDiff);
   const regionSet = useMemo(() => new Set(lastDiff?.regions ?? []), [lastDiff]);
   const regionState = (key: string): UpdateState => (regionSet.has(key) ? (progress.settled.has(key) ? "settled" : "fresh") : null);
@@ -1099,6 +1126,8 @@ function DocumentPaneView({
       </div>
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
+        {/* AI đang soạn: thanh dính "Đang soạn x/y ‹ › Theo dõi AI" — chỉ hiện khi có mục đang được viết */}
+        {writingIds.length > 0 && <AiFollowBar follow={aiFollow} verb="writing" since={aiWritingSince} className="-mx-8 -mt-6 px-8" />}
         {newerVersion && (
           <div role="status" className="sticky top-0 z-10 rounded-control bg-primary-soft px-3 py-1.5 flex items-center gap-1.5 text-body text-on-surface">
             <Icon name="refresh" size={14} className="text-primary" />
@@ -1170,6 +1199,7 @@ function DocumentPaneView({
               issues={issuesOf(section.id)}
               onOpenIssues={onOpenSectionIssues ? () => onOpenSectionIssues(section.id) : undefined}
               pending={pendingSectionIds.has(section.id)}
+              writing={writingSet.has(section.id)}
               regionState={regionState}
               onSelectStep={onSelectStep}
               emptyHint={section.blocks.length === 0 || isGuidanceOnly(section.blocks) ? emptyHintOf?.(section.id) : undefined}
