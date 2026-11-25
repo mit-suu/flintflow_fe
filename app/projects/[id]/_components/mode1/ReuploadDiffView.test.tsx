@@ -148,6 +148,35 @@ describe("ReuploadDiffView - tải lại bản sửa ngoài FlintFlow (UC-24, 1.
 });
 
 describe("reuploadPrefill", () => {
+  it("theo mục và theo hàng: bảng thêm hàng thành một dòng, không dán nguyên bảng", () => {
+    const { description } = reuploadPrefill(
+      {
+        ...DIFF,
+        blocks: [
+          {
+            block_id: null,
+            change: "modified",
+            kind: "table",
+            section: "I. Record of Changes",
+            before: "x",
+            after: "y",
+            table: { header: ["Date", "Change"], rows: [{ change: "unchanged", count: 2, rows: [["a", "b"], ["c", "d"]] }, { change: "added", after: ["19/11", "Add 3.2.7"] }, { change: "added", after: ["19/11", "Fix 3.2.1"] }, { change: "modified", before: ["01/11", "Old"], after: ["01/11", "New"], cells_changed: [1] }] },
+          },
+          { block_id: null, change: "modified", kind: "paragraph", section: "3.2.1 Đăng nhập", before: "5 lần", after: "3 lần" },
+        ],
+      },
+      labelsFor()
+    );
+    expect(description.split("\n").slice(1)).toEqual([
+      "I. Record of Changes:",
+      "- Thêm 2 hàng: 19/11 | Add 3.2.7; 19/11 | Fix 3.2.1",
+      "- Sửa 1 hàng: \"01/11 | Old\" → \"01/11 | New\"",
+      "3.2.1 Đăng nhập:",
+      "- Sửa: \"5 lần\" → \"3 lần\"",
+    ]);
+    expect(description).not.toContain("a | b");
+  });
+
   it("mỗi loại khác biệt một dòng", () => {
     const { title, description } = reuploadPrefill(DIFF, labelsFor());
     expect(title).toBe("Cập nhật theo file SRS_sua.docx");

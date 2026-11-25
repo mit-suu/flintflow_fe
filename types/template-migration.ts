@@ -44,6 +44,19 @@ export interface MigrationPairing {
   followers: { old_key: string; kind: "element" | "continuation"; parent_old_key: string | null }[];
   ignored_new: string[];
   split: { old_key: string; new_keys: string[] }[];
+  /** Heading con của mẫu đích nằm cùng mục với heading cha (thuộc mục cha, không thiếu). Bản ghi cũ không có. */
+  children?: string[];
+}
+
+/** `high`: đã chọn sẵn, dùng luôn nếu không đổi. `guess`: đoán, phải bấm "Đúng" hoặc chọn khác. */
+export type SuggestConfidence = "high" | "guess";
+/** Lý do của lựa chọn chọn sẵn — FE dịch thành câu ngắn (`reasons.*`). */
+export type SuggestReason = "no_place" | "close_name" | "map_columns" | "no_table_in_new" | "keep_history" | "first_heading";
+/** Lựa chọn chọn sẵn của một dòng (luôn miễn phí). Bản ghi trước khi có gợi ý thì thiếu. */
+export interface Suggestion {
+  suggested?: string;
+  suggested_reason?: SuggestReason;
+  confidence?: SuggestConfidence;
 }
 
 export interface MatchedItem {
@@ -65,25 +78,25 @@ export interface MissingItem {
   moved_in?: string[];
 }
 
-export interface ExtraItem {
+export interface ExtraItem extends Suggestion {
   id: string;
   old_key: string;
   heading_text: string;
   section_id: string;
   follower_keys: string[];
-  /** `keep_custom` | `delete` | `move_to:<new_key>`. */
+  /** `keep_custom` | `drop_from_print` | `delete` | `move_to:<new_key>`. */
   choices: string[];
   /** Lựa chọn cần AI (tính credit). */
   ai_choices: string[];
   decision_required: true;
 }
 
-/** Lựa chọn của mục thừa thuộc khung (dữ liệu có cấu trúc): bỏ khỏi bản in, dữ liệu vẫn giữ và trở lại khi hoàn tác. Tên do BE chốt — đổi ở đây. */
+/** Lựa chọn "Không in ra": bỏ khỏi bản in, dữ liệu vẫn giữ và trở lại khi hoàn tác. Tên do BE chốt — đổi ở đây. */
 export const DROP_FROM_PRINT_CHOICE = "drop_from_print";
 
 export type ConflictKind = "table_columns" | "split_section" | "record_of_changes";
 
-export interface ConflictItem {
+export interface ConflictItem extends Suggestion {
   id: string;
   kind: ConflictKind;
   old_key: string;
@@ -144,6 +157,19 @@ export interface MigrationCreditEstimate {
   total: number;
 }
 
+export type OutlineStatus = "kept" | "receives" | "needs_content" | "dropped";
+/** Một dòng của dàn tiêu đề tài liệu sau khi đổi (bước Áp dụng), theo thứ tự mẫu mới. */
+export interface OutlineEntry {
+  heading_text: string;
+  level: number;
+  status: OutlineStatus;
+  from_heading?: string[];
+  table_change?: "map" | "keep" | "drop";
+  /** Chỉ dòng `dropped`: nội dung sẽ không in (tối đa 5) + tổng số. */
+  dropped_items?: { id: string | null; text: string }[];
+  dropped_total?: number;
+}
+
 export interface MigrationDecision {
   id: string;
   choice: string;
@@ -160,8 +186,10 @@ export interface Migration {
   pairing: MigrationPairing;
   groups: MigrationGroups;
   decisions: MigrationDecision[];
-  /** Mục bắt buộc chọn mà chưa có quyết định — rỗng mới `ready` được. */
+  /** Dòng đoán chưa xác nhận (và mục của bản ghi cũ chưa có gợi ý) — rỗng mới `ready` được. */
   undecided: string[];
+  /** Dàn tiêu đề tài liệu sau khi đổi. Bản BE cũ chưa có ⇒ thiếu. */
+  outline?: OutlineEntry[];
   language: { source: string; target: string; needs_translation: boolean; /** Chỉ đổi ngôn ngữ tài liệu (mode 2 / từ FPT): không dịch Spine, không credit. */ switches_document_language: boolean };
   credit_estimate: MigrationCreditEstimate;
   warnings: string[];

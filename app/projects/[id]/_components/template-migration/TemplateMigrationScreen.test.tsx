@@ -27,7 +27,7 @@ vi.mock("@/lib/api/org-library", () => ({ listOrgTemplates: vi.fn(async () => []
 
 const summaryOf = (m: Migration) => ({ id: m.id, state: m.state, direction: m.direction, revertable: m.revertable, revert_blocked_reason: m.revert_blocked_reason, previous_template: m.previous_template, to: { template_id: m.to.template_id, version: m.to.version, name: m.to.name }, created_at: m.created_at, applied_at: m.applied_at });
 
-/** Một lần đổi mẫu đang ở `decisions`; BE là nguồn sự thật nên mỗi thao tác trả lại bản đầy đủ. */
+/** Một lần đổi mẫu đang mở; BE là nguồn sự thật nên mỗi thao tác trả lại bản đầy đủ. */
 const open = (m: Migration) => {
   api.listTemplateMigrations.mockResolvedValue([summaryOf(m)]);
   api.getTemplateMigration.mockResolvedValue(m);
@@ -40,7 +40,7 @@ const flags: Flag[] = [
 beforeEach(() => vi.clearAllMocks());
 
 describe("TemplateMigrationScreen", () => {
-  it("quyết định mục thừa → tóm tắt → áp dụng → báo mục thiếu + hoàn tác", async () => {
+  it("xem lại thay đổi → áp dụng (chốt ready rồi áp dụng) → báo mục thiếu + hoàn tác", async () => {
     const decisions = migrationFixture();
     const decided = migrationFixture({ decisions: [{ id: "e:o1", choice: "keep_custom" }], undecided: [] });
     const ready = migrationFixture({ state: "ready", decisions: decided.decisions, undecided: [] });
@@ -55,8 +55,10 @@ describe("TemplateMigrationScreen", () => {
     fireEvent.change(await screen.findByLabelText(/Ghi chú triển khai/), { target: { value: "keep_custom" } });
     await waitFor(() => expect(api.patchMigrationDecisions).toHaveBeenCalledWith("p1", "m1", { decisions: [{ id: "e:o1", choice: "keep_custom" }] }));
     fireEvent.click(await screen.findByRole("button", { name: "Tiếp tục" }));
-    fireEvent.click(await screen.findByRole("button", { name: "Áp dụng" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Áp dụng mẫu mới" }));
     await waitFor(() => expect(onChanged).toHaveBeenCalled());
+    expect(api.markMigrationReady).toHaveBeenCalledWith("p1", "m1");
+    expect(api.applyTemplateMigration).toHaveBeenCalledWith("p1", "m1");
     expect(await screen.findByText(/Đã chuyển tài liệu sang mẫu Mẫu ngân hàng/)).toBeInTheDocument();
     expect(screen.getByText("1 mục của mẫu mới chưa có nội dung")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Hoàn tác lần đổi mẫu" })).toBeInTheDocument();
@@ -92,11 +94,11 @@ describe("TemplateMigrationScreen", () => {
     open(ready);
     api.applyTemplateMigration.mockRejectedValue(new ApiClientError(409, "TEMPLATE_MIGRATION_INVALID_STATE", "x"));
     renderWithIntl(<TemplateMigrationScreen projectId="p1" orgId="o1" flags={[]} sectionName={(id) => id} orgRole="lead" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Áp dụng" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Áp dụng mẫu mới" }));
     await waitFor(() => expect(api.listTemplateMigrations.mock.calls.length).toBeGreaterThan(1));
   });
 
-  it("409 dữ liệu đổi giữa chừng ⇒ quay về bước nhóm kèm thông báo", async () => {
+  it("409 dữ liệu đổi giữa chừng ⇒ quay về bước xem lại kèm thông báo", async () => {
     const ready = migrationFixture({ state: "ready", undecided: [], decisions: [{ id: "e:o1", choice: "delete" }] });
     const back = migrationFixture({ state: "decisions", undecided: [], decisions: [{ id: "e:o1", choice: "delete" }] });
     open(ready);
@@ -105,17 +107,17 @@ describe("TemplateMigrationScreen", () => {
     api.listTemplateMigrations.mockResolvedValueOnce([summaryOf(ready)]).mockResolvedValue([summaryOf(back)]);
 
     renderWithIntl(<TemplateMigrationScreen projectId="p1" orgId="o1" flags={flags} sectionName={(id) => id} orgRole="analyst" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Áp dụng" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Áp dụng mẫu mới" }));
     expect(await screen.findByText(/Dữ liệu tài liệu vừa thay đổi/)).toBeInTheDocument();
     expect(await screen.findByRole("button", { name: "Tiếp tục" })).toBeInTheDocument();
   });
 
-  it("liên kết gãy (đổi ngược) hiện danh sách ngay ở bước tóm tắt", async () => {
+  it("liên kết gãy (đổi ngược) hiện danh sách ngay ở bước áp dụng", async () => {
     open(migrationFixture({ state: "ready", direction: "reverse", undecided: [] }));
     api.applyTemplateMigration.mockRejectedValue(new ApiClientError(409, "TEMPLATE_MIGRATION_LINKS_BROKEN", "broken", { violations: ["UC-03 trỏ tới mục đã bị bỏ"] }));
 
     renderWithIntl(<TemplateMigrationScreen projectId="p1" orgId="o1" flags={flags} sectionName={(id) => id} orgRole="lead" />);
-    fireEvent.click(await screen.findByRole("button", { name: "Áp dụng" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Áp dụng mẫu mới" }));
     expect(await screen.findByText("UC-03 trỏ tới mục đã bị bỏ")).toBeInTheDocument();
   });
 
@@ -128,7 +130,8 @@ describe("TemplateMigrationScreen", () => {
     fireEvent.change(await screen.findByLabelText("File mẫu (.docx)"), { target: { files: [file] } });
     fireEvent.click(screen.getByRole("button", { name: "Dùng file này" }));
     await waitFor(() => expect(api.startTemplateMigration).toHaveBeenCalledWith("p1", { kind: "file", file }));
-    expect(await screen.findByRole("button", { name: "Xác nhận ghép mục" })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: "Tiếp tục" })).toBeInTheDocument();
+    expect(screen.getByText(/2. Xem lại thay đổi/)).toHaveAttribute("aria-current", "step");
   });
 
   it("apply_failed ⇒ Khôi phục rồi quay lại chọn mẫu", async () => {

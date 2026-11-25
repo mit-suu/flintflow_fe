@@ -449,11 +449,40 @@ export interface GapReport {
 
 export type BlockChange = "added" | "removed" | "modified" | "moved";
 
+export type DiffBlockKind = "paragraph" | "table" | "image" | "heading";
+
+/** Một hàng của bảng trong diff theo hàng; hàng không đổi liền nhau gộp `unchanged` (FE vẽ `⋯ n hàng`). */
+export type TableRowDiff =
+  | { change: BlockChange; before?: string[]; after?: string[]; cells_changed?: number[] }
+  | { change: "unchanged"; count: number; rows: string[][] };
+
+export interface TableDiff {
+  header: string[];
+  /** Chỉ khi hàng tiêu đề đổi. */
+  header_before?: string[];
+  rows: TableRowDiff[];
+}
+
 export interface BlockDiffEntry {
   block_id: string | null;
   change: BlockChange;
   before?: string;
   after?: string;
+  /** Tiêu đề mục chứa block ("" = trước heading đầu). Bản ghi cũ không có ⇒ gom vào nhóm "Khác". */
+  section?: string;
+  /** Khoá mục = đường heading ("A > B"): mục trùng tên ở hai chỗ khác nhau không bị gộp. */
+  section_key?: string;
+  kind?: DiffBlockKind;
+  /** Bảng khớp mà khác chữ ⇒ diff theo hàng. */
+  table?: TableDiff;
+}
+
+/** Số block không đổi của một mục (không trả chữ). */
+export interface DiffSectionStat {
+  title: string;
+  /** Khoá mục; thiếu ở bản ghi cũ. */
+  key?: string;
+  unchanged: number;
 }
 
 export interface BlockDiffSummary {
@@ -470,6 +499,8 @@ export interface ReuploadDiff {
   created_at: IsoDateTime;
   summary: BlockDiffSummary;
   blocks: BlockDiffEntry[];
+  /** Bản ghi cũ ⇒ []. */
+  sections?: DiffSectionStat[];
 }
 
 /** `meta` của 422 IMPORT_FILE_REJECTED. */

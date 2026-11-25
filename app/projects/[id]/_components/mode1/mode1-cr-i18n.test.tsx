@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import { renderWithIntl, vietnameseLeftovers } from "@/test/intl";
 import type { CrGroup, CrLocation } from "@/types/change-request";
 import type { CrChat } from "../../hooks/mode1/useCrChat";
-import BlockDiffList, { DiffSummary } from "./BlockDiffList";
+import VersionDiffView, { DiffSummary } from "./VersionDiffView";
 import ChangeGroupPanel from "./ChangeGroupPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import CrPrefillCard from "./CrPrefillCard";
@@ -63,11 +63,11 @@ const renderAll = (locale: "vi" | "en") =>
       <ChangeGroupPanel groups={[group]} locations={[location("L1")]} canDecide onDecide={vi.fn()} />
       <VerifyResult location={location("L3")} />
       <OriginalDiagramChange loc={diagramLoc} />
-      <BlockDiffList entries={[{ block_id: "b1", change: "modified", before: "a", after: "b" }]} />
+      <VersionDiffView entries={[{ block_id: "b1", change: "modified", before: "a", after: "b", section: "1 Intro", kind: "paragraph" }]} fromLabel="0.1" toLabel="0.2" />
       <p>
         <DiffSummary summary={{ added: 1, removed: 0, modified: 2, moved: 0 }} />
       </p>
-      <BlockDiffList entries={[]} />
+      <VersionDiffView entries={[]} fromLabel="0.1" toLabel="0.2" />
       <MaterialList items={[{ key: "m1", name: "Email PM", kind: "text", text: "Hello", truncated: true, round: 1 }]} onRemove={vi.fn()} />
       <MaterialAdder onAddText={vi.fn()} onAddFile={vi.fn()} />
       <AssumptionsNote assumptions={["Deadline is Friday"]} />

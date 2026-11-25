@@ -5,30 +5,63 @@ import { useEffect, useRef, useState } from "react";
 import { takePendingReupload } from "./pending-reupload";
 import { useTranslations } from "next-intl";
 import { reuploadDocument } from "@/lib/api/import";
-import type { ReuploadDiff } from "@/types/import";
-import BlockDiffList, { DiffSummary } from "./BlockDiffList";
+import type { BlockDiffEntry, ReuploadDiff } from "@/types/import";
+import VersionDiffView, { DiffSummary } from "./VersionDiffView";
 import { useMode1Labels, type Mode1Labels } from "./i18n";
 import { crPrefillHref } from "./prefill";
 import UploadStep from "./UploadStep";
 
-/** Mô tả CR điền sẵn từ khác biệt re-upload — người dùng sửa lại trước khi gửi. */
-export const reuploadPrefill = (diff: ReuploadDiff, { t }: Pick<Mode1Labels, "t">) => ({
-  title: t("reupload.prefillTitle", { name: diff.original_name }),
-  description: [
-    t("reupload.prefillIntro", { name: diff.original_name, version: diff.against_version }),
-    ...diff.blocks.map((b) =>
-      b.change === "added"
-        ? t("reupload.lineAdded", { after: b.after ?? "" })
-        : b.change === "removed"
-          ? t("reupload.lineRemoved", { before: b.before ?? "" })
-          : b.change === "moved"
-            ? (b.before ?? b.after)
-              ? t("reupload.lineMoved", { text: b.before ?? b.after ?? "" })
-              : t("reupload.lineMovedBlock")
-            : t("reupload.lineChanged", { before: b.before ?? "", after: b.after ?? "" })
-    ),
-  ].join("\n"),
-});
+type Translate = Pick<Mode1Labels, "t">["t"];
+
+/** Một dòng mô tả cho đoạn (không phải bảng). */
+const blockLine = (b: BlockDiffEntry, t: Translate): string =>
+  b.change === "added"
+    ? t("reupload.lineAdded", { after: b.after ?? "" })
+    : b.change === "removed"
+      ? t("reupload.lineRemoved", { before: b.before ?? "" })
+      : b.change === "moved"
+        ? (b.before ?? b.after)
+          ? t("reupload.lineMoved", { text: b.before ?? b.after ?? "" })
+          : t("reupload.lineMovedBlock")
+        : t("reupload.lineChanged", { before: b.before ?? "", after: b.after ?? "" });
+
+const rowText = (cells?: string[]): string => (cells ?? []).map((c) => c.trim()).join(" | ");
+
+/** Bảng sửa theo hàng ⇒ mỗi loại thay đổi một dòng ("Thêm 3 hàng: …"), không dán nguyên bảng. */
+const tableLines = (b: BlockDiffEntry, t: Translate): string[] => {
+  const rows = b.table?.rows ?? [];
+  const of = (change: string) => rows.filter((r) => r.change === change) as { before?: string[]; after?: string[] }[];
+  const added = of("added");
+  const removed = of("removed");
+  const changed = of("modified");
+  const moved = of("moved");
+  return [
+    ...(added.length ? [t("reupload.lineRowsAdded", { count: added.length, rows: added.map((r) => rowText(r.after)).join("; ") })] : []),
+    ...(removed.length ? [t("reupload.lineRowsRemoved", { count: removed.length, rows: removed.map((r) => `"${rowText(r.before)}"`).join("; ") })] : []),
+    ...(changed.length ? [t("reupload.lineRowsChanged", { count: changed.length, rows: changed.map((r) => `"${rowText(r.before)}" → "${rowText(r.after)}"`).join("; ") })] : []),
+    ...(moved.length ? [t("reupload.lineRowsMoved", { count: moved.length })] : []),
+  ];
+};
+
+/**
+ * Mô tả CR điền sẵn từ khác biệt re-upload, theo mục và theo hàng của bảng — người dùng sửa lại trước khi gửi. Bản ghi cũ (không có
+ * mục) giữ kiểu mỗi khối một dòng.
+ */
+export const reuploadPrefill = (diff: ReuploadDiff, { t }: Pick<Mode1Labels, "t">) => {
+  const lines: string[] = [];
+  let sectionKey: string | undefined;
+  for (const b of diff.blocks) {
+    // Tiêu đề mục in một lần mỗi khi sang mục khác (khoá = đường heading, mục trùng tên ở hai chỗ vẫn tách)
+    const key = b.section ? (b.section_key ?? b.section) : undefined;
+    if (b.section && key !== sectionKey) lines.push(t("reupload.lineSection", { section: b.section }));
+    if (key) sectionKey = key;
+    lines.push(...(b.table ? tableLines(b, t) : [blockLine(b, t)]));
+  }
+  return {
+    title: t("reupload.prefillTitle", { name: diff.original_name }),
+    description: [t("reupload.prefillIntro", { name: diff.original_name, version: diff.against_version }), ...lines].join("\n"),
+  };
+};
 
 /**
  * 1.4 Re-upload (UC-24): file mang stamp của chính dự án (đã sửa ngoài FlintFlow) ⇒ so theo block với version
@@ -97,7 +130,7 @@ export default function ReuploadDiffView({ projectId }: { projectId: string }) {
               </Link>
             )}
           </div>
-          <BlockDiffList entries={diff.blocks} />
+          <VersionDiffView entries={diff.blocks} sections={diff.sections} fromLabel={diff.against_version} toLabel={diff.original_name} />
         </div>
       )}
     </div>
