@@ -79,7 +79,16 @@ export interface Cr {
   status: CrStatus;
   paused: Paused | null;
   /** `suggestions` (phase 7): đáp án AI gợi ý, song song `questions` (`[]` khi không có). */
-  clarifications: { round: number; questions: string[]; answers: string[]; suggestions: string[][] }[];
+  clarifications: {
+    round: number;
+    questions: string[];
+    answers: string[];
+    suggestions: string[][];
+    /** FLF-474: loại từng câu (song song `questions`); `contradiction` bắt buộc trả lời. BE cũ / CR cũ không có. */
+    kinds?: ("contradiction" | "ambiguous")[];
+  }[];
+  /** FLF-474: nhãn vòng làm rõ đang chờ trả lời do BE đếm; `extra` = vòng thêm sau trần 3. BE cũ không có ⇒ FE tự đếm. */
+  clarify_round?: { n: number; max: number; extra: boolean } | null;
   base_doc_version: string;
   result_doc_version: string | null;
   created_by: string;

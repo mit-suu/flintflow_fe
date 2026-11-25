@@ -66,6 +66,9 @@ const needsProposal = (l: CrLocation): boolean => !l.manual && (l.conclusion ===
 /** Vị trí trượt kiểm (3.7) mà người dùng chưa soạn lại / bỏ — soạn lại hoặc bỏ đều xoá kết quả kiểm cũ. */
 export const isFailing = (l: CrLocation): boolean => l.verify !== null && !l.verify.code_ok;
 
+/** Cùng luật `hasOpenConflict` BE: người khác đã sửa chỗ này mà người dùng chưa quyết (còn đề xuất sửa) ⇒ không tự kiểm / soạn lại. */
+export const hasOpenConflict = (l: CrLocation): boolean => !!l.conflict && l.conclusion === "edit";
+
 /**
  * FLF-318: CR mang lô người dùng đã duyệt ở bản xem trước (thêm / xoá / sửa use case), chưa gộp thêm lệnh — BE làm đúng lô
  * đó, không hỏi / không gọi AI ⇒ không bắt duyệt lại từng phần như trước baseline: đề xuất của lô tính là đã đồng ý.
@@ -376,7 +379,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (c.status === "proposing" && d.locations.some(needsProposal)) return "propose";
       if ((c.status === "proposing" || c.status === "verifying") && allDecided(d, set)) return "verify";
       // 3.9: người dùng đã soạn lại / bỏ hết phần trượt và đồng ý mọi đề xuất ⇒ kiểm lại luôn
-      if (c.status === "manual_fix" && allDecided(d, set) && !d.locations.some(isFailing)) return "verify";
+      // Còn chỗ xung đột với người khác (chưa quyết) ⇒ chờ người dùng, không tự kiểm (kiểm sẽ báo "đã đổi" rồi AI soạn lại đè phần người khác vừa sửa)
+      if (c.status === "manual_fix" && allDecided(d, set) && !d.locations.some(isFailing) && !d.locations.some(hasOpenConflict)) return "verify";
       return null;
     },
     [accepted, allDecided, needImpact]

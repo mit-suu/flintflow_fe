@@ -280,3 +280,28 @@ describe("useCrChat - 'Phiên mới' bỏ CR đang mở khỏi khung chat (FLF-4
     expect(result.current.hiddenOpen).toBeNull();
   });
 });
+
+describe("useCrChat - còn chỗ xung đột thì không tự kiểm (FLF-474, 7a)", () => {
+  const edit = { location_id: "L001", section_id: "fixed:2.2", path: "use_cases[id=UC09]", conclusion: "edit", proposal: { new_text: "X" }, verify: null, manual: false, found_by: ["keyword"] };
+  const manualFix = (locations: unknown[]) =>
+    ({ ...detail, change_request: { ...detail.change_request, status: "manual_fix" }, locations }) as unknown as CrDetail;
+
+  const run = async (projectId: string, d: CrDetail) => {
+    window.localStorage.setItem(`ff-cr-chat:${projectId}:CR-001:accepted`, JSON.stringify(["L001|edit|X||[]"]));
+    api.listCrs.mockResolvedValue({ data: [{ cr_id: "CR-001", status: "manual_fix", created_by: "u1" }] });
+    api.getCr.mockResolvedValue({ data: d });
+    const { result } = renderHookWithIntl(() => useCrChat(projectId, true, undefined, "u1"));
+    await waitFor(() => expect(result.current.detail?.change_request.status).toBe("manual_fix"));
+    return result;
+  };
+
+  it("mọi chỗ đã đồng ý, không xung đột ⇒ tự kiểm lại", async () => {
+    const result = await run("p-noconf", manualFix([edit]));
+    expect(result.current.canContinue).toBe(true);
+  });
+
+  it("còn chỗ xung đột (đã đồng ý từ trước) ⇒ nextAuto trả null: chờ người dùng, không kiểm", async () => {
+    const result = await run("p-conf", manualFix([{ ...edit, conflict: { at_proposal: "a", current: "b", proposal: "X", changed_by: "Huy", changed_at: null } }]));
+    expect(result.current.canContinue).toBe(false);
+  });
+});
