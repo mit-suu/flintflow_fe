@@ -12,6 +12,7 @@ import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "
 import { useMode1Labels } from "./i18n";
 import { diffLines, type DiffToken } from "@/lib/word-diff";
 import PausedBanner from "./PausedBanner";
+import { removedOfAll } from "./content-removal";
 
 function UserBubble({ children }: { children: ReactNode }) {
   return <div className="self-end max-w-[85%] bg-primary-soft text-on-surface rounded-[14px] rounded-br-[4px] px-3 py-2 text-body whitespace-pre-wrap">{children}</div>;
@@ -664,8 +665,9 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
  * BF §3.2: đề xuất chưa xác nhận **treo ở người yêu cầu** — người khác mở CR này chỉ thấy "đang treo ở X", không có nút
  * xác nhận (họ không có bối cảnh, người xác nhận đứng tên thay đổi).
  */
-function ReadyToSubmit({ c, chat, myUserId }: { c: CrDetail["change_request"]; chat: CrChat; myUserId: string | null }) {
+function ReadyToSubmit({ c, locations, chat, myUserId }: { c: CrDetail["change_request"]; locations: CrLocation[]; chat: CrChat; myUserId: string | null }) {
   const t = useTranslations("mode1.crThread");
+  const removed = removedOfAll(locations);
   const notMine = myUserId !== null && c.created_by !== myUserId;
   return (
     <AiBubble step={t("readyStep")} label={t("readyLabel")}>
@@ -674,6 +676,12 @@ function ReadyToSubmit({ c, chat, myUserId }: { c: CrDetail["change_request"]; c
       ) : (
         <>
           <p>{t("readyText")}</p>
+          {removed.length > 0 && (
+            <p role="note" className="rounded-[8px] bg-accent-gold-soft px-3 py-2 text-body text-on-surface">
+              {t("removesContent", { items: removed.slice(0, 5).join("; ") })}
+              {removed.length > 5 ? ` ${t("removesContentMore", { count: removed.length - 5 })}` : ""}
+            </p>
+          )}
           <div className="flex gap-1.5">
             <button type="button" disabled={chat.busy !== null} onClick={chat.submit} className={`${btn} btn-gradient-primary text-white`}>
               {t("submit")}
@@ -924,7 +932,7 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
           </div>
         </AiBubble>
       )}
-      {c.status === "ready_to_submit" && <ReadyToSubmit c={c} chat={chat} myUserId={myUserId} />}
+      {c.status === "ready_to_submit" && <ReadyToSubmit c={c} locations={d.locations} chat={chat} myUserId={myUserId} />}
 
       {chat.replies.map((r, i) => (
         <div key={i} className="flex flex-col gap-2">

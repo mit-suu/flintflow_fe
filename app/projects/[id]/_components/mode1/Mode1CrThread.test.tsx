@@ -350,6 +350,28 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
     expect(S().crs.get("CR-001")!.change_request.amendments).toHaveLength(0);
   });
 
+  it("FLF-483: CR sẵn sàng gửi có xoá nội dung ⇒ nói rõ xoá gì, không in mã; CR không xoá ⇒ không hiện khối", async () => {
+    const d = await proposalsOf(1);
+    d.change_request.status = "ready_to_submit";
+    d.locations[0].proposal = {
+      old_text: JSON.stringify({ validations: [{ id: "V1", condition: "Email hợp lệ" }, { id: "V2", condition: "Mật khẩu từ 8 ký tự" }] }),
+      new_text: JSON.stringify({ validations: [{ id: "V1", condition: "Email hợp lệ" }] }),
+      comment_text: null,
+      spine_ops: [{ op: "set" }],
+      assumptions: [],
+    };
+    const first = renderWithIntl(<Harness />);
+    const note = await screen.findByRole("note");
+    expect(note).toHaveTextContent("Thay đổi này xoá nội dung: Mật khẩu từ 8 ký tự.");
+    expect(note).not.toHaveTextContent("V2");
+    first.unmount();
+
+    d.locations[0].proposal = { ...d.locations[0].proposal!, new_text: d.locations[0].proposal!.old_text };
+    renderWithIntl(<Harness />);
+    await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" });
+    expect(screen.queryByText(/Thay đổi này xoá nội dung/)).not.toBeInTheDocument();
+  });
+
   it("UC-46 / AC-43.3: gói đang chờ Lead duyệt ⇒ ô chat báo bản nháp khoá, lệnh sửa không mở CR mới", async () => {
     S().submission = { status: "pending", submitted_by: "user-lan", submitted_at: new Date().toISOString(), spine_version: 1, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] };
     renderWithIntl(<Harness />);
