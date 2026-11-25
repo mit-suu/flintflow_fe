@@ -9,8 +9,8 @@ import { apiCall } from "./client";
 
 /**
  * FLF-334 B — phạm vi của #26 / #27: ngôn ngữ đích (bỏ trống ⇒ ngôn ngữ tài liệu) + đích snapshot của lượt tải vừa bị 409
- * `TRANSLATION_INCOMPLETE`: `baselineId` (mode 2, baseline đang xuất) hoặc `version` (mode 1, DocVersion có baseline). Có
- * đích ⇒ BE đếm / dịch đúng snapshot đó, nên "Dịch nốt" xoá đúng phần lượt tải kiểm.
+ * `TRANSLATION_INCOMPLETE`: `baselineId` (mode 2, baseline đang xuất) hoặc `version` (mọi DocVersion có baseline hoặc
+ * `spine_snapshot`). Có đích ⇒ BE đếm / dịch đúng snapshot đó, nên "Dịch nốt" xoá đúng phần lượt tải kiểm.
  */
 export interface TranslationScope {
   locale?: DocumentLanguage;
@@ -23,7 +23,7 @@ const scopeFields = (scope: TranslationScope): Record<string, string> => ({
   ...(scope.baselineId ? { baseline_id: scope.baselineId } : scope.version ? { version: scope.version } : {}),
 });
 
-/** `GET /translations/status` — đếm phần chưa dịch + ước tính credit, không gọi model; mọi vai trò đọc được. */
+/** `GET /translations/status` — đếm phần chưa dịch + ước tính credit, không gọi model; chỉ Lead / Analyst đọc được (Viewer trả 403). */
 export const getTranslationStatus = (projectId: string, scope: TranslationScope = {}) => {
   const query = new URLSearchParams(scopeFields(scope)).toString();
   return apiCall<TranslationStatus>(`/projects/${projectId}/translations/status${query ? `?${query}` : ""}`);

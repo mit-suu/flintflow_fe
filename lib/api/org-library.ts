@@ -84,6 +84,13 @@ export type ProposalAction = "send" | "save" | "decline";
 export const actOnTemplateProposal = async (projectId: string, action: ProposalAction): Promise<TemplateProposal> =>
   unwrap(await apiCall<TemplateProposal>(`${project(projectId)}/template-proposal/${action}`, json("POST")));
 
+/**
+ * FLF-466: sửa đề xuất đang chờ bằng một câu chat (tác giả, Lead / Analyst). Một lượt AI giữ credit trước:
+ * `402 INSUFFICIENT_CREDIT`, `503 TEMPLATE_PROPOSAL_AI_UNAVAILABLE` (đề xuất giữ nguyên).
+ */
+export const chatOnTemplateProposal = async (projectId: string, message: string): Promise<TemplateProposal> =>
+  unwrap(await apiCall<TemplateProposal>(`${project(projectId)}/template-proposal/chat`, json("POST", { message })));
+
 /** UC-88: đề xuất Analyst gửi đang chờ Lead duyệt. */
 export const listTemplateProposals = async (orgId: string): Promise<TemplateProposal[]> =>
   unwrap(await apiCall<TemplateProposal[]>(`/orgs/${orgId}/template-proposals`));

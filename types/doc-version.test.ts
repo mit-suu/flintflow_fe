@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { versionFileName, versionLineage } from "./doc-version";
+import { projectCode, versionFileName, versionLineage } from "./doc-version";
 
 /** FLF-334: tên dự phòng FE phải khớp quy tắc `versionFileName` BE (`flintflow_be/src/modules/doc-version/versioning.ts`). */
 describe("versionFileName", () => {
@@ -19,6 +19,19 @@ describe("versionFileName", () => {
     expect(versionFileName({ name: "Lumen", release: true, base: "2.0", language: "en" })).toBe("Lumen_v2.0_EN.docx");
     expect(versionFileName({ name: "Lumen", release: false, base: "1.0", language: "vi", ext: "pdf" })).toBe("Lumen_v1.0_DRAFT_VI.pdf");
     expect(versionFileName({ name: "Lumen", release: true, base: "2.0", language: null })).toBe("Lumen_v2.0.docx");
+  });
+});
+
+describe("versionFileName FLF-466 (mã dự án, số phụ)", () => {
+  it("khớp BE: phát hành, bản nháp mang số phụ, trước baseline, tracked", () => {
+    expect(versionFileName({ name: "Lumen", release: true, base: "2.0", code: "P77049B" })).toBe("Lumen_P77049B_v2.0.docx");
+    expect(versionFileName({ name: "Lumen", release: false, base: "1.3", numbered: true, code: "P77049B" })).toBe("Lumen_P77049B_v1.3.docx");
+    expect(versionFileName({ name: "Lumen", release: false, base: "1.3", latestCr: "CR-014", numbered: true, code: "P77049B", tracked: true })).toBe("Lumen_P77049B_v1.3_tracked.docx");
+    expect(versionFileName({ name: "Lumen", release: false, base: null, code: "P77049B" })).toBe("Lumen_P77049B_DRAFT.docx");
+  });
+
+  it("projectCode = P + 6 ký tự cuối id, viết hoa", () => {
+    expect(projectCode("650000000000000000abc123")).toBe("PABC123");
   });
 });
 

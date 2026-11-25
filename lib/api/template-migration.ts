@@ -14,6 +14,7 @@ const base = (projectId: string) => `/projects/${projectId}/template-migrations`
 const one = (projectId: string, migrationId: string) => `${base(projectId)}/${migrationId}`;
 
 const startBody = (input: StartMigrationInput): RequestInit => {
+  if (input.kind === "standard") return json("POST", input);
   if (input.kind === "template") return json("POST", { template_id: input.template_id, version: input.version });
   const form = new FormData();
   form.append("file", input.file);

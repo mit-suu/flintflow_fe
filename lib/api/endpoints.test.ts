@@ -436,6 +436,13 @@ describe("lib/api wrappers", () => {
     expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate?scope=all&from=S-1");
     await pipeline.getRunEstimate("p1");
     expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate");
+    await pipeline.getRunEstimate("p1", { scope_kind: "after_brief" });
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate?scope_kind=after_brief");
+  });
+
+  it("ackRunEstimate POST /run-estimate/ack (FLF-466)", async () => {
+    await pipeline.ackRunEstimate("p1");
+    expect(apiCall).toHaveBeenCalledWith("/projects/p1/run-estimate/ack", { method: "POST" });
   });
 
   it("runStep mở luồng SSE của step", async () => {
