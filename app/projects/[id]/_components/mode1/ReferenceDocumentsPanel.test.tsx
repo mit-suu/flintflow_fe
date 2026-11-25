@@ -1,4 +1,6 @@
 import { fireEvent, screen, waitFor } from "@testing-library/react";
+import { http, HttpResponse } from "msw";
+import { API_BASE_URL } from "@/lib/api/client";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { renderWithIntl } from "@/test/intl";
 import { mockServer } from "@/mocks/server";
@@ -45,6 +47,15 @@ describe("ReferenceDocumentsPanel (FLF-338 - tài liệu tham khảo ⇒ rút y�
     expect(screen.getByText("đã duyệt")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "CR-001" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Rút lại" })).toBeNull();
+  });
+
+  it("FLF-449: tài liệu dài nhiều lô ⇒ thẻ credit báo số lượt và tổng credit theo ước tính của BE", async () => {
+    mockServer.use(http.get(`${API_BASE_URL}/projects/:projectId/documents/:documentId/extract/estimate`, () => HttpResponse.json({ data: { batches: 3, credits: 9, cost_per_batch: 3 }, error: null })));
+    renderWithIntl(<Harness onCrsCreated={vi.fn()} />);
+    await screen.findByText("minutes.txt");
+    fireEvent.click(screen.getByRole("button", { name: "Rút yêu cầu" }));
+    const dialog = await screen.findByRole("dialog", { name: "Xác nhận credit trước khi rút yêu cầu" });
+    expect(dialog).toHaveTextContent("Tài liệu dài, AI đọc thành 3 lượt, tốn ~9 credit. Chạy chứ?");
   });
 
   it("Huỷ ở thẻ credit ⇒ không gọi AI; Xoá tài liệu ⇒ biến mất", async () => {

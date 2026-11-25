@@ -5270,12 +5270,13 @@
       "view": "Xem",
       "noText": "Không đọc được chữ trong file",
       "legacyDoc": "Chưa đọc được file .doc, hãy lưu lại thành .docx",
-      "imagesSkipped": "Hình / sơ đồ trong file không được đọc"
+      "imagesSkipped": "Hình / sơ đồ trong file không được đọc",
+      "confirmBatches": "Tài liệu dài, AI đọc thành {batches} lượt, tốn ~{credits} credit. Chạy chứ?"
     },
     "extraction": {
       "aria": "Danh sách yêu cầu rút từ {name}",
       "title": "{name} - {count, plural, =1 {1 yêu cầu} other {# yêu cầu}}",
-      "intro": "Nhãn là gợi ý của AI. Tick mục đưa vào; bỏ mục nào ghi lý do; mục cùng nhóm thành một change request (đổi tên nhóm để tách). Mục Trùng chỉ cần tick - tài liệu thành nguồn của phần tử.",
+      "intro": "Nhãn là gợi ý của AI. Tick mục đưa vào; bỏ mục nào ghi lý do; mục cùng nhóm thành một change request (đổi tên nhóm để tách). Mục Trùng chỉ cần tick - tài liệu thành nguồn của phần tử. Mục Suy ra không được tích sẵn: muốn đưa vào thì chọn một phương án.",
       "creditsUsed": "đã dùng {credits} credit",
       "approvedAt": "danh sách đã duyệt",
       "labels": {
@@ -5283,7 +5284,8 @@
         "modification": "Sửa đổi",
         "duplicate": "Trùng",
         "contradiction": "Mâu thuẫn",
-        "ambiguous": "Mơ hồ"
+        "ambiguous": "Mơ hồ",
+        "inferred": "Suy ra"
       },
       "group": "Nhóm",
       "groupAria": "Nhóm của {id}",
@@ -5301,8 +5303,31 @@
       "requesterPlaceholder": "Ai đưa ra yêu cầu (vd PM Lan)",
       "create": "{count, plural, =0 {Duyệt danh sách} =1 {Tạo 1 change request} other {Tạo # change request}}",
       "creating": "Đang tạo…",
-      "problems": "{count, plural, =1 {Còn 1 mục} other {Còn # mục}} thiếu lý do bỏ hoặc câu trả lời.",
-      "approveFailed": "Không duyệt được danh sách"
+      "problems": "{count, plural, =1 {Còn 1 mục} other {Còn # mục}} thiếu lý do bỏ, câu trả lời hoặc phương án.",
+      "approveFailed": "Không duyệt được danh sách",
+      "paragraph": "đoạn {n}",
+      "openParagraph": "Mở {source}",
+      "speaker": "Người nói: {name}",
+      "sidesTitle": "Mỗi bên nói gì",
+      "unknownSpeaker": "Không rõ người nói",
+      "situationAria": "Hiện trạng và mong muốn",
+      "current": "Hiện trạng",
+      "desired": "Mong muốn",
+      "inference": {
+        "symptom": "Triệu chứng",
+        "rootCause": "Gốc rễ",
+        "rationale": "Vì sao suy ra",
+        "servesGoal": "Phục vụ mục tiêu: {goal}",
+        "optionsAria": "Phương án cho {id}",
+        "recommended": "Khuyến nghị",
+        "recommendationReason": "Vì sao khuyến nghị: {reason}",
+        "noRecommendation": "Chưa đủ căn cứ để khuyến nghị - hai phương án ngang nhau, bạn chọn.",
+        "pros": "Ưu",
+        "cons": "Nhược",
+        "risks": "Rủi ro / giả định",
+        "chosen": "Đã chọn: {label}",
+        "pickHint": "Muốn đưa mục này vào thì chọn một phương án."
+      }
     },
     "templateMigration": {
       "loading": "Đang tải…",

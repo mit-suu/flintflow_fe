@@ -579,6 +579,8 @@ export const mode1Handlers = [
     delete mode1Extractions[String(params.documentId)];
     return ok({ deleted: true });
   })),
+  // FLF-449 #31d: tài liệu mock ngắn ⇒ một lô
+  http.get(api("/projects/:projectId/documents/:documentId/extract/estimate"), mode1(() => ok({ batches: 1, credits: 1, cost_per_batch: 1 }))),
   http.get(api("/projects/:projectId/documents/:documentId/extract"), mode1(({ params }) => ok(mode1Extractions[String(params.documentId)] ?? null))),
   http.post(api("/projects/:projectId/documents/:documentId/extract"), mode1(({ params }) => {
     const doc = mode1Docs.find((d) => d._id === params.documentId);

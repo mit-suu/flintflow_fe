@@ -93,10 +93,14 @@ export const canKeepViolations = (d: CrDetail, l: CrLocation): boolean => {
   return d.change_request.status === "manual_fix" && !!l.verify && !l.verify.code_ok && violations.length > 0 && violations.every((v) => KEEPABLE_VIOLATION_RULES.includes(v.rule));
 };
 
-/** CR chưa nộp mới nhất của chính `myUserId` (danh sách BE trả mới nhất trước) - `null` nếu không có. */
-const fetchOwnOpenCr = async (projectId: string, myUserId: string): Promise<CrDetail | null> => {
+/**
+ * CR chưa nộp mới nhất của chính `myUserId` (danh sách BE trả mới nhất trước) - `null` nếu không có. FLF-449: `preferCr`
+ * (CR vừa tạo từ danh sách rút / "Mở trong khung chat") được ưu tiên nếu nó còn mở.
+ */
+const fetchOwnOpenCr = async (projectId: string, myUserId: string, preferCr?: string | null): Promise<CrDetail | null> => {
   const res = await listCrs(projectId);
-  const open = (res.data ?? []).find((c) => CR_OPEN_STATUSES.includes(c.status) && c.created_by === myUserId);
+  const mineOpen = (res.data ?? []).filter((c) => CR_OPEN_STATUSES.includes(c.status) && c.created_by === myUserId);
+  const open = mineOpen.find((c) => c.cr_id === preferCr) ?? mineOpen[0];
   if (!open) return null;
   return (await getCr(projectId, open.cr_id)).data;
 };
@@ -211,7 +215,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     [projectId]
   );
 
-  // CR đang mở = CR chưa nộp mới nhất **của mình** (danh sách BE trả mới nhất trước)
+  // CR đang mở = CR chưa nộp mới nhất **của mình** (danh sách BE trả mới nhất trước). `reloadSeq` / `preferCr` (E2E 24/11 #3):
+  // duyệt danh sách rút tạo CR mới, hay bấm "Mở trong khung chat" ở một CR cụ thể ⇒ nạp lại, ưu tiên CR được chỉ định nếu nó
+  // là CR đang mở của mình.
+  const [reloadSeq, setReloadSeq] = useState(0);
+  const [preferCr, setPreferCr] = useState<string | null>(null);
   useEffect(() => {
     // Chưa biết mình là ai ⇒ chờ, không nhận nhầm CR của người khác
     if (!enabled || !myUserId) return;
@@ -219,7 +227,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     getReviewPackage(projectId)
       .then((r) => !cancelled && alive.current && setDraftLocked(r.data?.status === "pending"))
       .catch(() => undefined);
-    fetchOwnOpenCr(projectId, myUserId)
+    fetchOwnOpenCr(projectId, myUserId, preferCr)
       .then((full) => {
         if (!cancelled && alive.current && full) setDetail(full);
       })
@@ -228,7 +236,11 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     return () => {
       cancelled = true;
     };
-  }, [projectId, enabled, myUserId]);
+  }, [projectId, enabled, myUserId, reloadSeq, preferCr]);
+  const reloadOpen = useCallback((prefer?: string | null) => {
+    if (prefer !== undefined) setPreferCr(prefer);
+    setReloadSeq((n) => n + 1);
+  }, []);
 
   const isAccepted = useCallback(
     (l: CrLocation) => accepted.has(proposalKey(l)) || (detail !== null && inApprovedBatch(detail, l)),
@@ -461,6 +473,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   return {
     loading,
     detail,
+    /** Nạp lại CR đang mở của mình (sau khi tạo CR từ danh sách rút); `prefer` = mở đúng CR đó nếu còn mở và của mình. */
+    reloadOpen,
     pending,
     sent,
     busy,
