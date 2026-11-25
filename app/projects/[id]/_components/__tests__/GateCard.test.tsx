@@ -122,6 +122,18 @@ describe("GateCard - tin nhắn AI + chip", () => {
       expect(screen.getByText(/Nền tảng đã chốt ở bước Kể hết ý tưởng/)).toBeInTheDocument();
     });
 
+    it("bước chỉ kiểm (Rà nhất quán) có gọi model, không op ⇒ không cảnh báo; bước soạn có gọi model, không op ⇒ vẫn cảnh báo", () => {
+      const base = { type: "gate_ready", actions: ALL, regenerate_used: 0, spine_version: 5, wrote_ops: false, empty_sections: [], summary: [], new_assumptions: [] };
+      const check = { ...base, step_id: "S-8.4", calls_used: 3 } as unknown as GateReadyEvent;
+      const view = renderWithIntl(<GateCard stepId="S-8.4" actions={ALL} wroteOps={false} payload={check} onAction={vi.fn()} />);
+      expect(screen.queryByText(/AI không soạn được nội dung nào ở lượt này/)).not.toBeInTheDocument();
+      view.unmount();
+
+      const draft = { ...base, step_id: "S-2.1", calls_used: 1 } as unknown as GateReadyEvent;
+      renderWithIntl(<GateCard stepId="S-2.1" actions={ALL} wroteOps={false} payload={draft} onAction={vi.fn()} />);
+      expect(screen.getByRole("status")).toHaveTextContent("AI không soạn được nội dung nào ở lượt này");
+    });
+
     it("có ghi op nhưng mục vẫn trống ⇒ gọi tên mục, nói rõ Duyệt không đóng được cờ và chỉ lối ra", () => {
       renderWithIntl(
         <GateCard
