@@ -8,13 +8,20 @@ export interface CreditGateLine {
   /** Nhãn đã dịch, vd "Giai đoạn S-2 · 5 bước" hay "Đọc 2 tài liệu đính kèm". */
   label: string;
   credits: number;
+  /** Cận trên khi dòng là khoảng (vd vòng màn hình chưa có danh sách màn, FLF-485). */
+  creditsMax?: number;
 }
 
 export interface CreditGateRequest {
   /** Việc sắp chạy hàng loạt, vd "Soạn toàn bộ SRS sau Brief". */
   title: string;
   lines: CreditGateLine[];
+  /** Tổng (cận dưới khi có `totalMax`). */
   total: number;
+  /** Cận trên của tổng; lớn hơn `total` ⇒ hiện khoảng. */
+  totalMax?: number;
+  /** Không có số ước tính (gọi ước tính lỗi): ẩn dòng tổng và cảnh báo thiếu số dư. */
+  totalUnknown?: boolean;
   /** Credit khả dụng của ví org; null khi không biết (Viewer, ví chưa có). */
   available: number | null;
   /** Lưu ý trước khi chạy (đã dịch), vd cảnh báo PDF khi đính kèm (FLF-449). */
@@ -33,9 +40,12 @@ interface CreditGateCardProps extends CreditGateRequest {
  * hiện số credit ước tính và số dư; **người dùng bấm Chạy mới gọi AI**, Huỷ thì không trừ credit, tiến độ giữ nguyên.
  * Component độc lập, nhận dữ liệu qua props để agent (đợt sau) hiện lại trong chat.
  */
-export default function CreditGateCard({ title, lines, total, available, notes = [], busy = false, onRun, onCancel }: CreditGateCardProps) {
+export default function CreditGateCard({ title, lines, total, totalMax, totalUnknown = false, available, notes = [], busy = false, onRun, onCancel }: CreditGateCardProps) {
   const t = useTranslations("workspace.creditGate");
-  const short = available !== null && available < total;
+  const ranged = totalMax !== undefined && totalMax > total;
+  const short = !totalUnknown && available !== null && available < total;
+  // Đủ cho cận dưới nhưng có thể thiếu nếu ra cận trên (nhiều màn): cảnh báo vàng, không chặn
+  const mayShort = !totalUnknown && !short && ranged && available !== null && available < totalMax;
   return (
     <section role="dialog" aria-label={t("aria")} className="rounded-control border border-outline-variant bg-surface-container-lowest p-4 flex flex-col gap-3">
       <div className="flex items-start gap-2">
@@ -50,7 +60,7 @@ export default function CreditGateCard({ title, lines, total, available, notes =
           {lines.map((line) => (
             <li key={line.label} className="flex justify-between gap-3">
               <span className="truncate">{line.label}</span>
-              <span className="whitespace-nowrap text-on-surface-muted">{t("credits", { credits: line.credits })}</span>
+              <span className="whitespace-nowrap text-on-surface-muted">{line.creditsMax !== undefined && line.creditsMax > line.credits ? t("creditsRange", { min: line.credits, max: line.creditsMax }) : t("credits", { credits: line.credits })}</span>
             </li>
           ))}
         </ul>
@@ -62,12 +72,20 @@ export default function CreditGateCard({ title, lines, total, available, notes =
         </p>
       ))}
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-outline-variant pt-2">
-        <span className="text-body font-bold">{t("total", { credits: total })}</span>
+        {!totalUnknown && <span className="text-body font-bold">{ranged ? t("totalRange", { min: total, max: totalMax }) : t("total", { credits: total })}</span>}
         {available !== null && <span className={`text-caption ${short ? "text-error font-bold" : "text-on-surface-muted"}`}>{t("available", { credits: available })}</span>}
       </div>
       {short && (
         <p role="status" className="text-body text-error">
           {t("short")}{" "}
+          <Link href="/home/billing" className="underline font-bold">
+            {t("topUp")}
+          </Link>
+        </p>
+      )}
+      {mayShort && (
+        <p role="status" className="text-body text-accent-gold-text">
+          {t("shortRange")}{" "}
           <Link href="/home/billing" className="underline font-bold">
             {t("topUp")}
           </Link>
