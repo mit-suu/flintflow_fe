@@ -63,6 +63,8 @@ export interface DiscoveryQuestion {
   multiple?: boolean;
   /** Câu mở đã được hỏi ngay trong lời AI — không hiện lại thành dòng/thẻ riêng. */
   inline?: boolean;
+  /** FLF-474: bắt buộc trả lời (câu mâu thuẫn với tài liệu): không gửi được khi câu này còn trống, dù thẻ cho gửi trống. */
+  required?: boolean;
   /** FLF-449: lý do khuyến nghị (khối "Vì sao khuyến nghị" ở phương án được khuyến nghị). */
   recommendation_reason?: string;
 }
