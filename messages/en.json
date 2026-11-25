@@ -5092,6 +5092,8 @@
       "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable - if something is wrong, release a new version.",
       "releasing": "Releasing…",
       "confirmRelease": "Confirm release",
+      "conciseRecord": "Let AI shorten the change descriptions in the Record of Changes",
+      "conciseRecordHint": "{credits, plural, =0 {No credit needed.} other {Costs about # credit.}} Off by default: descriptions are built from the changes themselves.",
       "blockedMigrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. Write them (through a change request) before submitting or releasing.",
       "unsentPill": "{count, plural, one {# CR not sent to Lead} other {# CRs not sent to Lead}}",
       "previousRounds": "{count, plural, one {# earlier change request} other {# earlier change requests}}",
