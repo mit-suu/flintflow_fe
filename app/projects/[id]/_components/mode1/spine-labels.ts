@@ -39,6 +39,13 @@ export const ENTITY_KEYS = [
 
 const isEntity = (name: string): boolean => (ENTITY_KEYS as readonly string[]).includes(name);
 
+/**
+ * Bộ sưu tập chỉ là sổ sách nội bộ của lô sửa (cờ, trạng thái bước áp, tiến độ, phiên làm việc, bản ký, lượt dùng,
+ * quyết định) — không phải nội dung tài liệu. FLF-480 (B11): ẩn khỏi bảng xem trước thay đổi.
+ */
+export const INTERNAL_COLLECTIONS = ["flags", "steps", "progress", "sessions", "baselines", "usage", "decisions"] as const;
+export const isInternalCollection = (name: string): boolean => (INTERNAL_COLLECTIONS as readonly string[]).includes(name);
+
 /** Mã luật có nhãn (`mode1.spine.rules.<mã>`): cờ tài liệu, luật kiểm đề xuất CR (3.7), luật engine thay đổi. */
 export const RULE_KEYS = [
   "section_empty",

@@ -1946,6 +1946,8 @@
       "untranslatedTitle": "These sections show the original text until they are translated",
       "untranslated": "{count, plural, one {# section not translated} other {# sections not translated}}",
       "translate": "Translate document",
+      "translateMissing": "{count, plural, one {Translate # missing section} other {Translate # missing sections}}",
+      "translateMissingTitle": "Shows the credit cost first, translates only after you confirm",
       "emptyDocument": "The document will appear here as soon as the first steps finish.",
       "draftSection": "Ask AI to draft",
       "screenMockup": {
@@ -2169,6 +2171,7 @@
       "language": "Language",
       "untranslated": "{count, plural, one {# section is} other {# sections are}} not translated - the file will print the original text there. You can still download.",
       "translateFirst": "Translate document first",
+      "translateMissingAction": "{count, plural, one {Translate # missing section} other {Translate # missing sections}}",
       "translateBeforeExport": "Translate {count, plural, one {# missing item} other {# missing items}} (~{credits} credits) and then export?",
       "translateThenExport": "Translate, then export",
       "exportAsIs": "Export as is (original text)",
@@ -2226,6 +2229,7 @@
     "diff": {
       "title": "Preview changes",
       "deleted": "(deleted)",
+      "notYet": "(none)",
       "none": "No changes.",
       "impact": "Impact",
       "rerender": "Diagrams to re-render: {ids}",
@@ -2247,6 +2251,7 @@
         "other": "related"
       },
       "noChangeNote": "The content of these sections is still correct - confirm to clear the “outdated” flag.",
+      "flagsRemoved": "Cleared {count} related warnings.",
       "colPath": "Changed part",
       "colBefore": "Before",
       "colAfter": "After",
@@ -2265,6 +2270,8 @@
       "reasonPlaceholder": "E.g. Stakeholder changed the requirement at the 20/09 meeting",
       "reasonNote": "This sentence goes into the Record of Changes section of the document.",
       "confirmNoChange": "Confirm no change",
+      "removedTitle": "This rewrite will remove {count} items:",
+      "confirmRemoving": "Update anyway (removes {count} items)",
       "close": "Close"
     },
     "brief": {
@@ -2900,7 +2907,13 @@
       "pipelineTitle": "Draft the rest of the SRS",
       "unitLine": "Phase {unit} · {steps, plural, =1 {1 step} other {# steps}}",
       "attachmentsTitle": "Read {count, plural, =1 {1 attached document} other {# attached documents}}",
-      "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead."
+      "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead.",
+      "creditsRange": "~{min}–{max} credits",
+      "totalRange": "Estimated total: ~{min}–{max} credits",
+      "screenRangeLine": "Screen details · about {min}–{max} screens",
+      "screenRangeNote": "The screen count is estimated from the Brief. The exact figure is known after the Screen List step.",
+      "shortRange": "The balance is enough if the project has few screens, and may fall short if it has many. The AI stops when credits run out, finished parts are not charged again.",
+      "estimateFailed": "Credits could not be estimated. Press Run to continue drafting; the AI stops when credits run out."
     },
     "aiError": {
       "title": "{what}: the AI failed{retried, select, yes {, retried twice} other {}} - credits refunded",
@@ -2959,6 +2972,8 @@
       "rerunStep": "Update this step",
       "continueNotice": "Step <strong>{step}</strong> is next but has not run yet.",
       "continueRun": "Continue",
+      "continueAfterRerun": "Step <strong>{done}</strong> has been updated. The project is at <strong>{step}</strong>.",
+      "continueRunStep": "Continue: {step}",
       "keeping": "Approving…",
       "keepAsIs": "Keep as is, re-approve",
       "close": "Close",
@@ -4228,6 +4243,8 @@
       "readyText": "✓ All proposals passed the check. Confirm to write them to the shared draft now - the Lead approves the whole package at release.",
       "submit": "Confirm & write to draft",
       "readyMore": "Want more edits? Keep typing in the chat box - new edits are merged into {crId}.",
+      "removesContent": "This change removes content: {items}. Removing content always needs your confirmation, even at the Milestones only review level.",
+      "removesContentMore": "and {count, plural, =1 {1 more item} other {# more items}}.",
       "notRequester": "This proposal is pending with {who} - only they can confirm it (the confirmer signs the change). You can read everything; to change something else, open your own change request.",
       "pausedWhat": "AI step",
       "continue": "Continue",
@@ -4273,6 +4290,8 @@
       }
     },
     "crChat": {
+      "hiddenOpen": "{crId} is still open.",
+      "reopenInChat": "Reopen in chat",
       "draftLocked": "The draft is waiting for the Lead to review the change package - it is locked, so no new change request can be opened. Continue after the Lead approves or asks for revisions.",
       "hintLocked": "The draft is waiting for the Lead's review - no new change request yet",
       "hintNew": "Type a document edit, e.g. Add a performance requirement for the search screen",
@@ -5088,8 +5107,12 @@
       "confirmReleaseQuestion": "Approve all {count} changes and release version {version}? A release is immutable - if something is wrong, release a new version.",
       "releasing": "Releasing…",
       "confirmRelease": "Confirm release",
+      "conciseRecord": "Let AI shorten the change descriptions in the Record of Changes",
+      "conciseRecordHint": "{credits, plural, =0 {No credit needed.} other {Costs about # credit.}} Off by default: descriptions are built from the changes themselves.",
       "blockedMigrationMissing": "{count, plural, one {# section of the new template is} other {# sections of the new template are}} still unwritten after the template change. Write them (through a change request) before submitting or releasing.",
-      "unsentPill": "{count, plural, one {# CR not sent to Lead} other {# CRs not sent to Lead}}"
+      "unsentPill": "{count, plural, one {# CR not sent to Lead} other {# CRs not sent to Lead}}",
+      "previousRounds": "{count, plural, one {# earlier change request} other {# earlier change requests}}",
+      "previousRoundReason": "“{reason}”"
     },
     "paused": {
       "title": "{what} is paused - {reason, select, credits {out of credit} interrupted {it was interrupted} other {AI failed after 2 retries}}",
@@ -5357,6 +5380,7 @@
       "stale": "The document changed while this was being prepared, so nothing was applied. Review your choices on this step and continue.",
       "applyingElsewhere": "This template change is being applied in another session. Wait for it to finish, then reload.",
       "refresh": "Reload",
+      "untranslatedNote": "{count, plural, one {# passage} other {# passages}} could not be translated and keep the original text{sections, select, none {} other { in these sections: {sections}}}. Fix them through a change request.",
       "appliedNote": "The document now follows template {name} (version {version}).",
       "changeAgain": "Switch to another template",
       "cancelMigration": "Cancel template change",

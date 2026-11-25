@@ -49,8 +49,9 @@ export const requestPackageChanges = (projectId: string, baseVersion: number, re
   apiCall<ReviewPackage>(`${base(projectId)}/review-package/request-changes`, { method: "POST", body: JSON.stringify({ base_version: baseVersion, reason }) });
 
 /** 422 `RELEASE_RED_FLAGS_OPEN` mang `meta.flags[]`. Lead duyệt cả gói = phát hành (FLF-330). */
-export const releaseDocument = (projectId: string, baseVersion: number) =>
+export const releaseDocument = (projectId: string, baseVersion: number, options: { concise_record?: boolean } = {}) =>
   apiCall<ReleaseResponse>(`${base(projectId)}/release`, {
     method: "POST",
-    body: JSON.stringify({ base_version: baseVersion }),
+    // FLF-492: `concise_record` chỉ gửi khi bật (AI viết gọn mô tả dòng CR trong Record of Changes, tốn credit)
+    body: JSON.stringify({ base_version: baseVersion, ...(options.concise_record ? { concise_record: true } : {}) }),
   });

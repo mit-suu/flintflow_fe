@@ -89,6 +89,25 @@ describe("view/page.tsx - read-only projection (UC 1.14)", () => {
     expect(headings.indexOf("I. Record of Changes")).toBeLessThan(headings.indexOf("1. Product Overview"));
   });
 
+  it("FLF-480 (ChoViet #14): dự án import mode 1, documentLanguage chưa lưu, BE trả document_language vi ⇒ tiêu đề 'I. Lịch sử thay đổi'", async () => {
+    mockState.project = { ...mockState.project, mode: "import", document_language: "vi" };
+    const doc = {
+      projectId: P,
+      projectName: "Demo",
+      version: "v0.2",
+      source: "draft",
+      generatedAt: "2026-11-12T00:00:00.000Z",
+      sections: [{ id: "fixed:1", number: "1", heading: "Tổng quan sản phẩm", level: 1, blocks: [{ type: "paragraph", runs: [{ text: "Tầm nhìn" }] }] }],
+      recordOfChanges: [{ date: "2026-11-12", version: "v0.2", change_type: "M", in_charge: "Tuấn Anh", description: "CR-001: Đổi tên hệ thống" }],
+    };
+    mockServer.use(http.get("*/projects/:projectId/document", () => HttpResponse.json({ data: doc, error: null, meta: { assembled_at_version: 1, spine_version: 1, stale: false } })));
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    expect(await screen.findByText("I. Lịch sử thay đổi", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.queryByText("I. Record of Changes")).not.toBeInTheDocument();
+  });
+
   it("section bắt buộc chưa accepted (Use Case Descriptions, chưa có use_cases) hiện 'chưa soạn'", async () => {
     await assembleDocument(P, await version());
 
@@ -297,5 +316,13 @@ describe("view/page.tsx - chip ngôn ngữ chỉ đọc (FLF-265)", () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
 
     expect(await chip()).toBeNull();
+  });
+
+  it("FLF-480 (ChoViet #14): mode 1 chưa lưu documentLanguage nhưng BE trả document_language ⇒ dùng giá trị đó, không rơi về English", async () => {
+    mockState.project = { ...mockState.project, mode: "import", document_language: "vi" };
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    expect(await chip()).toHaveTextContent("Tiếng Việt");
   });
 });

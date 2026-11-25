@@ -307,13 +307,13 @@ describe("ExportPanel - ngôn ngữ tài liệu (FLF-265)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("Lead/Analyst (có onTranslate) ⇒ cảnh báo kèm “Dịch tài liệu trước”", async () => {
+  it("Lead/Analyst (có onTranslate) ⇒ cảnh báo kèm “Dịch 5 mục còn thiếu”", async () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 5 } } });
     const onTranslate = vi.fn();
 
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" onTranslate={onTranslate} />);
 
-    fireEvent.click(within(await screen.findByRole("status")).getByRole("button", { name: "Dịch tài liệu trước" }));
+    fireEvent.click(within(await screen.findByRole("status")).getByRole("button", { name: "Dịch 5 mục còn thiếu" }));
     expect(onTranslate).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: /Tải bản nháp/ })).toBeEnabled();
   });
