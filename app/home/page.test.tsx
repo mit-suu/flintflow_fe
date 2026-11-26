@@ -112,6 +112,8 @@ describe("Project Dashboard", () => {
     renderPage();
 
     expect(await screen.findByText("Bắt đầu dự án SRS đầu tiên")).toBeInTheDocument();
+    // Chờ lượt hỏi hạn mức của CreateProjectForm khi vừa mount xong trước khi chốt mốc đếm (tránh race trong CI)
+    await waitFor(() => expect(listProjectsPage).toHaveBeenCalledWith({ page: 1, limit: 1, status: "active" }));
     const callsBefore = vi.mocked(listProjectsPage).mock.calls.length;
     // Không còn câu hỏi Dự án mới / có sẵn — chỉ hai ô tải file
     expect(screen.queryByRole("radiogroup", { name: "Bạn bắt đầu từ đâu?" })).toBeNull();
