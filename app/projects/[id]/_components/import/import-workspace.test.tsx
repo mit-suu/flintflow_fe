@@ -31,6 +31,8 @@ const setImport = (over: Record<string, unknown>) => {
     start: vi.fn(),
     resume: vi.fn(),
     continueFlow2: vi.fn(async () => ({ project_mode: "fpt" })),
+    runReview: vi.fn(async () => ({ project_mode: "fpt" })),
+    stopReview: vi.fn(async () => ({ import: { status: "reviewing", paused: { reason: "user" } } })),
     ...over,
   };
 };
@@ -87,6 +89,56 @@ describe("ImportWorkspace - upload SRS trong layout workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: /Soạn phần còn thiếu/ }));
     expect(imp.current.continueFlow2).toHaveBeenCalled();
     await vi.waitFor(() => expect(onProjectChanged).toHaveBeenCalled());
+  });
+
+  it("FLF-453 còn mục cần rà ⇒ dừng ở reviewing, báo credit trước khi xác nhận", async () => {
+    const onProjectChanged = vi.fn();
+    const d = doc({ status: "reviewing" });
+    setImport({ doc: d, data: data({ import: d, review: { section_ids: ["fixed:1"], calls: 1, credits: 3 } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={onProjectChanged} />);
+    expect(screen.getByRole("heading", { name: /Rà soát 1 mục/ })).toBeInTheDocument();
+    expect(screen.getByText(/~3 credit/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Rà soát và tiếp tục" }));
+    expect(imp.current.runReview).toHaveBeenCalled();
+    await vi.waitFor(() => expect(onProjectChanged).toHaveBeenCalled());
+  });
+
+  it("FLF-453 bấm Dừng khi đang rà soát ⇒ gọi stopReview, không sang Luồng 2, không gọi AI thêm", () => {
+    const onProjectChanged = vi.fn();
+    const d = doc({ status: "reviewing" });
+    setImport({ doc: d, data: data({ import: d, review: { section_ids: ["fixed:1"], calls: 1, credits: 3 } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={onProjectChanged} />);
+    fireEvent.click(screen.getByRole("button", { name: "Dừng" }));
+    expect(imp.current.stopReview).toHaveBeenCalled();
+    expect(imp.current.runReview).not.toHaveBeenCalled();
+    expect(onProjectChanged).not.toHaveBeenCalled();
+  });
+
+  it("FLF-453 không mục nào cần rà (rỗng) ⇒ vẫn báo không tốn credit khi credits = 0", () => {
+    const onProjectChanged = vi.fn();
+    const d = doc({ status: "reviewing" });
+    setImport({ doc: d, data: data({ import: d, review: { section_ids: ["fixed:1"], calls: 0, credits: 0 } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={onProjectChanged} />);
+    expect(screen.getByText("Rà soát các mục này không tốn credit")).toBeInTheDocument();
+  });
+
+  it("FLF-453 vòng rà soát dừng vì hết credit (gọi Rà soát rồi BE trả paused: credits) ⇒ báo cần nạp thêm, giữ reviewing", async () => {
+    const onProjectChanged = vi.fn();
+    const d = doc({ status: "reviewing", paused: { reason: "credits", at: "2026-11-26T00:00:00.000Z" } });
+    setImport({ doc: d, data: data({ import: d, review: { section_ids: ["fixed:1"], calls: 1, credits: 3 } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={onProjectChanged} />);
+    expect(screen.getByText(/Vòng rà soát tạm dừng vì hết credit/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Tiếp tục rà soát" })).toBeInTheDocument();
+    expect(onProjectChanged).not.toHaveBeenCalled();
+  });
+
+  it("FLF-453 lượt AI rà soát lỗi (paused: resume_later) ⇒ báo gián đoạn, bấm lại để tiếp tục", () => {
+    const d = doc({ status: "reviewing", paused: { reason: "resume_later", at: "2026-11-26T00:00:00.000Z" } });
+    setImport({ doc: d, data: data({ import: d, review: { section_ids: ["fixed:1"], calls: 1, credits: 3 } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.getByText(/Vòng rà soát bị gián đoạn/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục rà soát" }));
+    expect(imp.current.runReview).toHaveBeenCalled();
   });
 
   it("đang đọc ⇒ tiến trình 3 pha", () => {

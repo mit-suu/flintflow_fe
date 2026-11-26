@@ -3289,6 +3289,7 @@
         "ready": "Chờ bắt đầu",
         "reading": "Đang đọc file",
         "incomplete": "Còn thiếu mục",
+        "reviewing": "Rà soát phần có sẵn",
         "rejected": "File chưa nhập được"
       },
       "upload": {
@@ -3445,6 +3446,17 @@
           "body": "FlintFlow giữ nguyên các mục bạn đã viết, soạn các mục còn thiếu cùng bạn trong workspace và sắp lại bố cục theo mẫu chuẩn FlintFlow.",
           "draft": "Soạn phần còn thiếu"
         }
+      },
+      "review": {
+        "title": "Rà soát {count} mục trước khi soạn phần còn thiếu",
+        "body": "Các mục này đã qua kiểm tra theo luật của FlintFlow, không tốn credit. Chúng còn là đầu vào cho phần sắp soạn hoặc đang mang cờ đỏ cần xem lại, nên FlintFlow rà thêm bằng AI trước khi sang bước soạn tiếp - phát hiện (nếu có) sẽ hiện trong danh sách cờ ở bước soạn.",
+        "credit": "Dự kiến ~{credits} credit cho vòng rà soát này",
+        "creditNone": "Rà soát các mục này không tốn credit",
+        "confirm": "Rà soát và tiếp tục",
+        "resume": "Tiếp tục rà soát",
+        "stop": "Dừng",
+        "pausedCredits": "Vòng rà soát tạm dừng vì hết credit. Phần đã xong được giữ nguyên - nạp thêm credit rồi bấm Tiếp tục rà soát.",
+        "pausedError": "Vòng rà soát bị gián đoạn. Phần đã xong được giữ nguyên - bấm Tiếp tục rà soát để chạy lại."
       },
       "creating": {
         "title": "Đang chuẩn bị dự án",
@@ -4603,6 +4615,7 @@
         "delivered": "Sẵn sàng tạo change request",
         "change_requested": "Đang sửa qua change request",
         "incomplete": "Còn thiếu mục",
+        "reviewing": "Rà soát phần có sẵn",
         "drafting": "Đang soạn phần còn thiếu"
       },
       "crStatus": {
