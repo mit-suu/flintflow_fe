@@ -8,6 +8,7 @@ import type { AssumptionBrief, ChangeSummary, GateAction, GateReadyEvent } from 
 import GateFlags, { type GateNewFlag } from "./GateFlags";
 import GateTable from "./GateTable";
 import QuickReplyChips, { QuickReplyChip } from "./QuickReplyChips";
+import { getStepDef } from "@/lib/constants/step-registry";
 import { fallbackGateMessage, type BlockingFlag, type GateHelpersT } from "./gate-helpers";
 
 // Các helper thuần nằm ở `gate-helpers.ts`; re-export để nơi khác (page, activity-log, test) giữ nguyên đường import.
@@ -151,7 +152,9 @@ export default function GateCard({
   const [keepingFlag, setKeepingFlag] = useState(false);
 
   // AI không được gọi (bước chỉ chốt một field đã có từ bước trước): ghi 0 op là đúng, không phải lỗi — không cảnh báo
-  const nothingToDo = payload?.calls_used === 0 && Boolean(payload.no_change_reason) && emptySections.length === 0;
+  // Bước chỉ kiểm (registry `writes` rỗng: Rà nhất quán, Soát chất lượng…) có gọi model nhưng vốn không ghi nội dung ⇒ cũng không cảnh báo
+  const isCheckOnlyStep = getStepDef(stepId)?.writes.length === 0;
+  const nothingToDo = emptySections.length === 0 && ((payload?.calls_used === 0 && Boolean(payload.no_change_reason)) || isCheckOnlyStep);
   const warning = warningSentence(!wroteOps && !nothingToDo, emptySections, t);
 
   const signOffBlocked = stepId === SIGN_OFF_STEP && !canSignOff;

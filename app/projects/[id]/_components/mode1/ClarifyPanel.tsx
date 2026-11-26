@@ -24,7 +24,12 @@ interface ClarifyPanelProps {
 export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = false, materials }: ClarifyPanelProps) {
   const t = useTranslations("mode1.clarify");
   const answered = cr.clarifications.filter((c) => c.answers.length > 0);
-  const suggestions = cr.clarifications.at(-1)?.suggestions ?? [];
+  const lastRound = cr.clarifications.at(-1);
+  const suggestions = lastRound?.suggestions ?? [];
+  // FLF-474: nhãn vòng do BE đếm (từ lần gộp lệnh gần nhất); BE cũ không gửi ⇒ tự đếm như trước
+  const count = cr.clarify_round?.n ?? cr.clarifications.length;
+  const max = cr.clarify_round?.max ?? MAX_CLARIFY_ROUNDS;
+  const extra = cr.clarify_round?.extra ?? count > MAX_CLARIFY_ROUNDS;
 
   return (
     <div className="flex flex-col gap-3">
@@ -44,14 +49,18 @@ export default function ClarifyPanel({ cr, pendingQuestions, onAnswer, busy = fa
         <section className="bg-[#FBF4E4] border border-[#EFD9A6] rounded-[12px] pt-3 pb-2 flex flex-col gap-1" aria-label={t("aria")}>
           {/* FLF-367: câu hỏi mâu thuẫn với tài liệu hỏi cả khi đã hết số vòng làm rõ ⇒ không in "vòng 4/3" */}
           <p className="px-3 text-body font-bold text-[#8A6D1F]">
-            {cr.clarifications.length > MAX_CLARIFY_ROUNDS
-              ? t("needConfirm", { round: cr.clarifications.length })
-              : t("need", { round: cr.clarifications.length, max: MAX_CLARIFY_ROUNDS })}
+            {extra ? t("needConfirm", { round: count }) : t("need", { round: count, max })}
           </p>
           <p className="px-3 text-body text-[#8A6D1F]">{t("hint")}</p>
           <QuestionStepperInput
             key={`${cr.cr_id}:${cr.clarifications.length}`}
-            questions={pendingQuestions.map((question, i) => ({ question, options: (suggestions[i] ?? []).map((label) => ({ label })), multiple: false }))}
+            // Câu mâu thuẫn với tài liệu: bắt chọn hoặc gõ, không cho gửi trống (câu mơ hồ vẫn bỏ qua được)
+            questions={pendingQuestions.map((question, i) => ({
+              question,
+              options: (suggestions[i] ?? []).map((label) => ({ label })),
+              multiple: false,
+              required: lastRound?.kinds?.[i] === "contradiction",
+            }))}
             onSubmit={(values) => onAnswer(values.map(answerLabel))}
             allowEmpty
             sending={busy}

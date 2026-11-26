@@ -55,6 +55,47 @@ describe("CreditGateCard (FLF-332 - cổng cứng xác nhận credit)", () => {
     expect(screen.queryByRole("note")).toBeNull();
   });
 
+  describe("FLF-485: khoảng ước tính vòng màn hình", () => {
+    const ranged = {
+      title: "Soạn phần còn lại của SRS",
+      lines: [
+        { label: "Giai đoạn S-1 · 4 bước", credits: 17 },
+        { label: "Chi tiết màn hình · khoảng 6–14 màn", credits: 78, creditsMax: 195 },
+      ],
+      total: 222,
+      totalMax: 339,
+    };
+
+    it("có totalMax ⇒ hiện khoảng ở dòng và ở tổng", () => {
+      renderWithIntl(<CreditGateCard {...ranged} available={500} onRun={vi.fn()} onCancel={vi.fn()} />);
+      expect(screen.getByText("~78–195 credit")).toBeInTheDocument();
+      expect(screen.getByText("Tổng ước tính: ~222–339 credit")).toBeInTheDocument();
+      expect(screen.queryByRole("status")).toBeNull();
+    });
+
+    it("số dư 276 nằm giữa 222 và 339 ⇒ cảnh báo vàng có thể thiếu, không báo đỏ, nút Chạy vẫn bấm được", () => {
+      renderWithIntl(<CreditGateCard {...ranged} available={276} onRun={vi.fn()} onCancel={vi.fn()} />);
+      const status = screen.getByRole("status");
+      expect(status).toHaveTextContent(/có thể thiếu nếu nhiều màn/);
+      expect(status).not.toHaveClass("text-error");
+      expect(screen.getByRole("button", { name: "Chạy" })).toBeEnabled();
+    });
+
+    it("số dư 100 thấp hơn cận dưới ⇒ cảnh báo đỏ như cũ", () => {
+      renderWithIntl(<CreditGateCard {...ranged} available={100} onRun={vi.fn()} onCancel={vi.fn()} />);
+      expect(screen.getByRole("status")).toHaveTextContent(/Số dư chưa đủ/);
+      expect(screen.getByRole("status")).toHaveClass("text-error");
+    });
+
+    it("ước tính lỗi (totalUnknown) ⇒ không in tổng, không cảnh báo số dư, vẫn hiện lưu ý và nút Chạy", () => {
+      renderWithIntl(<CreditGateCard title="Soạn phần còn lại của SRS" lines={[]} total={0} totalUnknown available={null} notes={["Chưa ước tính được credit."]} onRun={vi.fn()} onCancel={vi.fn()} />);
+      expect(screen.queryByText(/Tổng ước tính/)).toBeNull();
+      expect(screen.queryByRole("status")).toBeNull();
+      expect(screen.getByRole("note")).toHaveTextContent("Chưa ước tính được credit.");
+      expect(screen.getByRole("button", { name: "Chạy" })).toBeEnabled();
+    });
+  });
+
   it("đang chạy ⇒ hai nút khoá, nút Chạy đổi chữ", () => {
     renderWithIntl(<CreditGateCard {...base} available={120} busy onRun={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByRole("button", { name: "Đang chạy…" })).toBeDisabled();

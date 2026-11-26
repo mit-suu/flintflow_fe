@@ -47,6 +47,7 @@ const servePackage = () =>
           red_open: 0,
           submission: null,
           spine_version: 7,
+          rounds: [],
         },
         error: null,
       })

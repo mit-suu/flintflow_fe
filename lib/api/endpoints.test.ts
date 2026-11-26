@@ -342,6 +342,7 @@ const cases: EndpointCase[] = [
   ["getVersionBlocks (mã hoá version)", () => versions.getVersionBlocks("p1", "0.2/x"), "/projects/p1/versions/0.2%2Fx/blocks"],
   ["compareVersions", () => versions.compareVersions("p1", "0.1", "0.2"), "/projects/p1/versions/compare?from=0.1&to=0.2"],
   ["releaseDocument", () => versions.releaseDocument("p1", 12), "/projects/p1/release", post({ base_version: 12 })],
+  ["releaseDocument (AI viết gọn, FLF-492)", () => versions.releaseDocument("p1", 12, { concise_record: true }), "/projects/p1/release", post({ base_version: 12, concise_record: true })],
   ["getReviewPackage", () => versions.getReviewPackage("p1"), "/projects/p1/review-package"],
   ["submitReviewPackage", () => versions.submitReviewPackage("p1", 12), "/projects/p1/review-package/submit", post({ base_version: 12 })],
   ["requestPackageChanges", () => versions.requestPackageChanges("p1", 12, "Chưa đúng ý khách hàng"), "/projects/p1/review-package/request-changes", post({ base_version: 12, reason: "Chưa đúng ý khách hàng" })],

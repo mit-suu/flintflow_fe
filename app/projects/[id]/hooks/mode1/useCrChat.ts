@@ -66,6 +66,9 @@ const needsProposal = (l: CrLocation): boolean => !l.manual && (l.conclusion ===
 /** Vị trí trượt kiểm (3.7) mà người dùng chưa soạn lại / bỏ — soạn lại hoặc bỏ đều xoá kết quả kiểm cũ. */
 export const isFailing = (l: CrLocation): boolean => l.verify !== null && !l.verify.code_ok;
 
+/** Cùng luật `hasOpenConflict` BE: người khác đã sửa chỗ này mà người dùng chưa quyết (còn đề xuất sửa) ⇒ không tự kiểm / soạn lại. */
+export const hasOpenConflict = (l: CrLocation): boolean => !!l.conflict && l.conclusion === "edit";
+
 /**
  * FLF-318: CR mang lô người dùng đã duyệt ở bản xem trước (thêm / xoá / sửa use case), chưa gộp thêm lệnh — BE làm đúng lô
  * đó, không hỏi / không gọi AI ⇒ không bắt duyệt lại từng phần như trước baseline: đề xuất của lô tính là đã đồng ý.
@@ -119,6 +122,24 @@ const writeStore = (key: string, value: string | null): void => {
     else window.localStorage.setItem(key, value);
   } catch {
     /* chế độ riêng tư / chặn lưu — chỉ mất tiện ích nhớ, luồng vẫn chạy */
+  }
+};
+
+/** FLF-480 (B17): CR đã ẩn khỏi khung chat ("Phiên mới") — nhớ theo tab, không theo tài khoản (tab mới vẫn thấy CR dở). */
+const hiddenKey = (projectId: string) => `ff-cr-chat:${projectId}:hidden`;
+const readHidden = (projectId: string): string | null => {
+  try {
+    return window.sessionStorage.getItem(hiddenKey(projectId));
+  } catch {
+    return null;
+  }
+};
+const writeHidden = (projectId: string, crId: string | null): void => {
+  try {
+    if (crId === null) window.sessionStorage.removeItem(hiddenKey(projectId));
+    else window.sessionStorage.setItem(hiddenKey(projectId), crId);
+  } catch {
+    /* chặn lưu — chỉ mất tiện ích nhớ theo tab */
   }
 };
 
@@ -178,6 +199,9 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
   const [withdrawSent, setWithdrawSent] = useState<CrDetail | null>(null);
   /** Đề xuất người dùng đã đồng ý, theo CR (khởi tạo từ localStorage khi mở CR). */
   const [acceptedByCr, setAcceptedByCr] = useState<Readonly<Record<string, ReadonlySet<string>>>>({});
+  /** FLF-480 (B17): CR còn mở nhưng người dùng đã bỏ khỏi khung chat bằng "Phiên mới" (vẫn mở ở BE: mỗi người một CR mở). */
+  const [hidden, setHidden] = useState<string | null>(() => (typeof window === "undefined" ? null : readHidden(projectId)));
+  const hiddenRef = useRef(hidden);
   const alive = useRef(true);
   const sendingRef = useRef(false);
   // CR vừa ghi bản nháp ⇒ trang tải lại Spine / tài liệu / version (giữ hàm mới nhất, không làm đổi `submit`)
@@ -229,7 +253,16 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       .catch(() => undefined);
     fetchOwnOpenCr(projectId, myUserId, preferCr)
       .then((full) => {
-        if (!cancelled && alive.current && full) setDetail(full);
+        if (cancelled || !alive.current) return;
+        const skip = hiddenRef.current;
+        // CR đang ẩn không tự quay lại khung chat (trừ khi người dùng chủ động mở lại: `preferCr`); CR ẩn đã đóng ⇒ thôi nhớ
+        if (full && full.change_request.cr_id === skip && preferCr !== skip) return;
+        if (skip && full?.change_request.cr_id !== skip) {
+          hiddenRef.current = null;
+          setHidden(null);
+          writeHidden(projectId, null);
+        }
+        if (full) setDetail(full);
       })
       .catch(() => undefined)
       .finally(() => !cancelled && alive.current && setLoading(false));
@@ -237,10 +270,78 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       cancelled = true;
     };
   }, [projectId, enabled, myUserId, reloadSeq, preferCr]);
-  const reloadOpen = useCallback((prefer?: string | null) => {
-    if (prefer !== undefined) setPreferCr(prefer);
-    setReloadSeq((n) => n + 1);
-  }, []);
+  /** Bỏ trạng thái ẩn (người dùng chủ động mở lại CR). */
+  const unhide = useCallback(() => {
+    hiddenRef.current = null;
+    setHidden(null);
+    writeHidden(projectId, null);
+  }, [projectId]);
+  const reloadOpen = useCallback(
+    (prefer?: string | null) => {
+      if (prefer !== undefined) setPreferCr(prefer);
+      if (prefer && prefer === hiddenRef.current) unhide();
+      setReloadSeq((n) => n + 1);
+    },
+    [unhide]
+  );
+
+  /**
+   * FLF-480 (B17): đọc lại CR đang mở. Tải lại trang lúc BE còn đang ghi ("Xác nhận & ghi") nạp CR ở `ready_to_submit`; BE ghi xong
+   * thành `written` nhưng chat không biết ⇒ vẫn "Sẵn sàng nộp", lệnh mới gộp vào CR cũ. Trả CR mới đọc được (`null` = CR đã đóng,
+   * hoặc không đọc được ⇒ giữ nguyên trạng thái hiện có).
+   */
+  const detailRef = useRef(detail);
+  const busyRef = useRef<CrChatBusy | null>(null);
+  useEffect(() => {
+    detailRef.current = detail;
+    busyRef.current = busy;
+    hiddenRef.current = hidden;
+  }, [detail, busy, hidden]);
+  const refreshOpen = useCallback(async (): Promise<CrDetail | null | undefined> => {
+    const cur = detailRef.current;
+    if (!cur) return undefined;
+    let fresh: CrDetail | null;
+    try {
+      fresh = (await getCr(projectId, cur.change_request.cr_id)).data ?? null;
+    } catch {
+      return undefined;
+    }
+    if (!alive.current || detailRef.current?.change_request.cr_id !== cur.change_request.cr_id) return undefined;
+    if (!fresh) return undefined;
+    if (CR_OPEN_STATUSES.includes(fresh.change_request.status)) {
+      if (fresh.change_request.status !== cur.change_request.status || fresh.change_request.updated_at !== cur.change_request.updated_at) setDetail(fresh);
+      return fresh;
+    }
+    // CR đã ghi / huỷ / nộp ở nơi khác ⇒ thôi coi là CR mở; ghi vào bản nháp thì báo trang tải lại tài liệu như lúc tự xác nhận
+    setDetail(null);
+    setRedraftFor(null);
+    if (fresh.change_request.status === "written") {
+      setSent(fresh.change_request.cr_id);
+      onWrittenRef.current?.(fresh.change_request.cr_id, cur.change_request.flag_ids ?? []);
+    }
+    return null;
+  }, [projectId]);
+
+  // CR đang ở bước BE có thể đang ghi (`ready_to_submit` / `verifying`) và không phải do lượt chạy này đang chờ ⇒ đọc lại sau vài
+  // giây (vài lần) và mỗi khi cửa sổ được focus
+  const watchedStatus = detail?.change_request.status;
+  const watchedCr = detail?.change_request.cr_id ?? null;
+  useEffect(() => {
+    if (!enabled || !watchedCr || (watchedStatus !== "ready_to_submit" && watchedStatus !== "verifying")) return;
+    const check = () => {
+      if (!sendingRef.current && !busyRef.current) void refreshOpen();
+    };
+    let tries = 0;
+    const timer = window.setInterval(() => {
+      if (++tries > 6) return window.clearInterval(timer);
+      check();
+    }, 4000);
+    window.addEventListener("focus", check);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener("focus", check);
+    };
+  }, [enabled, watchedCr, watchedStatus, refreshOpen]);
 
   const isAccepted = useCallback(
     (l: CrLocation) => accepted.has(proposalKey(l)) || (detail !== null && inApprovedBatch(detail, l)),
@@ -278,7 +379,8 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (c.status === "proposing" && d.locations.some(needsProposal)) return "propose";
       if ((c.status === "proposing" || c.status === "verifying") && allDecided(d, set)) return "verify";
       // 3.9: người dùng đã soạn lại / bỏ hết phần trượt và đồng ý mọi đề xuất ⇒ kiểm lại luôn
-      if (c.status === "manual_fix" && allDecided(d, set) && !d.locations.some(isFailing)) return "verify";
+      // Còn chỗ xung đột với người khác (chưa quyết) ⇒ chờ người dùng, không tự kiểm (kiểm sẽ báo "đã đổi" rồi AI soạn lại đè phần người khác vừa sửa)
+      if (c.status === "manual_fix" && allDecided(d, set) && !d.locations.some(isFailing) && !d.locations.some(hasOpenConflict)) return "verify";
       return null;
     },
     [accepted, allDecided, needImpact]
@@ -441,7 +543,20 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     async (text: string) => {
       const value = text.trim();
       if (!value) return;
-      if (!detail) {
+      // FLF-480 (B17): trước khi gộp lệnh vào "CR đang mở", đọc lại trạng thái - CR có thể đã ghi / đóng ở nơi khác
+      let current: CrDetail | null = detail;
+      if (detail && !sendingRef.current) {
+        sendingRef.current = true;
+        try {
+          const fresh = await refreshOpen();
+          if (!alive.current) return;
+          if (fresh === null) current = null;
+          else if (fresh) current = fresh;
+        } finally {
+          sendingRef.current = false;
+        }
+      }
+      if (!current) {
         setSent(null);
         // Đọc lại trạng thái gói ngay lúc gửi (người khác có thể vừa gửi Lead duyệt); không đọc được ⇒ để BE quyết
         const locked = await getReviewPackage(projectId)
@@ -460,13 +575,41 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
       if (sendingRef.current) return;
       sendingRef.current = true;
       try {
-        await sendToCr(detail, value);
+        await sendToCr(current, value);
       } finally {
         sendingRef.current = false;
       }
     },
-    [detail, sendToCr, projectId, t]
+    [detail, sendToCr, refreshOpen, projectId, t]
   );
+
+  /**
+   * FLF-480 (B17), "Phiên mới": CR đã đóng ở nơi khác ⇒ `refreshOpen` tự dọn (báo ghi / tải lại tài liệu như thường); còn mở ⇒ ẩn
+   * khỏi khung chat (CR vẫn mở ở BE, lệnh mới gặp 409 `CR_OWN_OPEN` và hiện thẻ "mở lại").
+   */
+  const leaveOpen = async (): Promise<void> => {
+    const cur = detailRef.current;
+    if (cur) {
+      const fresh = await refreshOpen();
+      if (fresh === null) return;
+      const crId = cur.change_request.cr_id;
+      hiddenRef.current = crId;
+      setHidden(crId);
+      writeHidden(projectId, crId);
+      setPreferCr(null);
+      setDetail(null);
+    }
+    setPending(null);
+    setPendingSeed(null);
+    setPrefill(null);
+    setRedraftFor(null);
+    setReplies([]);
+    setWithdrawAsk(null);
+    setWithdrawSent(null);
+    setSent(null);
+    setError(null);
+    setOwnOpen(null);
+  };
 
   const withCr = <T,>(fn: (id: string, d: CrDetail) => T): T | undefined => (detail ? fn(detail.change_request.cr_id, detail) : undefined);
 
@@ -475,6 +618,10 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     detail,
     /** Nạp lại CR đang mở của mình (sau khi tạo CR từ danh sách rút); `prefer` = mở đúng CR đó nếu còn mở và của mình. */
     reloadOpen,
+    /** FLF-480 (B17): "Phiên mới" ⇒ bỏ CR đang mở khỏi khung chat (xem `leaveOpen`). */
+    leaveOpen,
+    /** CR còn mở đã ẩn khỏi khung chat (để hiện dòng "Mở lại trong khung chat"); `null` = không có. */
+    hiddenOpen: detail ? null : hidden,
     pending,
     sent,
     busy,
@@ -505,6 +652,7 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
         const full = id ? (await getCr(projectId, id)).data : myUserId ? await fetchOwnOpenCr(projectId, myUserId) : null;
         if (!alive.current) return;
         if (!full) throw new Error("CR_OWN_OPEN_NOT_FOUND");
+        unhide();
         setDetail(full);
         setPending(null);
         setPendingSeed(null);

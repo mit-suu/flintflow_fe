@@ -378,6 +378,11 @@ export interface UseStepRunnerOptions {
    */
   onSpineChanged: (spineVersion?: number) => void;
   onGateDone?: (response: GateResponse) => void;
+  /**
+   * FLF-489: duyệt xong một bước chạy lại (lượt lẻ, hoặc cổng dựng lại mà BE báo `rerun`) thì quy trình dừng, không tự chạy
+   * bước tới lượt. Gọi khi không còn lượt sống nào khác để dựng lại; `nextStep` là bước tới lượt của dự án (null nếu hết).
+   */
+  onStoppedAfterRerun?: (doneStep: string, nextStep: string | null) => void;
   /** Sau `revision`: lời AI (`message_vi`) nói đã sửa gì — gọi trước khi bước chạy lại. */
   onRevisionMessage?: (message: string, stepId: string) => void;
   /**
@@ -479,7 +484,7 @@ const trackAwaiting = () => {
   };
 };
 
-export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, beforePhaseRun, onCreditAckRequired, onTranscriptChanged, myUserId = null }: UseStepRunnerOptions) {
+export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onStoppedAfterRerun, onRevisionMessage, beforePhaseRun, onCreditAckRequired, onTranscriptChanged, myUserId = null }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const meRef = useRef<string | null>(myUserId);
   useEffect(() => {
@@ -535,6 +540,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       abortRef.current = controller;
       stepRef.current = stepId;
       if (options.standalone !== undefined) standaloneRef.current = options.standalone;
+      // FLF-489: lượt lẻ không thuộc chuỗi đang dừng ở cổng khác — bỏ giai đoạn cũ, kẻo duyệt bước chạy lại lại chạy tiếp chuỗi đó
+      if (options.standalone === true) phaseRef.current = null;
       dispatch({ type: "start", stepId });
 
       try {
@@ -852,22 +859,30 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (action === "revision" && res.data?.message_vi?.trim()) onRevisionMessage?.(res.data.message_vi.trim(), stepId);
         // Từ đây là lượt chạy tiếp theo: nhả khoá duyệt để cổng kế tiếp (và câu hỏi giữa chừng) bấm được
         gateLockRef.current = false;
+        // FLF-489: lượt lẻ, hoặc BE báo bước vừa duyệt là bước chạy lại ⇒ không tự chạy tiếp quy trình
+        const stopHere = standaloneRef.current || res.data?.rerun === true;
         if (action === "regenerate" || action === "revision") {
           await runStepTurn(stepId);
-        } else if (phaseRef.current) {
+        } else if (phaseRef.current && !standaloneRef.current) {
           // Đang chạy liền cả giai đoạn: duyệt xong là đi tiếp ngay. Duyệt cổng chốt CUỐI giai đoạn ⇒ tự chạy luôn
           // giai đoạn kế (FLF-221) — trước đây chuỗi chỉ trả "Đã xong giai đoạn" và user phải tự khởi động lại.
           const from = phaseRef.current;
           const nextUnit = (res.data?.next_step ? unitOfStep(res.data.next_step) : null) ?? from;
           dispatch({ type: "reset" });
           if (await allowPhaseRun(nextUnit, from)) await runPhaseTurn(nextUnit);
-        } else if (!standaloneRef.current && res.data?.next_step && (action === "accept" || action === "accept_as_is")) {
+        } else if (!stopHere && res.data?.next_step && (action === "accept" || action === "accept_as_is")) {
           // Cổng dựng lại sau reload (không còn chuỗi đang chạy): duyệt xong vẫn tự sang bước/giai đoạn kế (FLF-221)
           const nextUnit = unitOfStep(res.data.next_step);
           dispatch({ type: "reset" });
           if (nextUnit && (await allowPhaseRun(nextUnit, unitOfStep(stepId)))) await runPhaseTurn(nextUnit);
         } else {
+          phaseRef.current = null;
           dispatch({ type: "reset" });
+          // FLF-489: bước chạy lại duyệt xong thì dừng. Còn lượt sống khác của dự án (vd cổng bỏ dở) thì dựng lại; không có thì
+          // báo trang hiện thẻ "Tiếp tục".
+          if (stopHere && (action === "accept" || action === "accept_as_is")) {
+            if (!(await restore())) onStoppedAfterRerun?.(stepId, res.data?.next_step ?? null);
+          }
         }
         return "ok";
       } catch (err) {
@@ -911,7 +926,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         return "failed";
       }
     },
-    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onRevisionMessage, runStepTurn, runPhaseTurn, restore, allowPhaseRun]
+    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onStoppedAfterRerun, onRevisionMessage, runStepTurn, runPhaseTurn, restore, allowPhaseRun]
   );
 
   /** Huỷ lượt đang chạy: BE nhả khoá và abort request tới model; FE đóng stream (BUG-05). */

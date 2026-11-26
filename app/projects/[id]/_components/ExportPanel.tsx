@@ -417,7 +417,7 @@ export default function ExportPanel({
             <span>{t("untranslated", { count: translation.missing })}</span>
             {onTranslate && (
               <button type="button" onClick={() => onTranslate()} className="font-bold hover:underline cursor-pointer">
-                {t("translateFirst")}
+                {t("translateMissingAction", { count: translation.missing })}
               </button>
             )}
           </div>
