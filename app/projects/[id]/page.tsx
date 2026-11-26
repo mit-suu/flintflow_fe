@@ -63,7 +63,7 @@ import TemplateProposalCard from "@/components/org-template/template-proposal-ca
 import SaveStructureEntry from "@/components/org-template/save-structure-entry";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import ProjectActionDialogs from "@/components/project/ProjectActionDialogs";
-import { resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
+import { isDocumentLanguageLocked, resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
 import { ackRunEstimate, getRunEstimate, submitGate } from "@/lib/api/pipeline";
@@ -1883,7 +1883,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const interceptLanguageCommand = (text: string, via: LanguageCommandState["via"], intent?: RunIntent): boolean => {
     const target = parseLanguageCommand(text);
     // FLF-318: dự án tạo SRS đã chốt baseline chạy ở mode 1 nhưng không phải dự án tải file lên ⇒ vẫn đổi được ngôn ngữ
-    const languageLocked = mode1 && ws.project?.converted_from !== "fpt";
+    const languageLocked = isDocumentLanguageLocked(ws.project, mode1);
     const kind = languageCommandOutcome({ target, canEdit, mode1: languageLocked, current: documentLanguage });
     if (target === null || kind === "send") return false;
     const id = ++languageCommandSeq.current;
