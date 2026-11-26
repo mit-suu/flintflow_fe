@@ -122,7 +122,7 @@ describe("Project Dashboard", () => {
     fireEvent.click(screen.getByRole("button", { name: /Bắt đầu/ }));
 
     await waitFor(() => expect(push).toHaveBeenCalledWith("/projects/p9"));
-    expect(createProjectFrom).toHaveBeenCalledWith({ name: "Dự án chưa đặt tên", has_srs_file: false, documentLanguage: "vi" });
+    expect(createProjectFrom).toHaveBeenCalledWith({ name: "Dự án chưa đặt tên", has_srs_file: false, documentLanguage: "en" });
     expect(listProjectsPage).toHaveBeenCalledTimes(callsBefore);
   });
 
