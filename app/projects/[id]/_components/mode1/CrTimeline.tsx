@@ -12,7 +12,7 @@ const STAGES = [
   { key: "verify", statuses: ["verifying", "manual_fix"] },
   { key: "submit", statuses: ["ready_to_submit"] },
   { key: "review", statuses: ["in_review"] },
-  { key: "written", statuses: ["written"] },
+  { key: "written", statuses: ["written", "released"] },
 ] as const satisfies readonly { key: string; statuses: readonly CrStatus[] }[];
 
 /** Dòng thời gian trạng thái CR (máy trạng thái ở BE, FE chỉ đặt nhãn). */
@@ -33,13 +33,13 @@ export default function CrTimeline({ status }: { status: CrStatus }) {
               : i < current
                 ? "bg-[#E9F7EE] text-[#1F7A45]"
                 : i === current
-                  ? status === "written"
+                  ? status === "written" || status === "released"
                     ? "bg-[#1F7A45] text-white"
                     : "bg-[#191817] text-white"
                   : "bg-[#F0EEEA] text-[#A8A49C]"
           }`}
         >
-          {t(`stages.${s.key}`)}
+          {s.key === "written" && status === "released" ? crStatus("released") : t(`stages.${s.key}`)}
         </li>
       ))}
       {ended && <li className="px-2.5 py-1 rounded-full font-bold bg-[#FDEDED] text-[#B03030]">{crStatus(status)}</li>}

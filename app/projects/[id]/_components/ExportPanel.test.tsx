@@ -111,7 +111,7 @@ describe("ExportPanel", () => {
 
     const first = renderWithIntl(<ExportPanel projectId="p1" projectName="FlintFlow" onClose={vi.fn()} />);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản nháp/ }));
-    await waitFor(() => expect(names).toEqual(["FlintFlow_DRAFT.docx"]));
+    await waitFor(() => expect(names).toEqual(["FlintFlow_PP1_DRAFT.docx"]));
     first.unmount();
 
     const baseline = { id: "BL001", version: "v1.0", type: "generated", doc_version: null, at: "2026-10-26T00:00:00.000Z", snapshot_ref: "BL001", checked_at_version: 1, waived_count: 0 } as Baseline;
@@ -125,7 +125,7 @@ describe("ExportPanel", () => {
     await waitFor(() => expect(names).toHaveLength(2));
     fireEvent.click(tab);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline/ }));
-    await waitFor(() => expect(names).toEqual(["FlintFlow_DRAFT.docx", "FlintFlow_v1.0_DRAFT.docx", "FlintFlow_v1.0.docx"]));
+    await waitFor(() => expect(names).toEqual(["FlintFlow_PP1_DRAFT.docx", "FlintFlow_PP1_v1.0_DRAFT.docx", "FlintFlow_PP1_v1.0.docx"]));
 
     clickSpy.mockRestore();
     vi.unstubAllGlobals();
@@ -151,7 +151,7 @@ describe("ExportPanel", () => {
     await waitFor(() => expect(names).toHaveLength(1));
     fireEvent.click(tab);
     fireEvent.click(await screen.findByRole("button", { name: /Tải bản baseline/ }));
-    await waitFor(() => expect(names).toEqual(["FAP_v0.1_DRAFT.docx", "FAP_v0.1.docx"]));
+    await waitFor(() => expect(names).toEqual(["FAP_PP1_v0.1_DRAFT.docx", "FAP_PP1_v0.1.docx"]));
 
     clickSpy.mockRestore();
     vi.unstubAllGlobals();
@@ -307,13 +307,13 @@ describe("ExportPanel - ngôn ngữ tài liệu (FLF-265)", () => {
     vi.unstubAllGlobals();
   });
 
-  it("Lead/Analyst (có onTranslate) ⇒ cảnh báo kèm “Dịch tài liệu trước”", async () => {
+  it("Lead/Analyst (có onTranslate) ⇒ cảnh báo kèm “Dịch 5 mục còn thiếu”", async () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 5 } } });
     const onTranslate = vi.fn();
 
     renderWithIntl(<ExportPanel projectId="p1" onClose={vi.fn()} documentLanguage="vi" onTranslate={onTranslate} />);
 
-    fireEvent.click(within(await screen.findByRole("status")).getByRole("button", { name: "Dịch tài liệu trước" }));
+    fireEvent.click(within(await screen.findByRole("status")).getByRole("button", { name: "Dịch 5 mục còn thiếu" }));
     expect(onTranslate).toHaveBeenCalledTimes(1);
     expect(screen.getByRole("button", { name: /Tải bản nháp/ })).toBeEnabled();
   });
@@ -378,7 +378,7 @@ describe("ExportPanel - tải theo ngôn ngữ còn lại (FLF-334 B)", () => {
     fireEvent.click(screen.getByRole("button", { name: /Tải bản nháp/ }));
     await waitFor(() => expect(downloadWordExport).toHaveBeenLastCalledWith("p1", "draft", undefined, "en"));
     await waitFor(() => expect(names).toHaveLength(2));
-    expect(names[1]).toBe("Lumen_DRAFT_EN.docx");
+    expect(names[1]).toBe("Lumen_PP1_DRAFT_EN.docx");
 
     clickSpy.mockRestore();
     vi.unstubAllGlobals();

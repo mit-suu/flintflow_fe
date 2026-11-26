@@ -125,6 +125,8 @@ const reviewPackage = () => {
     red_open: S().redFlags,
     submission: sub,
     spine_version: S().spineVersion,
+    // FLF-480 (B13): lý do các vòng "Yêu cầu sửa" trước lần gửi lại hiện tại, mới nhất trước.
+    rounds: S().rounds,
   };
 };
 const latestBlocks = (): DocBlock[] => S().blocks.get(latestVersion() ?? "") ?? [];
@@ -761,7 +763,13 @@ export const mode1Handlers = [
       return ok({
         import: S().importDoc,
         profile: S().profile,
-        extraction: { sections: S().sections, review_fields: S().reviewFields.filter((f) => !f.confirmed) },
+        extraction: {
+          sections: S().sections,
+          review_fields: S().reviewFields.filter((f) => !f.confirmed),
+          // FLF-462 (bước 1.6): mock chưa mô phỏng đoạn lớp 4 / mục tên đúng nội dung sai — luôn rỗng, màn xác nhận test riêng
+          review_guidance: S().reviewGuidance.filter((g) => !g.confirmed),
+          review_content_mismatch: S().reviewContentMismatch.filter((m) => !m.confirmed),
+        },
         blocks_count: S().blocks.get("0.1")?.length ?? 0,
         credit_estimate: creditEstimate(),
       });
@@ -827,13 +835,32 @@ export const mode1Handlers = [
       if (doc.status !== "fields_review") return invalidImportState("baselining");
       const body = await readJson(request);
       const fields = (body.fields as { path: string; confirmed: boolean; edited_value?: unknown }[] | undefined) ?? [];
-      if (!fields.length && !body.confirm_all) return fail(400, "VALIDATION_ERROR", "Cần ít nhất một field hoặc confirm_all");
+      // FLF-462 (bước 1.6): đoạn lớp 4 chữ hướng dẫn + mục tên đúng nội dung sai
+      const guidance = (body.guidance as { block_id: string; is_guidance: boolean }[] | undefined) ?? [];
+      const contentMismatch = (body.content_mismatch as { section_id: string }[] | undefined) ?? [];
+      if (!fields.length && !guidance.length && !contentMismatch.length && !body.confirm_all) {
+        return fail(400, "VALIDATION_ERROR", "Cần ít nhất một mục cần xác nhận hoặc confirm_all");
+      }
       for (const f of fields) {
         const target = S().reviewFields.find((r) => r.path === f.path);
         if (target) Object.assign(target, { confirmed: true, ...(f.edited_value !== undefined ? { edited_value: f.edited_value } : {}) });
       }
-      if (body.confirm_all) for (const r of S().reviewFields) r.confirmed = true;
-      if (S().reviewFields.every((r) => r.confirmed)) setImportStatus("baselining");
+      for (const g of guidance) {
+        const target = S().reviewGuidance.find((r) => r.block_id === g.block_id);
+        if (target) Object.assign(target, { confirmed: true, is_guidance: g.is_guidance });
+      }
+      for (const m of contentMismatch) {
+        const target = S().reviewContentMismatch.find((r) => r.section_id === m.section_id);
+        if (target) target.confirmed = true;
+      }
+      if (body.confirm_all) {
+        for (const r of S().reviewFields) r.confirmed = true;
+        for (const r of S().reviewGuidance) r.confirmed = true;
+        for (const r of S().reviewContentMismatch) r.confirmed = true;
+      }
+      if (S().reviewFields.every((r) => r.confirmed) && S().reviewGuidance.every((r) => r.confirmed) && S().reviewContentMismatch.every((r) => r.confirmed)) {
+        setImportStatus("baselining");
+      }
       return ok({ import: doc });
     }),
   ),
@@ -1415,6 +1442,9 @@ export const mode1Handlers = [
       if (S().submission?.status === "pending") return fail(409, "PACKAGE_ALREADY_SUBMITTED", "Gói thay đổi đang chờ Lead duyệt — không gửi lại được.");
       if (pendingCrIds().length === 0) return fail(409, "PACKAGE_EMPTY", "Chưa có thay đổi nào được ghi vào bản nháp.");
       if (S().redFlags > 0) return fail(422, "RELEASE_RED_FLAGS_OPEN", `Còn ${S().redFlags} cờ đỏ — xử lý qua change request rồi gửi duyệt`, { flags: [redFlag()] });
+      // FLF-480 (B13): submission "rejected" đang hiệu lực sắp bị ghi đè ⇒ dồn vào `rounds` trước khi mất, như BE dựng từ change log.
+      const prev = S().submission;
+      if (prev?.status === "rejected" && prev.decided_by && prev.decided_at) S().rounds = [{ decided_by: prev.decided_by, decided_at: prev.decided_at, reason: prev.reason }, ...S().rounds];
       S().spineVersion += 1;
       S().submission = { status: "pending", submitted_by: MODE1_USER_ID, submitted_at: now(), spine_version: S().spineVersion, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] };
       return ok(reviewPackage());

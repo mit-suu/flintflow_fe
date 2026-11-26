@@ -30,6 +30,31 @@ describe("DiffPreviewModal", () => {
     expect(screen.getByText("Administrator")).toBeInTheDocument();
   });
 
+  it("FLF-493: removed_items ⇒ khối đỏ nêu mục bị xoá, nút xác nhận đổi nhãn nhưng vẫn bấm được", () => {
+    const onConfirm = vi.fn();
+    renderWithIntl(
+      <DiffPreviewModal
+        preview={{ ...basePreview, removed_items: [{ path: "business_rules[id=BR45]", label: "Doctor may edit treatment notes only within 24 hours" }] }}
+        onCancel={vi.fn()}
+        onConfirm={onConfirm}
+      />
+    );
+    const box = screen.getByTestId("diff-removed-items");
+    expect(box).toHaveTextContent("Lượt viết lại này sẽ xoá 1 mục:");
+    expect(box).toHaveTextContent("Doctor may edit treatment notes only within 24 hours");
+    expect(screen.queryByRole("button", { name: "Xác nhận" })).not.toBeInTheDocument();
+    const confirm = screen.getByRole("button", { name: "Vẫn cập nhật (xoá 1 mục)" });
+    expect(confirm).toBeEnabled();
+    fireEvent.click(confirm);
+    expect(onConfirm).toHaveBeenCalled();
+  });
+
+  it("FLF-493: không có removed_items ⇒ không có khối đỏ, nút xác nhận như cũ", () => {
+    renderWithIntl(<DiffPreviewModal preview={basePreview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    expect(screen.queryByTestId("diff-removed-items")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Xác nhận" })).toBeInTheDocument();
+  });
+
   it("FLF-294: sau baseline phải có người yêu cầu + nguồn + lý do mới bấm được; onConfirm nhận change request", () => {
     const onConfirm = vi.fn();
     renderWithIntl(<DiffPreviewModal preview={{ ...basePreview, branch: "post_baseline" }} onCancel={vi.fn()} onConfirm={onConfirm} />);
@@ -150,6 +175,26 @@ describe("DiffPreviewModal", () => {
     renderWithIntl(<DiffPreviewModal preview={{ ...basePreview, changes: [] }} onCancel={vi.fn()} onConfirm={vi.fn()} />);
     expect(screen.getByText("Không có thay đổi nào.")).toBeInTheDocument();
   });
+
+  it("FLF-480 (B11): ẩn collection nội bộ (flags, steps…) khỏi bảng, tóm tắt số cảnh báo gỡ", () => {
+    const preview: PreviewResult = {
+      ...basePreview,
+      changes: [
+        { op: "set", path: "actors[id=A03].name", before: "Admin", value: "Administrator", reason: "typo" },
+        { op: "remove", path: "flags[id=FL021]", before: { id: "FL021", status: "open" }, value: { _absent: true }, reason: null },
+        { op: "set", path: "steps[id=S-5.1@SCR-09].status", before: "pending", value: "done", reason: null },
+      ],
+    };
+    renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+
+    const dialogText = document.body.textContent ?? "";
+    expect(dialogText).not.toContain("[id=");
+    expect(dialogText).not.toContain("FL021");
+    expect(dialogText).not.toContain("S-5.1@SCR-09");
+    expect(screen.getByTestId("diff-flags-removed")).toHaveTextContent("Gỡ 1 cảnh báo liên quan.");
+    // thay đổi còn lại vẫn hiện bình thường
+    expect(screen.getByRole("cell", { name: "Sửa tên của một tác nhân" })).toBeInTheDocument();
+  });
 });
 
 describe("DiffPreviewModal - FLF-177", () => {
@@ -231,5 +276,37 @@ describe("P06 (BarberGo #23) - hộp xem trước có ngữ nghĩa hộp thoại
     expect(dialog.getAttribute("aria-labelledby")).toBeTruthy();
     fireEvent.keyDown(dialog, { key: "Escape" });
     expect(onCancel).toHaveBeenCalled();
+  });
+});
+
+describe("DiffPreviewModal FLF-486 A2", () => {
+  it("câu thêm cuối đoạn dài: ô Sau tô câu mới, hai ô khác nhau", () => {
+    const A = Array.from({ length: 30 }, (_, i) => `tu${i}`).join(" ");
+    const preview: PreviewResult = {
+      ...basePreview,
+      changes: [{ op: "set", path: "project.vision", before: A, value: `${A} Phiên bản 1.0 gồm 15 use case.`, reason: "" }],
+    };
+    const { container } = renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    const ins = Array.from(container.querySelectorAll("ins")).map((e) => e.textContent).join(" ");
+    expect(ins).toContain("Phiên bản 1.0 gồm 15 use case.");
+    const cells = container.querySelectorAll("tbody td");
+    expect(cells[1].textContent).not.toBe(cells[2].textContent);
+  });
+
+  it("FLF-486: mục thêm mới ghi (chưa có) ở cột Trước, mục bị xoá vẫn ghi (xoá) ở cột Sau", () => {
+    const preview: PreviewResult = {
+      ...basePreview,
+      changes: [
+        { op: "add", path: "use_cases[id=UC09]", before: { _absent: true }, value: { id: "UC09", name: "Send Reminder" }, reason: null },
+        { op: "remove", path: "actors[id=A04]", before: { id: "A04", name: "Patron", kind: "human" }, value: { _absent: true }, reason: null },
+      ],
+    };
+    renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+    expect(screen.getAllByText("(chưa có)")).toHaveLength(1);
+    expect(screen.getAllByText("(xoá)")).toHaveLength(1);
+    const rows = screen.getAllByRole("row");
+    const added = rows.find((r) => r.textContent?.includes("Send Reminder"))!;
+    expect(added).toHaveTextContent("(chưa có)");
+    expect(added).not.toHaveTextContent("(xoá)");
   });
 });

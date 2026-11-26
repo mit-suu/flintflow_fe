@@ -76,6 +76,8 @@ export interface ProposalReplacedName {
   original: string;
   generic: string | null;
   reason: string | null;
+  /** FLF-466: chỗ đổi là tiêu đề mục, chữ hướng dẫn hay tiêu đề cột. Bản ghi cũ không có (coi là heading). */
+  kind?: "heading" | "guidance" | "column";
 }
 
 export interface TemplateProposal {

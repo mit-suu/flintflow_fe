@@ -89,6 +89,25 @@ describe("view/page.tsx - read-only projection (UC 1.14)", () => {
     expect(headings.indexOf("I. Record of Changes")).toBeLessThan(headings.indexOf("1. Product Overview"));
   });
 
+  it("FLF-480 (ChoViet #14): dự án import mode 1, documentLanguage chưa lưu, BE trả document_language vi ⇒ tiêu đề 'I. Lịch sử thay đổi'", async () => {
+    mockState.project = { ...mockState.project, mode: "import", document_language: "vi" };
+    const doc = {
+      projectId: P,
+      projectName: "Demo",
+      version: "v0.2",
+      source: "draft",
+      generatedAt: "2026-11-12T00:00:00.000Z",
+      sections: [{ id: "fixed:1", number: "1", heading: "Tổng quan sản phẩm", level: 1, blocks: [{ type: "paragraph", runs: [{ text: "Tầm nhìn" }] }] }],
+      recordOfChanges: [{ date: "2026-11-12", version: "v0.2", change_type: "M", in_charge: "Tuấn Anh", description: "CR-001: Đổi tên hệ thống" }],
+    };
+    mockServer.use(http.get("*/projects/:projectId/document", () => HttpResponse.json({ data: doc, error: null, meta: { assembled_at_version: 1, spine_version: 1, stale: false } })));
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    expect(await screen.findByText("I. Lịch sử thay đổi", { selector: "h3" })).toBeInTheDocument();
+    expect(screen.queryByText("I. Record of Changes")).not.toBeInTheDocument();
+  });
+
   it("section bắt buộc chưa accepted (Use Case Descriptions, chưa có use_cases) hiện 'chưa soạn'", async () => {
     await assembleDocument(P, await version());
 
@@ -164,12 +183,21 @@ describe("view/page.tsx - comment ghim vào nội dung (UC-49)", () => {
 
   it("Viewer, dự án chưa có baseline ⇒ không có nút 💬, panel nói chỉ comment trên bản đã phát hành", async () => {
     orgId.value = "org-1";
-    mockServer.use(http.get("*/orgs/org-1", () => HttpResponse.json({ data: { _id: "org-1", name: "Org", role: "viewer" }, error: null })));
+    const sources: string[] = [];
+    mockServer.use(
+      http.get("*/orgs/org-1", () => HttpResponse.json({ data: { _id: "org-1", name: "Org", role: "viewer" }, error: null })),
+      http.get("*/projects/:projectId/document", ({ request }) => {
+        sources.push(new URL(request.url).searchParams.get("source") ?? "");
+        return HttpResponse.json({ data: null, error: { code: "FORBIDDEN", message: "no" } }, { status: 403 });
+      })
+    );
 
     renderWithIntl(<ReadOnlyDocumentPage />);
 
-    expect(await screen.findByText(/Viewer chỉ comment được trên phiên bản đã phát hành - dự án chưa có bản nào/)).toBeInTheDocument();
-    expect(await screen.findByText(/1\. Product Overview/)).toBeInTheDocument();
+    // FLF-466: Viewer chưa có bản phát hành ⇒ trạng thái trống, không gọi source=draft
+    expect(await screen.findByText("Chưa có bản phát hành")).toBeInTheDocument();
+    expect(sources).toEqual([]);
+    expect(screen.queryByText(/1\. Product Overview/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Comment mục/ })).not.toBeInTheDocument();
     // Không có bản phát hành ⇒ không có nút tải; quay về danh sách dự án, không về workspace
     expect(screen.queryByRole("button", { name: /^Tải bản/ })).not.toBeInTheDocument();
@@ -297,5 +325,13 @@ describe("view/page.tsx - chip ngôn ngữ chỉ đọc (FLF-265)", () => {
     renderWithIntl(<ReadOnlyDocumentPage />);
 
     expect(await chip()).toBeNull();
+  });
+
+  it("FLF-480 (ChoViet #14): mode 1 chưa lưu documentLanguage nhưng BE trả document_language ⇒ dùng giá trị đó, không rơi về English", async () => {
+    mockState.project = { ...mockState.project, mode: "import", document_language: "vi" };
+
+    renderWithIntl(<ReadOnlyDocumentPage />);
+
+    expect(await chip()).toHaveTextContent("Tiếng Việt");
   });
 });

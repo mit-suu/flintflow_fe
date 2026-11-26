@@ -334,7 +334,8 @@ const runSteps = async (state: MockState, stepId: string, send: (event: StepEven
   }
 
   let wroteOps = false;
-  if (def && !def.deterministic && def.renders.length === 0) {
+  // FLF-466: registry đồng bộ cho S-3.5 thêm render `activity` nhưng step vẫn là lượt AI ghi op ⇒ không loại theo `renders`
+  if (def && !def.deterministic && (def.renders.length === 0 || stepId === "S-3.5")) {
     counters.calls_used += 1;
     const attempt = counters.regenerate_used + 1;
     send({ type: "draft", step_id: stepId, attempt });
@@ -646,6 +647,9 @@ const patchMockUser = (body: unknown) => {
 
 // ─── handlers ────────────────────────────────────────────────────
 
+/** FLF-489: step đã được duyệt trong phiên mock này — duyệt lần nữa (chạy lại) thì gate trả `rerun`. */
+const acceptedStepsInMock = new Set<string>();
+
 export const handlers = [
   http.get(api("/users/me"), () => ok(mockState.user)),
   http.post(api("/ai-actions/estimate-cost"), async ({ request }) => {
@@ -926,13 +930,21 @@ export const handlers = [
     const url = new URL(request.url);
     const scope = (url.searchParams.get("scope") ?? "all") as "unit" | "all";
     const from = url.searchParams.get("from") ?? "S-1.1";
-    const units = scope === "unit" ? [{ unit: from.replace(/\.\d+$/, ""), steps: 4, ai_steps: 4, interview_credits: 1, credits: 17 }] : [
-      { unit: "S-1", steps: 4, ai_steps: 4, interview_credits: 1, credits: 17 },
-      { unit: "S-2", steps: 5, ai_steps: 5, interview_credits: 1, credits: 21 },
+    type MockUnit = { unit: string; steps: number; ai_steps: number; interview_credits: number; credits: number; credits_min: number; credits_max: number; screens?: { min: number; max: number } };
+    const exact = (unit: string, steps: number, credits: number): MockUnit => ({ unit, steps, ai_steps: steps, interview_credits: 1, credits, credits_min: credits, credits_max: credits });
+    // FLF-485: lượt "all" có đơn vị S-5 ước tính (6–14 màn, 13 credit/màn, cận trên cộng một vòng không màn)
+    const units: MockUnit[] = scope === "unit" ? [exact(from.replace(/\.\d+$/, ""), 4, 17)] : [
+      exact("S-1", 4, 17),
+      exact("S-2", 5, 21),
+      { unit: "S-5", steps: 75, ai_steps: 45, interview_credits: 15, credits: 195, credits_min: 78, credits_max: 195, screens: { min: 6, max: 14 } },
     ];
-    const credits_total = units.reduce((n, u) => n + u.credits, 0);
-    return ok({ scope, from_step: from, units, steps_total: units.reduce((n, u) => n + u.steps, 0), ai_steps_total: units.reduce((n, u) => n + u.ai_steps, 0), credits_total, available_credits: (mockState.user as { balance?: number }).balance ?? 120 });
+    const credits_max = units.reduce((n, u) => n + u.credits_max, 0);
+    const credits_min = units.reduce((n, u) => n + u.credits_min, 0);
+    const screen_estimate = units.some((u) => u.screens) ? { min: 6, max: 14, basis: "default" } : null;
+    return ok({ scope, from_step: from, units, steps_total: units.reduce((n, u) => n + u.steps, 0), ai_steps_total: units.reduce((n, u) => n + u.ai_steps, 0), credits_total: credits_max, credits_min, credits_max, screen_estimate, available_credits: (mockState.user as { balance?: number }).balance ?? 120, scope_kind: null, screen_range: null, ack_required: null });
   }),
+  // FLF-466: xác nhận lần báo credit — mock không có lần nào chờ
+  http.post(api("/projects/:projectId/run-estimate/ack"), () => ok({ scope: "after_brief", credits: 0, spine_version: mockState.spine.spine_version })),
   http.get(api("/projects/:projectId/flags"), () => ok(mockState.spine.flags)),
   // FLF-292: nguồn tài liệu của yêu cầu — mock chưa sinh nguồn
   http.get(api("/projects/:projectId/sources"), () => ok({ sources: [] })),
@@ -995,6 +1007,8 @@ export const handlers = [
       return fail(400, "VALIDATION_ERROR", "revision và accept_as_is bắt buộc ghi chú");
     }
     const counters = countersOf(mockState, stepId);
+    // FLF-489: bước đã từng accepted (mở lại để chạy lại) ⇒ duyệt xong BE báo `rerun`
+    const acceptedBefore = acceptedStepsInMock.has(stepId);
 
     switch (body.action) {
       case "accept":
@@ -1037,7 +1051,14 @@ export const handlers = [
       mockState.spine.progress.current_step = next;
       mockState.spine.progress.current_phase = next ? (phaseOfStep(next) ?? null) : null;
     }
-    const response: GateResponse = { step: summaryOf(mockState, stepId), next_step: next, spine_version: mockState.spine.spine_version };
+    const accepting = body.action === "accept" || body.action === "accept_as_is";
+    if (accepting) acceptedStepsInMock.add(stepId);
+    const response: GateResponse = {
+      step: summaryOf(mockState, stepId),
+      next_step: next,
+      spine_version: mockState.spine.spine_version,
+      ...(accepting && acceptedBefore ? { rerun: true } : {}),
+    };
     return ok(response);
   }),
 

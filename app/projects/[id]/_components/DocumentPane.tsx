@@ -1161,8 +1161,9 @@ function DocumentPaneView({
           </p>
         )}
         {/*
-          FLF-265: tài liệu khác ngôn ngữ gốc mà còn mục chưa có bản dịch — các mục đó đang in chữ gốc. Nội dung mới đã
-          dịch ngay trong lượt AI ghi (D16), nên phần này thường là nội dung có từ trước khi đổi ngôn ngữ dự án.
+          FLF-265: tài liệu khác ngôn ngữ gốc mà còn mục chưa có bản dịch — các mục đó đang in chữ gốc. Lượt AI trả kèm bản
+          dịch (D16, FLF-479 bắt soạn lại khi thiếu); phần còn sót (lượt cuối, mockup vẽ lại sau CR) hiện ở đây kèm nút
+          dịch nốt, có báo credit trước (UC-55, FLF-490).
         */}
         {translation && translation.missing > 0 && (
           <div role="status" className="rounded-control bg-accent-gold-soft border border-accent-gold-border px-3 py-2 text-body text-accent-gold-text flex items-center gap-1.5 flex-wrap">
@@ -1171,8 +1172,8 @@ function DocumentPaneView({
             {translate && (
               <>
                 <span aria-hidden>·</span>
-                <button type="button" onClick={translate} className="font-bold hover:underline cursor-pointer">
-                  {t("translate")}
+                <button type="button" onClick={translate} title={t("translateMissingTitle")} className="font-bold hover:underline cursor-pointer">
+                  {t("translateMissing", { count: translation.missing })}
                 </button>
               </>
             )}

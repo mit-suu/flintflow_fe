@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Icon from "@/components/ui/Icon";
 import { saveBlob } from "@/lib/api/files";
 import { downloadVersion, listVersions } from "@/lib/api/versions";
-import { versionFileName, versionLineage, type DocVersion } from "@/types/doc-version";
+import { projectCode, versionFileName, versionLineage, type DocVersion } from "@/types/doc-version";
 import { useProjectDocuments } from "../hooks/useProjectDocuments";
 import AnchoredPopover from "./AnchoredPopover";
 import CreditGateCard, { type CreditGateRequest } from "./CreditGateCard";
@@ -21,6 +21,7 @@ export type AddDocumentsResult = { cancelled: true } | { busy: true } | { cancel
 interface ProjectDocumentsButtonProps {
   projectId: string;
   projectName?: string;
+  projectCode?: string;
   /** Dự án nhập SRS: có file SRS gốc để tải và có "Rút yêu cầu" (luồng change request). */
   mode1: boolean;
   readOnly?: boolean;
@@ -57,7 +58,7 @@ function useOriginalSrs(projectId: string, enabled: boolean, refreshToken: numbe
  * Nút "Tài liệu (n)" ở đầu khung chat: mở danh sách tài liệu của cả dự án (file SRS gốc + tài liệu tham khảo), Rút yêu cầu,
  * Xoá, Thêm tài liệu. Giống nhau ở mọi chế độ; phần chỉ có ở dự án nhập SRS ẩn đi ở dự án AI soạn.
  */
-export default function ProjectDocumentsButton({ projectId, projectName, mode1, readOnly = false, refreshToken = 0, onAdd, onCrsCreated, creditConfirm = null }: ProjectDocumentsButtonProps) {
+export default function ProjectDocumentsButton({ projectId, projectName, projectCode: propProjectCode, mode1, readOnly = false, refreshToken = 0, onAdd, onCrsCreated, creditConfirm = null }: ProjectDocumentsButtonProps) {
   const t = useTranslations("workspace.projectDocuments");
   const tv = useTranslations("mode1.versions");
   const L = useMode1Labels();
@@ -99,7 +100,7 @@ export default function ProjectDocumentsButton({ projectId, projectName, mode1, 
     setMessage(null);
     try {
       const { blob, filename } = await downloadVersion(projectId, original.version, "original", "docx");
-      saveBlob(blob, filename ?? versionFileName({ name: projectName ?? "SRS", ...versionLineage(versions, original.version), tracked: false, original: true, ext: "docx", language: null }));
+      saveBlob(blob, filename ?? versionFileName({ name: projectName ?? "SRS", ...versionLineage(versions, original.version), base: original.version, numbered: true, code: original.project_code ?? propProjectCode ?? projectCode(projectId), tracked: false, original: true, ext: "docx", language: null }));
     } catch (err) {
       setMessage({ text: L.errorText(err, tv("downloadFailed")), error: true });
     } finally {

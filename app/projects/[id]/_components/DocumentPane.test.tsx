@@ -433,7 +433,7 @@ describe("DocumentPane - ngôn ngữ tài liệu (FLF-265)", () => {
     expect(screen.queryByText(/mục chưa dịch/)).toBeNull();
   });
 
-  it("còn mục chưa dịch ⇒ chip theo meta.translation + “N mục chưa dịch · Dịch tài liệu”; bấm mở hộp dịch", async () => {
+  it("còn mục chưa dịch ⇒ chip theo meta.translation + “N mục chưa dịch · Dịch N mục còn thiếu”; bấm mở hộp dịch", async () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 12 } } });
     const onTranslate = vi.fn();
 
@@ -442,7 +442,9 @@ describe("DocumentPane - ngôn ngữ tài liệu (FLF-265)", () => {
     const warning = await screen.findByRole("status");
     expect(warning).toHaveTextContent("12 mục chưa dịch");
     expect(chip()).toHaveTextContent("VI");
-    fireEvent.click(within(warning).getByRole("button", { name: "Dịch tài liệu" }));
+    const button = within(warning).getByRole("button", { name: "Dịch 12 mục còn thiếu" });
+    expect(button).toHaveAttribute("title", "Báo số credit trước, bạn đồng ý mới dịch");
+    fireEvent.click(button);
     expect(onTranslate).toHaveBeenCalledTimes(1);
   });
 
@@ -452,7 +454,7 @@ describe("DocumentPane - ngôn ngữ tài liệu (FLF-265)", () => {
     renderWithIntl(<DocumentPane projectId="p1" documentLanguage="vi" />);
 
     expect(await screen.findByRole("status")).toHaveTextContent("3 mục chưa dịch");
-    expect(screen.queryByRole("button", { name: "Dịch tài liệu" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /mục còn thiếu/ })).toBeNull();
   });
 
   it("đã dịch đủ (missing 0) ⇒ chỉ còn chip, không cảnh báo", async () => {
@@ -476,7 +478,7 @@ describe("DocumentPane - ngôn ngữ tài liệu (FLF-265)", () => {
     getDocument.mockResolvedValue({ data: fixture, error: null, meta: { ...draftMeta, translation: { locale: "vi", source_locale: "en", missing: 2 } } });
     renderWithIntl(<DocumentPane projectId="p1" mode1 documentLanguage={null} onTranslate={vi.fn()} />);
     expect(await screen.findByRole("status")).toHaveTextContent("2 mục chưa dịch");
-    expect(screen.queryByRole("button", { name: "Dịch tài liệu" })).toBeNull();
+    expect(screen.queryByRole("button", { name: /mục còn thiếu/ })).toBeNull();
   });
 
   it("ngôn ngữ dự án đổi ⇒ tải lại tài liệu theo ngôn ngữ mới", async () => {

@@ -11,6 +11,7 @@ import VersionsPanel from "./VersionsPanel";
 interface Mode1VersionsMenuProps {
   projectId: string;
   projectName?: string;
+  projectCode?: string;
   /** Ngôn ngữ tài liệu — version có baseline tải được bằng ngôn ngữ còn lại (FLF-334 B). */
   documentLanguage?: DocumentLanguage | null;
   /** Mở hộp dịch khi tải theo ngôn ngữ khác còn mục chưa dịch; bỏ trống ⇒ chỉ báo số mục. */
@@ -23,7 +24,7 @@ interface Mode1VersionsMenuProps {
  * Popup của chip version ở thanh đầu tài liệu (mode 1): danh sách version kèm tải về (bản sạch / Track Changes / PDF / file gốc
  * / ngôn ngữ khác) và lối vào "So sánh version". Tải danh sách lúc mở. Release vẫn đi qua gói thay đổi ở panel Kiểm & chốt.
  */
-export default function Mode1VersionsMenu({ projectId, projectName, documentLanguage = null, onTranslate, onClose }: Mode1VersionsMenuProps) {
+export default function Mode1VersionsMenu({ projectId, projectName, projectCode, documentLanguage = null, onTranslate, onClose }: Mode1VersionsMenuProps) {
   const t = useTranslations("workspace.document");
   const docs = useDocVersions(projectId, { redFlags: false });
 
@@ -52,6 +53,7 @@ export default function Mode1VersionsMenu({ projectId, projectName, documentLang
         <VersionsPanel
           projectId={projectId}
           projectName={projectName}
+          projectCode={projectCode}
           versions={docs.versions}
           redOpen={docs.redOpen}
           readOnly

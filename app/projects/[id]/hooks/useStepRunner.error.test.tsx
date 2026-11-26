@@ -3,6 +3,7 @@
  */
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { ApiClientError } from "@/lib/api/client";
 import { useStepRunner } from "./useStepRunner";
 
 const runPhase = vi.fn();
@@ -66,4 +67,44 @@ describe("lượt kết thúc bằng lỗi", () => {
     expect(result.current.state.error).toMatchObject({ code: "DRAFT_REJECTED" });
     expect(result.current.state.busy).toBe(false);
   }, 20_000);
+});
+
+describe("409 CREDIT_ACK_REQUIRED (FLF-466)", () => {
+  const ackError = () => new ApiClientError(409, "CREDIT_ACK_REQUIRED", "Cần xác nhận credit");
+  const setupAck = (onCreditAckRequired: () => Promise<boolean>) =>
+    renderHook(() => useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 3, onSpineChanged: vi.fn(), onCreditAckRequired }));
+
+  it("chạy cả giai đoạn bị chặn ⇒ không báo lỗi, hỏi xác nhận rồi chạy lại đúng một lần", async () => {
+    runPhase.mockRejectedValueOnce(ackError()).mockResolvedValueOnce(undefined);
+    const onAck = vi.fn().mockResolvedValue(true);
+    const { result } = setupAck(onAck);
+
+    await act(async () => result.current.runWholePhase("S-4"));
+
+    expect(onAck).toHaveBeenCalledTimes(1);
+    expect(runPhase).toHaveBeenCalledTimes(2);
+    expect(result.current.state.status).not.toBe("error");
+  });
+
+  it("người dùng không xác nhận ⇒ dừng, không chạy lại, không báo lỗi", async () => {
+    runPhase.mockRejectedValue(ackError());
+    const { result } = setupAck(vi.fn().mockResolvedValue(false));
+
+    await act(async () => result.current.runWholePhase("S-4"));
+
+    expect(runPhase).toHaveBeenCalledTimes(1);
+    expect(result.current.state.status).not.toBe("error");
+  });
+
+  it("đã xác nhận mà BE vẫn chặn ⇒ hiện lỗi, không lặp vô hạn", async () => {
+    runPhase.mockRejectedValue(ackError());
+    const onAck = vi.fn().mockResolvedValue(true);
+    const { result } = setupAck(onAck);
+
+    await act(async () => result.current.runWholePhase("S-4"));
+
+    expect(runPhase).toHaveBeenCalledTimes(2);
+    expect(onAck).toHaveBeenCalledTimes(1);
+    expect(result.current.state).toMatchObject({ status: "error", error: { code: "CREDIT_ACK_REQUIRED" } });
+  });
 });

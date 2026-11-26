@@ -96,6 +96,7 @@ export interface ScreenMockupRunView {
  */
 export interface Project {
   _id: string;
+  project_code?: string;
   name: string;
   domain?: string | null;
   status: ProjectStatus;
@@ -116,6 +117,12 @@ export interface Project {
   converted_at?: string | null;
   /** Dự án cũ không có field: mode 2 đọc `en`, mode 1 theo ngôn ngữ file (BE suy ra). */
   documentLanguage?: DocumentLanguage;
+  /**
+   * FLF-480 (ChoViet #14): ngôn ngữ tài liệu BE đã suy ra (`documentLanguageOf` — như `documentLanguage` khi có, còn
+   * không thì theo ngôn ngữ file của mode 1) — luôn có, không như `documentLanguage` (chỉ field tự lưu, có thể
+   * thiếu). Đọc qua `resolvedDocumentLanguage` (`lib/document-language.ts`), đừng đọc thẳng.
+   */
+  document_language?: DocumentLanguage | null;
   /** FLF-324 / FLF-418: thiếu = chưa chọn (S-4.5 hỏi trong khung chat) ⇒ hiển thị và vẽ là `chen`. */
   erdNotation?: ErdNotation;
   /** FLF-418: thiếu = chưa chọn (S-5.4 hỏi trong khung chat) ⇒ vẽ là `system`. */

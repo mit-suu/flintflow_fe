@@ -42,6 +42,11 @@ interface Props {
   onToggleSelect?: (p: Project) => void;
   /** Viewer: không có menu ⋮ (đổi tên, chuyển thư mục, lưu trữ, xoá) — chỉ mở dự án để xem. */
   readOnly?: boolean;
+  /**
+   * FLF-480 (ChoViet #16): "Lưu trữ" và "Xoá vĩnh viễn" cả hai chỉ Lead làm được (`DELETE /projects/:id`,
+   * `requireRole("lead")` ở BE) — Analyst bấm vào thì 403. Mặc định `true` (giữ hành vi cũ ở nơi chưa truyền).
+   */
+  canDelete?: boolean;
 }
 
 /** Kiểu dữ liệu kéo thả: id dự án — thẻ thư mục chỉ nhận đúng kiểu này. */
@@ -217,7 +222,8 @@ export default function ProjectCard({
   selectable = false,
   selected = false,
   onToggleSelect,
-  readOnly = false
+  readOnly = false,
+  canDelete = true
 }: Props) {
   const t = useTranslations("app.projectCard");
   const tTime = useTranslations("app.time");
@@ -254,22 +260,27 @@ export default function ProjectCard({
           } as const
         ]
       : []),
-    // Dự án đã lưu trữ không lưu trữ lại được
-    ...(archived
-      ? []
-      : [
+    // FLF-480 (ChoViet #16): BE chỉ Lead làm được (archive lẫn xoá vĩnh viễn) — Analyst không thấy hai mục này,
+    // không phải bấm xong mới nhận 403. Dự án đã lưu trữ không lưu trữ lại được.
+    ...(canDelete && !archived
+      ? [
           {
             label: t("menu.archive"),
             icon: "archive",
             onSelect: () => onDelete(project)
           } as const
-        ]),
-    {
-      label: t("menu.hardDelete"),
-      icon: "trash",
-      tone: "danger",
-      onSelect: () => onHardDelete(project)
-    }
+        ]
+      : []),
+    ...(canDelete
+      ? [
+          {
+            label: t("menu.hardDelete"),
+            icon: "trash",
+            tone: "danger",
+            onSelect: () => onHardDelete(project)
+          } as const
+        ]
+      : [])
   ];
 
   return (

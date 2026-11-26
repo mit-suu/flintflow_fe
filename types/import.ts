@@ -242,6 +242,26 @@ export interface ReviewField {
   entity_name?: string;
 }
 
+/** FLF-462 (bước 1.6): đoạn lớp 4 chữ hướng dẫn AI phân loại ở I-4, độ tin < 0.7, chờ người xác nhận. */
+export interface ReviewGuidance {
+  section_id: string;
+  block_id: string;
+  /** Nguyên văn đoạn, để người dùng đọc và quyết định đây có phải chữ hướng dẫn không. */
+  text: string;
+  is_guidance: boolean;
+  confidence: number;
+  confirmed: boolean;
+}
+
+/** FLF-462 (bước 1.6, FLF-444 đánh dấu): mục khớp theo tên mà I-4 đọc ra nội dung của loại khác, chờ người xem qua. */
+export interface ReviewContentMismatch {
+  section_id: string;
+  by_heading: string[];
+  by_content: string[];
+  note: string | null;
+  confirmed: boolean;
+}
+
 /** Thứ AI tìm thấy trong một mục: `entity` là khoá thô (`use_cases`, `actors`…) hoặc `diagram` (names = loại sơ đồ). */
 export interface FoundGroup {
   entity: string;
@@ -304,6 +324,10 @@ export interface ExtractRequest {
 export interface FieldsPatchRequest {
   import_id: string;
   fields?: { section_id: string; path: string; confirmed: boolean; edited_value?: unknown }[];
+  /** FLF-462 (bước 1.6): xác nhận đoạn lớp 4 là / không là chữ hướng dẫn (có thể sửa lại giá trị AI chấm). */
+  guidance?: { section_id: string; block_id: string; is_guidance: boolean }[];
+  /** FLF-462 (bước 1.6): xác nhận đã xem mục tên đúng nội dung sai; không đổi phân loại, chỉ bỏ cờ chờ. */
+  content_mismatch?: { section_id: string }[];
   confirm_all?: boolean;
 }
 
@@ -340,7 +364,7 @@ export interface CreditEstimate {
 export interface GetImportResponse {
   import: ImportedDocument | null;
   profile: TemplateProfile | null;
-  extraction: { sections: ExtractionSection[]; review_fields: ReviewField[] };
+  extraction: { sections: ExtractionSection[]; review_fields: ReviewField[]; review_guidance: ReviewGuidance[]; review_content_mismatch: ReviewContentMismatch[] };
   blocks_count: number;
   credit_estimate?: CreditEstimate | null;
   /** FLF-336 I-5: có sau lần finalize đầu (kể cả khi dừng ở `incomplete`). */
@@ -458,7 +482,7 @@ export type DiffBlockKind = "paragraph" | "table" | "image" | "heading";
 
 /** Một hàng của bảng trong diff theo hàng; hàng không đổi liền nhau gộp `unchanged` (FE vẽ `⋯ n hàng`). */
 export type TableRowDiff =
-  | { change: BlockChange; before?: string[]; after?: string[]; cells_changed?: number[] }
+  | { change: Exclude<BlockChange, "moved">; before?: string[]; after?: string[]; cells_changed?: number[] }
   | { change: "unchanged"; count: number; rows: string[][] };
 
 export interface TableDiff {

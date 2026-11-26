@@ -18,10 +18,14 @@ import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { createComment, listComments, replyComment, resolveComment } from "@/lib/api/comments";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { knownDocumentLanguage, shownDocumentLanguage, translationMetaOf } from "@/lib/document-language";
+import { resolvedDocumentLanguage, shownDocumentLanguage, translationMetaOf } from "@/lib/document-language";
 import { sectionLabel } from "../_components/DocumentPane";
 import CommentPanel, { commentTab, type CommentTab, type CommentTarget } from "../_components/CommentPanel";
+import AnchoredPopover from "../_components/AnchoredPopover";
 import DocumentLanguageChip from "../_components/DocumentLanguageChip";
+import GoogleDocsExportSection from "../_components/GoogleDocsExportSection";
+import { isGoogleAuthEnabled } from "@/lib/google-auth";
+import { projectCode, versionFileName } from "@/types/doc-version";
 import ViewDocument, { pinDomId, pinKey, ViewDocumentError, ViewDocumentSkeleton } from "./view-document";
 import CommentSheet, { COMMENT_COLUMN_ID, useIsDesktop } from "./comment-sheet";
 import ResizeHandle from "../_components/ResizeHandle";
@@ -110,9 +114,12 @@ export default function ReadOnlyDocumentPage() {
 
   const [role, setRole] = useState<OrgRole | null>(null);
   const [mode, setMode] = useState<ProjectMode | null>(null);
+  const [projCode, setProjCode] = useState<string | null>(null);
   const [baselines, setBaselines] = useState<Baseline[]>([]);
   /** `null` cho tới khi biết vai trò + baseline (để Viewer mở thẳng baseline mới nhất). */
   const [version, setVersion] = useState<VersionKey | null>(null);
+  /** FLF-466: Viewer chỉ thấy bản đã phát hành; chưa có bản nào ⇒ trạng thái trống, không gọi `source=draft`. */
+  const [noRelease, setNoRelease] = useState(false);
 
   const [comments, setComments] = useState<SrsComment[]>([]);
   /** Tab người dùng chọn; `null` = tự chọn (link `?comment=` tới comment đã đóng ⇒ tab "Đã đóng"). */
@@ -139,10 +146,17 @@ export default function ReadOnlyDocumentPage() {
       const project = projectResult.status === "fulfilled" ? projectResult.value.data : null;
       setRole(nextRole);
       setMode(project?.mode ?? null);
-      // Ngôn ngữ tài liệu (FLF-265) — lỗi thì thôi hiện chip
-      setProjectLanguage(knownDocumentLanguage(project));
+      setProjCode(project?.project_code ?? null);
+      // Ngôn ngữ tài liệu (FLF-265) — lỗi thì thôi hiện chip. FLF-480 (ChoViet #14): dự án import mode 1 chưa lưu
+      // field riêng thì dùng ngôn ngữ BE đã suy (`document_language`), không rơi về "en".
+      setProjectLanguage(resolvedDocumentLanguage(project));
       setBaselines(nextBaselines);
       const latest = nextBaselines[nextBaselines.length - 1];
+      if (nextRole === "viewer" && !latest) {
+        setNoRelease(true);
+        setLoading(false);
+        return;
+      }
       setVersion(nextRole === "viewer" && latest ? latest.id : "draft");
     });
   }, [projectId]);
@@ -248,7 +262,14 @@ export default function ReadOnlyDocumentPage() {
     setDownloading(true);
     try {
       const { blob, filename } = await downloadWordExport(projectId, "baseline", baselineId);
-      saveBlob(blob, filename ?? `${doc?.projectName ?? "SRS"}_v${versionLabel}.docx`);
+      const fallbackName = versionFileName({
+        name: doc?.projectName ?? "SRS",
+        code: projCode ?? projectCode(projectId),
+        release: true,
+        base: versionLabel,
+        ext: "docx",
+      });
+      saveBlob(blob, filename ?? fallbackName);
     } catch (err) {
       setError(userErrorMessage(err, t("downloadFailed")));
     } finally {
@@ -383,7 +404,7 @@ export default function ReadOnlyDocumentPage() {
                     }}
                     className="appearance-none h-10 sm:h-9 pl-3 pr-8 rounded-control bg-surface-container-high text-body font-semibold text-on-surface cursor-pointer hover:bg-surface-container-highest transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                   >
-                    <option value="draft">{t("draft")}</option>
+                    {role !== "viewer" && <option value="draft">{t("draft")}</option>}
                     {baselines.map((b) => (
                       <option key={b.id} value={b.id}>
                         {t("baselineOption", { version: b.version })}
@@ -395,9 +416,42 @@ export default function ReadOnlyDocumentPage() {
               </label>
             )}
             {baseline && (
-              <Button variant="secondary" size="sm" icon="export" loading={downloading} onClick={() => void download(baseline.id)} className="max-sm:h-10">
-                {downloading ? t("downloading") : t("download", { version: baseline.version })}
-              </Button>
+              <>
+                <Button variant="secondary" size="sm" icon="export" loading={downloading} onClick={() => void download(baseline.id)} className="max-sm:h-10">
+                  {downloading ? t("downloading") : t("download", { version: baseline.version })}
+                </Button>
+                {isGoogleAuthEnabled && (
+                  <AnchoredPopover
+                    label={t("googleDocsTitle")}
+                    align="right"
+                    widthClassName="w-[340px]"
+                    trigger={(popoverProps) => (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        aria-expanded={popoverProps["aria-expanded"]}
+                        aria-haspopup={popoverProps["aria-haspopup"]}
+                        onClick={popoverProps.toggle}
+                        className="max-sm:h-10"
+                      >
+                        {t("googleDocs")}
+                      </Button>
+                    )}
+                  >
+                    {() => (
+                      <div className="p-3">
+                        <GoogleDocsExportSection
+                          projectId={projectId}
+                          source="baseline"
+                          baselineId={baseline.id}
+                          fileLanguage={language ?? undefined}
+                          disabled={!doc}
+                        />
+                      </div>
+                    )}
+                  </AnchoredPopover>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -409,7 +463,9 @@ export default function ReadOnlyDocumentPage() {
       >
         <div inert={sheetModal} className="min-w-0 w-full max-w-[760px] mx-auto lg:max-w-none lg:flex-1 lg:pl-6 xl:pl-10 lg:pr-3">
           <ViewAbout viewer={role === "viewer"} />
-          {loading ? (
+          {noRelease ? (
+            <EmptyState icon="file" title={t("noReleaseTitle")} description={t("noReleaseBody")} />
+          ) : loading ? (
             <ViewDocumentSkeleton />
           ) : !doc ? (
             error && (

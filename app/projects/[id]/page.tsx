@@ -63,10 +63,10 @@ import TemplateProposalCard from "@/components/org-template/template-proposal-ca
 import SaveStructureEntry from "@/components/org-template/save-structure-entry";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import ProjectActionDialogs from "@/components/project/ProjectActionDialogs";
-import { knownDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
+import { resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
-import { getRunEstimate, submitGate } from "@/lib/api/pipeline";
+import { ackRunEstimate, getRunEstimate, submitGate } from "@/lib/api/pipeline";
 import { estimateActionCost } from "@/lib/api/chat";
 import { fetchBalance } from "@/lib/api/billing";
 import { isAiErrorCode } from "@/lib/ai-error-codes";
@@ -107,7 +107,7 @@ import TemplateUpdateBanner from "./_components/template-migration/TemplateUpdat
 import TemplateChangeEntry from "./_components/template-migration/TemplateChangeEntry";
 import { templateMigrationHref } from "./_components/template-migration/href";
 import { useTemplateChangeAvailability } from "./_components/template-migration/useTemplateChangeAvailability";
-import { crListHref, gapReportHref, readChatCrDraft, reuploadHref } from "./_components/mode1/prefill";
+import { crListHref, gapReportHref, readChatCrDraft, reuploadHref, type ChatCrDraft } from "./_components/mode1/prefill";
 import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
@@ -297,6 +297,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const tTemplate = useTranslations("mode1.templateMigration.entry");
   const tCard = useTranslations("app.projectCard");
   const tPackage = useTranslations("mode1.reviewPackage");
+  const tCrChat = useTranslations("mode1.crChat");
   const locale = useLocale();
   /** Lỗi hook lưu mã `@key` khi BE không kèm câu (`lib/hook-errors.ts`) — dịch lúc render. */
   const hookError = (error: string | null) => (error ? hookErrorText(error, tHook) : null);
@@ -594,8 +595,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const [documentRefreshToken, setDocumentRefreshToken] = useState(0);
   // UC-85: Lead vừa bấm "Lưu cấu trúc thành mẫu" ⇒ thẻ đề xuất đọc lại
   const [proposalRefresh, setProposalRefresh] = useState(0);
-  /** FLF-265: ngôn ngữ tài liệu client đã biết — mode 1 chưa biết ngôn ngữ file ⇒ `null`, không gọi thêm BE. */
-  const documentLanguage = knownDocumentLanguage(ws.project);
+  // FLF-265: ngôn ngữ tài liệu client đã biết. FLF-480 (ChoViet #14): dự án mode 1 chưa lưu field riêng thì dùng
+  // ngôn ngữ BE đã suy (`document_language`, cùng lượt tải project — không gọi thêm BE), không rơi về "en".
+  const documentLanguage = resolvedDocumentLanguage(ws.project);
   /**
    * Nguồn duy nhất của tài liệu (một lời gọi `GET /document` mỗi lượt tải): `DocumentPane` nhận qua prop, nên trang thấy được
    * lúc bản mới về để đánh dấu mục đang / vừa cập nhật. `ExportPanel` giữ instance riêng (xuất bản chốt / bản nháp).
@@ -782,6 +784,46 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     recordStepStat(stepId, { duration_ms: payload.duration_ms, credits: payload.credits_used ?? 0 });
   }, []);
 
+  /**
+   * FLF-466: thẻ credit theo lần báo BE đang chờ (`ack_required`, lưu ở BE nên reload vẫn có). Không có gì chờ ⇒ `true` ngay.
+   * Bấm Chạy ⇒ xác nhận với BE rồi chạy tiếp; Huỷ ⇒ `false`, không trừ credit, tiến độ giữ nguyên. Sau Approve Brief số màn
+   * mới là dải ước tính (số chốt có ở bước chốt danh sách màn).
+   */
+  const confirmCreditAck = useCallback(async (): Promise<boolean> => {
+    const est = await getRunEstimate(projectId)
+      .then((r) => r.data)
+      .catch(() => null);
+    const ack = est?.ack_required;
+    if (!est || !ack) return true;
+    const range = est.screen_range;
+    const min = est.credits_min ?? est.credits_total;
+    const max = est.credits_max ?? est.credits_total;
+    const hasRange = est.units.some((u) => u.screens);
+    const ok = await confirmCredits({
+      title: t(`creditGate.scope.${ack.scope}`),
+      lines: est.units.map((u) =>
+        u.screens
+          ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
+          : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
+      ),
+      total: min,
+      totalMax: max,
+      available: est.available_credits,
+      notes: hasRange ? [t("creditGate.screenRangeNote")] : undefined,
+      ...(range && range.max > 0 ? { note: t("creditGate.screenRange", { min: range.min, max: range.max, creditsMin: range.credits_min, creditsMax: range.credits_max }) } : {}),
+    });
+    if (!ok) return false;
+    try {
+      await ackRunEstimate(projectId);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [projectId, confirmCredits, t]);
+
+  /** FLF-489: vừa duyệt xong bước chạy lại, quy trình dừng ở bước tới lượt — thẻ "Tiếp tục: <bước>" */
+  const [afterRerun, setAfterRerun] = useState<{ done: string; next: string } | null>(null);
+
   const runner = useStepRunner({
     projectId,
     // FLF-244: quy trình chạy ở phiên chính dù user đang xem phiên phụ (dữ liệu cũ thiếu cờ ⇒ phiên đang mở)
@@ -789,6 +831,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     getBaseVersion,
     onSpineChanged,
     onGateDone: (res) => setSelectedStepId(res.next_step),
+    onStoppedAfterRerun: (done, next) => setAfterRerun(next ? { done, next } : null),
     myUserId: ws.user?.id ?? null,
     // Lời AI xác nhận việc vừa sửa hiện ngay như một tin của AI, trước khi bước chạy lại
     onRevisionMessage: (message, stepId) => {
@@ -798,20 +841,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     onTranscriptChanged: () => {
       if (ws.activeSession?._id) void ws.reloadActiveSession(ws.activeSession._id);
     },
-    // FLF-332: sau Approve Brief (B-2 → S-1) là lượt soạn hàng loạt cả SRS ⇒ chốt con số trước khi soạn (cổng cứng §1.2)
-    beforePhaseRun: async (next, from) => {
-      if (!(from?.startsWith("B-") && next.startsWith("S-"))) return true;
-      const est = await getRunEstimate(projectId, { scope: "all", from: next })
-        .then((r) => r.data)
-        .catch(() => null);
-      if (!est || est.credits_total <= 0) return true;
-      return confirmCredits({
-        title: t("creditGate.pipelineTitle"),
-        lines: est.units.map((u) => ({ label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits })),
-        total: est.credits_total,
-        available: est.available_credits,
-      });
-    },
+    // FLF-466: BE quyết lần báo credit (sau Approve Brief, sau chốt danh sách màn, sau thêm màn) và lưu `ack_required`;
+    // FE chỉ hiện thẻ khi BE đang chờ xác nhận, không tự suy theo ranh giới giai đoạn
+    beforePhaseRun: () => confirmCreditAck(),
+    onCreditAckRequired: () => confirmCreditAck(),
   });
 
   // Lớp 5: tới lượt user mà tab đang ẩn thì đổi tiêu đề tab (và báo, nếu user đã cho phép)
@@ -821,6 +854,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     notification: t("turnNotice.notification"),
   });
 
+  // FLF-489: có lượt mới chạy (hoặc đang chờ) ⇒ thẻ "Tiếp tục" sau bước chạy lại hết nhiệm vụ
+  useEffect(() => {
+    if (runner.state.status !== "idle") setAfterRerun(null);
+  }, [runner.state.status]);
+
   // Thời gian và credit THẬT của bước vừa xong — dùng lại làm ước lượng cho lần sau (03 §6)
   useEffect(() => {
     if (runner.state.status !== "gate_ready") return;
@@ -829,6 +867,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
 
   const spine = spineState.spine;
+  // FLF-466: reload / mở lại trang giữa lúc BE còn chờ xác nhận credit ⇒ hiện lại thẻ (lần báo lưu ở BE), không âm thầm bỏ
+  const creditAckPending = !!spine?.progress.credit_ack_required;
+  const ackPromptedRef = useRef(false);
+  useEffect(() => {
+    if (!ws.ready || mode1 || !creditAckPending || ackPromptedRef.current) return;
+    ackPromptedRef.current = true;
+    void confirmCreditAck();
+  }, [ws.ready, mode1, creditAckPending, confirmCreditAck]);
   // P06: nhãn bước vòng S-5 dùng tên màn ("Hàng đợi màn · Book Appointment"), nạp trước khi thành phần con dựng nhãn
   const screenNames = useMemo(() => new Map((spine?.screens ?? []).map((sc) => [sc.id, sc.name] as const)), [spine?.screens]);
   setStepScreenNames(screenNames);
@@ -1426,12 +1472,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   // ngay trong dự án chỉ đổi query (không mở lại trang), đọc một lần lúc mở trang thì link đó không làm gì.
   const searchParams = useSearchParams();
   const crDraftQuery = searchParams.get("crdraft") === "1" || searchParams.get("new") === "1" ? searchParams.toString() : null;
+  // FLF-480 (B12): tách phần áp dụng draft để "Tạo CR" trong hộp xem trước gọi trực tiếp, không phải vòng qua URL
+  // (router.push về chính trang đang mở không mount lại trang nên effect đọc URL không chạy).
+  const applyChatCrDraft = (draft: ChatCrDraft) => {
+    crChat.setPrefill({ kind: draft.source, ref: draft.ref, requester: draft.requester, previewId: draft.preview_id, commentId: draft.comment_id });
+    startEditing(draft.text);
+  };
   useEffect(() => {
     if (!mode1 || !ws.ready || !crDraftQuery) return;
     const draft = readChatCrDraft(new URLSearchParams(crDraftQuery));
     if (!draft) return;
-    crChat.setPrefill({ kind: draft.source, ref: draft.ref, requester: draft.requester, previewId: draft.preview_id, commentId: draft.comment_id });
-    startEditing(draft.text);
+    applyChatCrDraft(draft);
     router.replace(`/projects/${projectId}`, { scroll: false });
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ chạy khi link điền sẵn đổi (router.replace xoá query ngay sau)
   }, [mode1, ws.ready, crDraftQuery]);
@@ -1716,6 +1767,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     viewedStep === currentStep &&
     !viewingAccepted &&
     (viewedSummary === undefined || viewedSummary.status === "pending" || viewedSummary.status === "revision_requested");
+  /** FLF-489: bước chạy lại vừa duyệt xong, quy trình dừng; bước tới lượt chưa chốt, runner rảnh. Phủ cả bước tới lượt đang dở. */
+  const rerunStopped =
+    afterRerun !== null && runner.state.status === "idle" && viewedStep !== null && viewedStep === currentStep && afterRerun.next === currentStep && !viewingAccepted;
   /** Mở đầu project mới: B-0.1 chưa chạy, phiên pipeline chưa có tin nhắn, Spine chưa có ghi chú Brief. */
   const showOpening =
     !mode1 &&
@@ -1735,6 +1789,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     aiWorking,
     showOpening,
     sessionMessages: ws.activeSession?.messages.length ?? 0,
+    afterRerun: rerunStopped,
   });
 
   /**
@@ -2269,6 +2324,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               <ProjectDocumentsButton
                 projectId={projectId}
                 projectName={ws.project?.name}
+                projectCode={ws.project?.project_code}
                 mode1={mode1}
                 refreshToken={ws.documentsVersion}
                 creditConfirm={creditGate.pending ? { ...creditGate.pending, onRun: creditGate.run, onCancel: creditGate.cancel } : null}
@@ -2361,6 +2417,15 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               )}
               {/* FLF-443: việc chờ bạn quyết - thẻ một việc mỗi lần, nhường chỗ cho câu hỏi / thẻ duyệt của AI */}
               <ResolveQueueDock controller={resolveQueue} onShowSection={showSection} />
+              {/* FLF-480 (B17): CR còn mở đã ẩn khỏi khung chat bằng "Phiên mới" */}
+              {mode1 && crChat.hiddenOpen && (
+                <p className="mx-3 mb-2 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
+                  <span>{tCrChat("hiddenOpen", { crId: crChat.hiddenOpen })}</span>
+                  <button type="button" className="font-medium underline" onClick={() => crChat.reloadOpen(crChat.hiddenOpen)}>
+                    {tCrChat("reopenInChat")}
+                  </button>
+                </p>
+              )}
             </>
           }
           onSelectAttachment={ws.selectAttachment}
@@ -2373,7 +2438,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               createDisabled={ws.sending || runner.state.busy}
               readOnly={!canEdit}
               onSelectSession={ws.selectSession}
-              onCreateSession={ws.createSession}
+              onCreateSession={() => {
+                // FLF-480 (B17): "Phiên mới" bỏ CR đang mở khỏi khung chat (CR vẫn mở, có dòng "Mở lại")
+                if (mode1) void crChat.leaveOpen();
+                return ws.createSession();
+              }}
               onDeleteSession={ws.deleteSession}
             />
           }
@@ -2447,14 +2516,20 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           {showContinueCard && currentStep && (
             <div className="bg-primary-soft rounded-control p-3 flex flex-wrap items-center justify-between gap-2 text-body text-on-surface">
               <p className="leading-relaxed">
-                {t.rich("page.continueNotice", { step: stepLabel(currentStep, locale), strong: (chunks) => <strong>{chunks}</strong> })}
+                {rerunStopped && afterRerun
+                  ? t.rich("page.continueAfterRerun", {
+                      done: stepLabel(afterRerun.done, locale),
+                      step: stepLabel(currentStep, locale),
+                      strong: (chunks) => <strong>{chunks}</strong>,
+                    })
+                  : t.rich("page.continueNotice", { step: stepLabel(currentStep, locale), strong: (chunks) => <strong>{chunks}</strong> })}
               </p>
               <button
                 type="button"
                 onClick={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)}
                 className="h-8 px-3.5 rounded-control text-body font-bold bg-primary text-on-primary hover:bg-primary-hover cursor-pointer"
               >
-                {t("page.continueRun")}
+                {rerunStopped ? t("page.continueRunStep", { step: stepLabel(currentStep, locale) }) : t("page.continueRun")}
               </button>
             </div>
           )}
@@ -2765,10 +2840,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   <Mode1VersionsMenu
                     projectId={projectId}
                     projectName={ws.project?.name}
+                    projectCode={ws.project?.project_code}
                     documentLanguage={documentLanguage}
                     onClose={close}
                     onTranslate={
-                      canEdit && ws.project?.converted_from === "fpt"
+                      canEdit
                         ? (locale, version) => {
                             close();
                             setTranslateStatus(undefined);
@@ -2825,6 +2901,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                     onTemplateChanged={handleTemplateChanged}
                     templateAvailability={templateAvailability}
                     refreshToken={documentRefreshToken}
+                    onRedraw={canEdit ? handleRedrawDiagrams : undefined}
                   />
                 )}
                 {/* FLF-395: dự án mode 2 đã có baseline vẫn đổi mẫu được — thẻ chỉ hiện khi có việc (kẹt, hoàn tác, mục thiếu) */}
@@ -2985,11 +3062,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       {/* Diff đầy đủ: lệnh sửa (bấm "Xem chi tiết") hoặc lượt cập nhật mục đã cũ (nút trên header tài liệu) */}
       {changes.preview && changes.previewSource === "instruction" && editDetailOpen && mode1 && (
         <CreateCrPreviewModal
-          projectId={projectId}
           preview={changes.preview}
           instruction={changes.pendingInstruction}
           spine={spineState.spine}
           onCancel={() => setEditDetailOpen(false)}
+          onCreate={(draft) => {
+            applyChatCrDraft(draft);
+            setEditDetailOpen(false);
+          }}
         />
       )}
       {changes.preview && ((changes.previewSource === "instruction" && editDetailOpen && !mode1) || changes.previewSource === "reconcile") && (
@@ -3012,6 +3092,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <ExportPanel
           projectId={projectId}
           projectName={documentName}
+          projectCode={ws.project?.project_code}
           flags={flags}
           onClose={() => setExportOpen(false)}
           documentLanguage={documentLanguage}
@@ -3048,8 +3129,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         />
       )}
 
-      {/* FLF-334 B: dự án chuyển từ mode 2 cũng mở được hộp dịch (dịch nốt để tải version bằng ngôn ngữ khác) */}
-      {(!mode1 || ws.project?.converted_from === "fpt") && canEdit && (
+      {/* FLF-334 B / FLF-466: dự án Mode 1 / Mode 2 đều mở được hộp dịch (dịch nốt để tải version bằng ngôn ngữ khác) */}
+      {canEdit && (
         <TranslateDialog
           projectId={projectId}
           open={translateOpen}
@@ -3064,6 +3145,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             setTranslateTarget(undefined);
           }}
           onDone={handleTranslated}
+          onAlreadyComplete={handleTranslated}
         />
       )}
 

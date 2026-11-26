@@ -213,70 +213,6 @@
     "description": "Rủi ro lớn nhất, giả định cần kiểm chứng, câu hỏi còn mở."
   },
   {
-    "id": "B-2.1",
-    "phase": "B-2",
-    "phase_label_en": "Brief Finalize",
-    "label_vi": "Rà giả định",
-    "label_en": "Assumption Sweep",
-    "kind": "soft",
-    "reads": [
-      "assumptions"
-    ],
-    "writes": [
-      "assumptions"
-    ],
-    "renders": [],
-    "uc": [
-      "2.9"
-    ],
-    "deterministic": false,
-    "description": "Duyệt các giả định chưa xác nhận: Coaching duyệt lẻ, Fast duyệt theo lô."
-  },
-  {
-    "id": "B-2.2",
-    "phase": "B-2",
-    "phase_label_en": "Brief Finalize",
-    "label_vi": "Phân loại addendum",
-    "label_en": "Addendum Triage",
-    "kind": "soft",
-    "reads": [
-      "project:system_name,vision,goals"
-    ],
-    "writes": [
-      "addendum",
-      "assumptions"
-    ],
-    "renders": [],
-    "uc": [],
-    "deterministic": false,
-    "description": "Entry nào vào Brief, entry nào để dành cho SRS, entry nào bỏ."
-  },
-  {
-    "id": "B-2.3",
-    "phase": "B-2",
-    "phase_label_en": "Brief Finalize",
-    "label_vi": "Duyệt ba góc nhìn",
-    "label_en": "Three-Lens Review",
-    "kind": "soft",
-    "reads": [
-      "project:system_name,vision,goals,form_factor,stakes",
-      "other_requirements",
-      "assumptions[status=unconfirmed]"
-    ],
-    "writes": [
-      "project",
-      "addendum",
-      "other_requirements",
-      "assumptions"
-    ],
-    "renders": [],
-    "uc": [
-      "2.5"
-    ],
-    "deterministic": false,
-    "description": "Soát Brief theo ba góc Skeptic / Opportunity / Contextual rồi phê duyệt để mở S-1."
-  },
-  {
     "id": "S-1.1",
     "phase": "S-1",
     "phase_label_en": "Analyze & Validate Brief",
@@ -356,7 +292,8 @@
     "reads": [
       "project",
       "other_requirements",
-      "assumptions[status=unconfirmed]"
+      "assumptions[status=unconfirmed]",
+      "documents"
     ],
     "writes": [
       "other_requirements",
@@ -368,6 +305,70 @@
     ],
     "deterministic": false,
     "description": "Những gì SRS cần mà Brief chưa có."
+  },
+  {
+    "id": "B-2.1",
+    "phase": "B-2",
+    "phase_label_en": "Brief Finalize",
+    "label_vi": "Rà giả định",
+    "label_en": "Assumption Sweep",
+    "kind": "soft",
+    "reads": [
+      "assumptions"
+    ],
+    "writes": [
+      "assumptions"
+    ],
+    "renders": [],
+    "uc": [
+      "2.9"
+    ],
+    "deterministic": false,
+    "description": "Duyệt các giả định chưa xác nhận: Coaching duyệt lẻ, Fast duyệt theo lô."
+  },
+  {
+    "id": "B-2.2",
+    "phase": "B-2",
+    "phase_label_en": "Brief Finalize",
+    "label_vi": "Phân loại addendum",
+    "label_en": "Addendum Triage",
+    "kind": "soft",
+    "reads": [
+      "project:system_name,vision,goals"
+    ],
+    "writes": [
+      "addendum",
+      "assumptions"
+    ],
+    "renders": [],
+    "uc": [],
+    "deterministic": false,
+    "description": "Entry nào vào Brief, entry nào để dành cho SRS, entry nào bỏ."
+  },
+  {
+    "id": "B-2.3",
+    "phase": "B-2",
+    "phase_label_en": "Brief Finalize",
+    "label_vi": "Duyệt ba góc nhìn",
+    "label_en": "Three-Lens Review",
+    "kind": "soft",
+    "reads": [
+      "project:system_name,vision,goals,form_factor,stakes",
+      "other_requirements",
+      "assumptions[status=unconfirmed]"
+    ],
+    "writes": [
+      "project",
+      "addendum",
+      "other_requirements",
+      "assumptions"
+    ],
+    "renders": [],
+    "uc": [
+      "2.5"
+    ],
+    "deterministic": false,
+    "description": "Soát Brief theo ba góc Skeptic / Opportunity / Contextual rồi phê duyệt Brief để mở S-2."
   },
   {
     "id": "S-2.1",
@@ -607,7 +608,9 @@
       "use_cases",
       "assumptions"
     ],
-    "renders": [],
+    "renders": [
+      "activity"
+    ],
     "uc": [
       "3.2"
     ],
@@ -766,13 +769,15 @@
       "assumptions"
     ],
     "renders": [
-      "erd"
+      "erd",
+      "class",
+      "state_machine"
     ],
     "uc": [
       "4.2"
     ],
     "deterministic": false,
-    "description": "Thực thể, mô tả, quan hệ; render ERD."
+    "description": "Thực thể, mô tả, thuộc tính, feature dùng, quan hệ, vòng đời (trạng thái, chuyển trạng thái); render ERD, class diagram từng feature và state machine từng entity có vòng đời."
   },
   {
     "id": "S-5.1",
@@ -857,6 +862,7 @@
       "features[id=@loopFeature]",
       "functions[screen_id=@loop]",
       "roles:id,name,actor_id",
+      "actors:id,name,kind",
       "permissions[screen_id=@loop]",
       "business_rules[tier=detail]",
       "messages:id,code,text",
@@ -867,12 +873,14 @@
       "screens",
       "assumptions"
     ],
-    "renders": [],
+    "renders": [
+      "sequence"
+    ],
     "uc": [
       "4.3"
     ],
     "deterministic": false,
-    "description": "Luồng thường, luồng bất thường, validation có id."
+    "description": "Luồng thường, luồng bất thường, validation có id, message actor - hệ thống."
   },
   {
     "id": "S-5.5",
@@ -905,18 +913,24 @@
       "project:name,type,domain,complexity,stakes,form_factor",
       "nfrs",
       "actors[kind!=human]:id,name,kind",
+      "deployment_nodes",
+      "deployment_links",
       "documents"
     ],
     "writes": [
       "nfrs",
+      "deployment_nodes",
+      "deployment_links",
       "assumptions"
     ],
-    "renders": [],
+    "renders": [
+      "deployment"
+    ],
     "uc": [
       "5.1"
     ],
     "deterministic": false,
-    "description": "Giao tiếp người dùng, phần cứng, hệ thống ngoài."
+    "description": "Giao tiếp người dùng, phần cứng, hệ thống ngoài; sơ đồ triển khai chỉ khi người dùng yêu cầu / mục Phân tán của mẫu IEEE."
   },
   {
     "id": "S-6.2",
@@ -964,7 +978,7 @@
       "5.1"
     ],
     "deterministic": false,
-    "description": "Availability, MTBF, MTTR - phải có số."
+    "description": "Availability, MTBF, MTTR — phải có số."
   },
   {
     "id": "S-6.4",
@@ -988,7 +1002,7 @@
       "5.1"
     ],
     "deterministic": false,
-    "description": "Response time, throughput, capacity - phải có số."
+    "description": "Response time, throughput, capacity — phải có số."
   },
   {
     "id": "S-6.5",

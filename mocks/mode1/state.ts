@@ -5,7 +5,7 @@
  */
 import type { Project } from "@/types/project";
 import type { Baseline } from "@/types/spine";
-import type { DocBlock, ExtractionSection, ImportedDocument, ReuploadDiff, ReviewField, TemplateProfile, StepPlanEntry } from "@/types/import";
+import type { DocBlock, ExtractionSection, ImportedDocument, ReuploadDiff, ReviewContentMismatch, ReviewField, ReviewGuidance, TemplateProfile, StepPlanEntry } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
 import type { RocRow } from "@/types/document";
 import type { CrDetail } from "@/types/change-request";
@@ -39,6 +39,10 @@ export interface Mode1MockState {
   /** Test đặt `true` để job tạo bản gốc kế tiếp lỗi (BE hoàn về trước finalize, `paused: resume_later`). */
   failNextFinalize: boolean;
   reviewFields: ReviewField[];
+  /** FLF-462 (bước 1.6): đoạn lớp 4 chữ hướng dẫn chờ xác nhận. */
+  reviewGuidance: ReviewGuidance[];
+  /** FLF-462 (bước 1.6): mục tên đúng nội dung sai chờ xem qua. */
+  reviewContentMismatch: ReviewContentMismatch[];
   baselines: Baseline[];
   versions: DocVersion[];
   blocks: Map<string, DocBlock[]>;
@@ -56,6 +60,8 @@ export interface Mode1MockState {
   vectorEnabled: boolean;
   /** FLF-330: gói đang chờ Lead (`pending`) hoặc vừa bị yêu cầu sửa (`rejected`) — mô phỏng `Spine.baseline_submission`. */
   submission: { status: "pending" | "rejected"; submitted_by: string; submitted_at: string; spine_version: number; decided_by: string | null; decided_at: string | null; reason: string | null; rejection_comment_ids: string[] } | null;
+  /** FLF-480 (B13): vòng "Yêu cầu sửa" đã bị ghi đè bởi lần gửi lại — mô phỏng `rounds` BE dựng từ change log. */
+  rounds: { decided_by: string; decided_at: string; reason: string | null }[];
 }
 
 export interface MockElement {
@@ -134,6 +140,8 @@ export const createMode1MockState = (): Mode1MockState => ({
   finalizeJob: null,
   failNextFinalize: false,
   reviewFields: [],
+  reviewGuidance: [],
+  reviewContentMismatch: [],
   baselines: [],
   versions: [],
   blocks: new Map(),
@@ -144,6 +152,7 @@ export const createMode1MockState = (): Mode1MockState => ({
   locks: new Map(),
   vectorEnabled: false,
   submission: null,
+  rounds: [],
 });
 
 export let mode1State: Mode1MockState = createMode1MockState();

@@ -26,6 +26,7 @@ const pkg = (over: Partial<ReviewPackage> = {}): ReviewPackage => ({
   red_open: 0,
   submission: null,
   spine_version: 7,
+  rounds: [],
   ...over,
 });
 
@@ -58,6 +59,35 @@ const serve = (initial: ReviewPackage) => {
 };
 
 describe("ReviewPackagePanel (FLF-330 - gói duyệt kiểu pull request)", () => {
+  it("báo trước bản phát hành sẽ không có Track Changes khi gói có đổi mẫu kèm dịch", async () => {
+    serve(pkg({ tracked_unavailable_reason: "template_translated" }));
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} />);
+    expect(await screen.findByText(/sẽ không có bản Track Changes vì gói có đổi mẫu kèm dịch/)).toBeInTheDocument();
+  });
+
+  it("không có lý do ⇒ không hiện ghi chú", async () => {
+    serve(pkg());
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} />);
+    await screen.findByText("CR-001");
+    expect(screen.queryByText(/Track Changes/)).not.toBeInTheDocument();
+  });
+
+  it("FLF-466: nhóm Thay đổi hệ thống dưới danh sách CR; gói chỉ có thay đổi hệ thống vẫn gửi được", async () => {
+    serve(
+      pkg({
+        change_requests: [],
+        draft_label: "v0 · 1 thay đổi chưa duyệt",
+        system_changes: [{ version: "0.2", type: "template_migration", ref: "mig-1", summary: "Đổi mẫu sang Sở XD v3", created_by: "PM Lan", created_at: "2026-10-26T01:00:00.000Z" }],
+      })
+    );
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="analyst" onChanged={vi.fn()} />);
+
+    expect(await screen.findByText("Thay đổi hệ thống")).toBeInTheDocument();
+    expect(screen.getByText("Đổi mẫu sang Sở XD v3")).toBeInTheDocument();
+    expect(screen.getByText("Đổi mẫu")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Gửi Lead duyệt cả gói" })).toBeEnabled();
+  });
+
   it("Analyst: thấy nhãn bản nháp + danh sách CR; Gửi Lead duyệt ⇒ pending, bản nháp khoá, không có nút của Lead", async () => {
     const calls = serve(pkg());
     const onChanged = vi.fn();
@@ -119,6 +149,26 @@ describe("ReviewPackagePanel (FLF-330 - gói duyệt kiểu pull request)", () =
     await waitFor(() => expect(calls.map((c) => c.path)).toEqual(["release"]));
   });
 
+  it("FLF-492: ô \"AI viết gọn\" mặc định tắt, hiện credit ước tính; bật ⇒ release kèm concise_record, tắt ⇒ như cũ", async () => {
+    const calls = serve(pkg({ concise_record_credits: 2 }));
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Phát hành thẳng (Lead)" }));
+    const box = screen.getByRole("checkbox", { name: /AI viết gọn mô tả/ });
+    expect(box).not.toBeChecked();
+    expect(screen.getByText(/Tốn khoảng 2 credit/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận phát hành" }));
+    await waitFor(() => expect(calls).toEqual([{ path: "release", body: { base_version: 7 } }]));
+  });
+
+  it("FLF-492: bật ô \"AI viết gọn\" rồi xác nhận ⇒ release gửi concise_record: true", async () => {
+    const calls = serve(pkg({ concise_record_credits: 1 }));
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} />);
+    fireEvent.click(await screen.findByRole("button", { name: "Phát hành thẳng (Lead)" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: /AI viết gọn mô tả/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận phát hành" }));
+    await waitFor(() => expect(calls).toEqual([{ path: "release", body: { base_version: 7, concise_record: true } }]));
+  });
+
   it("CR đang soạn ở khung chat không chặn: còn CR chưa ghi bản nháp vẫn gửi Lead duyệt được (chỉ cờ đỏ chặn)", async () => {
     const calls = serve(pkg());
     renderWithIntl(<ReviewPackagePanel projectId={P} role="analyst" onChanged={vi.fn()} />);
@@ -148,5 +198,25 @@ describe("ReviewPackagePanel (FLF-330 - gói duyệt kiểu pull request)", () =
     renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={() => {}} migrationMissing={1} />);
     expect(await screen.findByRole("button", { name: "Duyệt cả gói & phát hành" })).toBeDisabled();
     expect(screen.getByText(/Còn 1 mục của mẫu mới chưa viết/)).toBeInTheDocument();
+  });
+
+  it("FLF-480 (B13): còn lý do vòng Yêu cầu sửa trước ⇒ hiện danh sách thu gọn, không mất khi gửi lại", async () => {
+    serve(
+      pkg({
+        status: "pending",
+        submission: { status: "pending", submitted_by: "u1", submitted_at: "2026-10-26T03:00:00.000Z", spine_version: 7, decided_by: null, decided_at: null, reason: null, rejection_comment_ids: [] },
+        rounds: [{ decided_by: "u-lead", decided_at: "2026-10-25T00:00:00.000Z", reason: "Thiếu bước xác nhận email" }],
+      })
+    );
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="lead" onChanged={vi.fn()} />);
+    expect(await screen.findByText("1 lần yêu cầu sửa trước")).toBeInTheDocument();
+    expect(screen.getByText("“Thiếu bước xác nhận email”")).toBeInTheDocument();
+  });
+
+  it("chưa từng bị yêu cầu sửa ⇒ không hiện mục vòng trước", async () => {
+    serve(pkg());
+    renderWithIntl(<ReviewPackagePanel projectId={P} role="analyst" onChanged={vi.fn()} />);
+    await screen.findByText("v0 · 2 thay đổi chưa duyệt");
+    expect(screen.queryByText(/lần yêu cầu sửa trước/)).not.toBeInTheDocument();
   });
 });

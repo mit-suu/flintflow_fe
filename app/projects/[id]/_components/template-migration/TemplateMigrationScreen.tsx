@@ -14,6 +14,7 @@ import MissingSectionsCard from "./MissingSectionsCard";
 import ReviewStep from "./ReviewStep";
 import RevertMigrationButton from "./RevertMigrationButton";
 import SummaryStep from "./SummaryStep";
+import UntranslatedNotice from "./UntranslatedNotice";
 import TargetPicker from "./TargetPicker";
 
 interface TemplateMigrationScreenProps {
@@ -109,6 +110,7 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
           busy={m.busy === "start"}
           preselect={preselect}
           previous={m.latestApplied?.previous_template ?? null}
+          previousStandard={m.latestApplied?.previous_standard === true}
           current={currentTemplate}
           onStart={(input) => void afterChange(() => m.start(input))}
         />
@@ -178,6 +180,7 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
           <p role="status" className="rounded-card bg-success-soft p-3 text-body font-semibold text-success">
             {t("appliedNote", { name: current.to.name, version: current.to.version })}
           </p>
+          <UntranslatedNotice summary={current.translation_summary} />
           <MissingSectionsCard
             projectId={projectId}
             canWrite={orgRole !== "viewer"}

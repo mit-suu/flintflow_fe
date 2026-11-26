@@ -81,6 +81,8 @@ export interface PreviewResult {
   notes?: string;
   /** Hoà giải: không có gì cần đổi — xác nhận nguyên trạng để gỡ cờ "đã cũ" (BUG-16). */
   no_change?: boolean;
+  /** FLF-493 (hoà giải): mục lô sẽ xoá (quy tắc, validation, phần tử…) — hộp xem trước nêu rõ, vẫn cho áp. */
+  removed_items?: { path: string; label: string }[];
   /** AI cảnh báo yêu cầu không hợp lý — không bao giờ tự ghi; "Vẫn làm" gửi `preview_id` như xác nhận thường. */
   warning?: string;
   /** Cờ đỏ mới mà bản sửa này sẽ mở (chặn baseline). */
@@ -210,6 +212,8 @@ export type PipelineErrorCode =
   | "REGENERATE_LIMIT"
   | "CALL_LIMIT"
   | "STEP_NOT_RUNNABLE"
+  | "CREDIT_ACK_REQUIRED"
+  | "NO_CREDIT_ACK_PENDING"
   | "NO_WORKING_DRAFT"
   | "INVARIANT_VIOLATION"
   | "OP_INVALID"
@@ -361,8 +365,16 @@ export interface RunEstimateUnit {
   steps: number;
   ai_steps: number;
   interview_credits: number;
+  /** Cận trên (= `credits_max` khi BE mới). */
   credits: number;
+  /** FLF-485: cận dưới / cận trên; BE cũ không trả ⇒ coi như bằng `credits`. */
+  credits_min?: number;
+  credits_max?: number;
+  /** Khoảng số màn, chỉ có ở đơn vị S-5 ước tính (chưa có danh sách màn). */
+  screens?: { min: number; max: number };
 }
+
+export type ScreenEstimateBasis = "screens" | "use_cases" | "brief" | "default";
 
 export interface RunEstimate {
   scope: "unit" | "all";
@@ -370,9 +382,47 @@ export interface RunEstimate {
   units: RunEstimateUnit[];
   steps_total: number;
   ai_steps_total: number;
+  /** Cận trên (BE mới) — số an toàn cho client cũ. */
   credits_total: number;
+  credits_min?: number;
+  credits_max?: number;
+  /** `screens` = đã có màn (chính xác); còn lại là khoảng đoán; null khi lượt không đi qua vòng màn hình. */
+  screen_estimate?: { min: number; max: number; basis: ScreenEstimateBasis } | null;
   /** `balance − reserved` của ví org; null khi không xác định được ví. */
   available_credits: number | null;
+  /** FLF-466: lần báo credit đang tính; vắng / null ⇒ ước tính chạy liền như cũ. */
+  scope_kind?: CreditAckScope | null;
+  /** FLF-466: sau Approve Brief, số màn mới là dải ước tính (số chốt có ở S-4.1). */
+  screen_range?: ScreenRange | null;
+  /** FLF-466: lần báo đang chờ xác nhận (lưu ở BE nên reload vẫn thấy). */
+  ack_required?: CreditAckRequired | null;
+}
+
+/** FLF-466: các lần báo credit theo số màn — sau Approve Brief, sau chốt danh sách màn (S-4.1), sau thêm màn. */
+export type CreditAckScope = "after_brief" | "screens_locked" | "screens_added";
+
+export interface CreditAckRequired {
+  scope: CreditAckScope;
+  credits: number;
+  created_at: string;
+  screens?: string[];
+}
+
+export interface ScreenRange {
+  min: number;
+  max: number;
+  credits_per_screen: number;
+  credits_min: number;
+  credits_max: number;
+  inputs: { goals: number; other_requirements: number; feature_notes: number; total: number };
+  estimated: true;
+}
+
+/** `POST /projects/:id/run-estimate/ack`. */
+export interface RunEstimateAck {
+  scope: CreditAckScope;
+  credits: number;
+  spine_version: number;
 }
 
 export type StepEventType = StepEvent["type"];
@@ -431,6 +481,8 @@ export interface GateResponse {
   spine_version: number;
   /** Sau `revision`: lời AI nói đã sửa gì (vắng khi BE không có gì để nói). */
   message_vi?: string;
+  /** FLF-489: bước vừa duyệt đã từng được chốt trước lượt này (chạy lại bước đã qua). Client không tự chạy tiếp quy trình. */
+  rerun?: boolean;
 }
 
 // ─── progress ────────────────────────────────────────────────────

@@ -41,6 +41,8 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
   const [blockingFlags, setBlockingFlags] = useState<Flag[]>([]);
   const [asking, setAsking] = useState<"changes" | "release" | null>(null);
   const [reason, setReason] = useState("");
+  // FLF-492: AI viết gọn mô tả dòng CR trong Record of Changes khi phát hành — mặc định tắt
+  const [conciseRecord, setConciseRecord] = useState(false);
 
   const reload = useCallback(
     () =>
@@ -69,6 +71,7 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
       await fn(spine.data?.spine_version ?? 0);
       setAsking(null);
       setReason("");
+      setConciseRecord(false);
       await reload();
       onChanged();
     } catch (err) {
@@ -85,7 +88,9 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
 
   const isLead = role === "lead";
   const canSubmit = (role === "lead" || role === "analyst") && pkg.status !== "pending";
-  const count = pkg.change_requests.length;
+  const systemChanges = pkg.system_changes ?? [];
+  // FLF-466: thay đổi hệ thống (đổi mẫu, vẽ lại màn) cũng là nội dung của gói: gói chỉ có mục này vẫn gửi / phát hành được
+  const count = pkg.change_requests.length + systemChanges.length;
   const pending = pkg.status === "pending";
   // CR đang soạn ở khung chat chưa nằm trong bản nháp nên không chặn gửi / phát hành (business-flow §3.2 C-7); chỉ cờ đỏ chặn
   const submitBlocked =
@@ -127,8 +132,21 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
           {t("changesRequestedNote", { reason: pkg.submission.reason })}
         </p>
       )}
+      {/* FLF-480 (B13): lý do các vòng "Yêu cầu sửa" trước lần gửi lại hiện tại — trước đây mất khi gửi lại. */}
+      {pkg.rounds.length > 0 && (
+        <details className="text-body text-[#8A867E]">
+          <summary className="cursor-pointer select-none font-semibold text-[#4B4842]">{t("previousRounds", { count: pkg.rounds.length })}</summary>
+          <ul className="list-disc pl-4 mt-1 flex flex-col gap-1">
+            {pkg.rounds.map((round, i) => (
+              <li key={i}>{round.reason ? t("previousRoundReason", { reason: round.reason }) : null}</li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {count > 0 ? (
+        <>
+        {pkg.change_requests.length > 0 && (
         <ul className="flex flex-col gap-1" aria-label={t("listAria")}>
           {pkg.change_requests.map((cr) => (
             <li key={cr.cr_id} className="flex items-center gap-2 text-body">
@@ -140,6 +158,27 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
             </li>
           ))}
         </ul>
+        )}
+        {pkg.tracked_unavailable_reason && (
+          <p role="note" className="text-caption text-[#8A867E]">
+            {t(`trackedUnavailable.${pkg.tracked_unavailable_reason}`)}
+          </p>
+        )}
+        {systemChanges.length > 0 && (
+          <div className="flex flex-col gap-1">
+            <h4 className="text-caption font-bold text-[#8A867E]">{t("systemChanges.title")}</h4>
+            <ul className="flex flex-col gap-1" aria-label={t("systemChanges.aria")}>
+              {systemChanges.map((sc) => (
+                <li key={sc.ref} className="flex items-center gap-2 text-body">
+                  <span className="px-1.5 py-0.5 rounded bg-[#F0EEEA] text-[#4B4842] font-semibold whitespace-nowrap">{t(`systemChanges.type.${sc.type}`)}</span>
+                  <span className="truncate text-[#191817]">{L.humanizeText(sc.summary)}</span>
+                  <span className="ml-auto text-caption text-[#8A867E] whitespace-nowrap">{sc.created_by}</span>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        </>
       ) : (
         <p className="text-body text-[#8A867E]">{t("empty")}</p>
       )}
@@ -182,14 +221,21 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
       {asking === "release" && (
         <div className="flex flex-col gap-2 bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] p-3 text-body text-[#554DB0]">
           <p>{t("confirmReleaseQuestion", { version: pkg.next_version ?? "", count })}</p>
+          <label className="flex items-start gap-2 text-body text-[#4B4842] cursor-pointer">
+            <input type="checkbox" checked={conciseRecord} disabled={busy !== null} onChange={(e) => setConciseRecord(e.target.checked)} className="mt-1 cursor-pointer" />
+            <span>
+              {t("conciseRecord")}
+              <span className="block text-caption text-[#8A867E]">{t("conciseRecordHint", { credits: pkg.concise_record_credits ?? 0 })}</span>
+            </span>
+          </label>
           <div className="flex flex-wrap gap-2 justify-end">
-            <button type="button" onClick={() => setAsking(null)} disabled={busy !== null} className={`${btn} border border-[#DCD8F0] bg-white text-[#4B4842]`}>
+            <button type="button" onClick={() => { setAsking(null); setConciseRecord(false); }} disabled={busy !== null} className={`${btn} border border-[#DCD8F0] bg-white text-[#4B4842]`}>
               {t("cancel")}
             </button>
             <button
               type="button"
               disabled={busy !== null}
-              onClick={() => void run("release", (v) => releaseDocument(projectId, v))}
+              onClick={() => void run("release", (v) => (conciseRecord ? releaseDocument(projectId, v, { concise_record: true }) : releaseDocument(projectId, v)))}
               className={`${btn} bg-[#6A62C4] text-white`}
             >
               {busy === "release" ? t("releasing") : t("confirmRelease")}

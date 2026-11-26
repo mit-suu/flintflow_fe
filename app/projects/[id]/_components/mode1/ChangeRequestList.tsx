@@ -25,7 +25,7 @@ export const NEEDS_REVIEW_RULE = "import_needs_review";
 const shortText = (s: string, max = 70) => (s.length > max ? `${s.slice(0, max - 1)}…` : s);
 
 export const statusTone = (status: Cr["status"]): string =>
-  status === "written"
+  status === "written" || status === "released"
     ? "bg-[#E9F7EE] text-[#1F7A45]"
     : status === "rejected" || status === "cancelled"
       ? "bg-[#F0EEEA] text-[#8A867E]"

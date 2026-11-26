@@ -26,6 +26,12 @@ export interface NewHeading {
   level?: number;
 }
 
+export interface TranslationSummary {
+  translated: number;
+  untranslated: number;
+  sections: { section_id: string; title: string }[];
+}
+
 export interface SectionPair {
   old_key: string;
   new_key: string | null;
@@ -41,7 +47,7 @@ export interface PairEdit {
 
 export interface MigrationPairing {
   pairs: SectionPair[];
-  followers: { old_key: string; kind: "element" | "continuation"; parent_old_key: string | null }[];
+  followers: { old_key: string; kind: "element" | "continuation" | "child"; parent_old_key: string | null }[];
   ignored_new: string[];
   split: { old_key: string; new_keys: string[] }[];
   /** Heading con của mẫu đích nằm cùng mục với heading cha (thuộc mục cha, không thiếu). Bản ghi cũ không có. */
@@ -84,7 +90,7 @@ export interface ExtraItem extends Suggestion {
   heading_text: string;
   section_id: string;
   follower_keys: string[];
-  /** `keep_custom` | `drop_from_print` | `delete` | `move_to:<new_key>`. */
+  /** `keep_custom` | `drop_from_print` | `move_to:<new_key>` (BE đã bỏ `delete` khỏi nhóm Thừa; FE vẫn lọc phòng BE cũ). */
   choices: string[];
   /** Lựa chọn cần AI (tính credit). */
   ai_choices: string[];
@@ -181,8 +187,9 @@ export interface Migration {
   state: MigrationState;
   direction: MigrationDirection;
   reverse_of: string | null;
-  from: { template_ref: { template_id: string; version: number } | null; language: string; template_family: string | null; headings: OldHeading[] };
-  to: { template_id: string; version: number; name: string; visibility: "org" | "project"; language: string; template_family: string | null; headings: NewHeading[] };
+  from: { template_ref: { template_id: string; version: number } | null; /** Đang theo mẫu chuẩn FlintFlow. */ standard?: boolean; language: string; template_family: string | null; headings: OldHeading[] };
+  /** `standard` = đích là mẫu chuẩn FlintFlow ⇒ `template_id = null`. */
+  to: { template_id: string | null; standard?: boolean; version: number; name: string; visibility: "org" | "project"; language: string; template_family: string | null; headings: NewHeading[] };
   pairing: MigrationPairing;
   groups: MigrationGroups;
   decisions: MigrationDecision[];
@@ -191,6 +198,8 @@ export interface Migration {
   /** Dàn tiêu đề tài liệu sau khi đổi. Bản BE cũ chưa có ⇒ thiếu. */
   outline?: OutlineEntry[];
   language: { source: string; target: string; needs_translation: boolean; /** Chỉ đổi ngôn ngữ tài liệu (mode 2 / từ FPT): không dịch Spine, không credit. */ switches_document_language: boolean };
+  /** Sau khi áp dụng có dịch: đơn vị không dịch được dù đã thử lại (tài liệu giữ chữ gốc) và các mục chứa chúng. BE cũ không trả ⇒ thiếu. */
+  translation_summary?: TranslationSummary | null;
   credit_estimate: MigrationCreditEstimate;
   warnings: string[];
   broken_links: BrokenLink[];
@@ -198,6 +207,8 @@ export interface Migration {
   revertable: boolean | null;
   revert_blocked_reason: RevertBlockReason | null;
   previous_template: PreviousTemplate | null;
+  /** Mẫu trước của lần đổi là mẫu chuẩn FlintFlow ⇒ "Quay về mẫu trước" bắt đầu bằng `{ kind: "standard" }`. */
+  previous_standard?: boolean;
   prepared_spine_version: number | null;
   prepared_source_sha256: string | null;
   applied_at: string | null;
@@ -214,7 +225,8 @@ export interface MigrationSummary {
   revertable: boolean | null;
   revert_blocked_reason: RevertBlockReason | null;
   previous_template: PreviousTemplate | null;
-  to: { template_id: string; version: number; name: string };
+  previous_standard?: boolean;
+  to: { template_id: string | null; standard?: boolean; version: number; name: string };
   created_at: string;
   applied_at: string | null;
 }
@@ -222,6 +234,7 @@ export interface MigrationSummary {
 /** Đích chọn từ mẫu org (bản bất kỳ) hoặc file tải lên (Lead có thể đăng lên thư viện). */
 export type StartMigrationInput =
   | { kind: "template"; template_id: string; version: number }
+  | { kind: "standard"; language?: "vi" | "en" }
   | { kind: "file"; file: File; publish_to_org?: boolean; name?: string; template_id?: string };
 
 /** Sửa mapping heading → mục của file mẫu tải lên: `key` = `n<vị trí heading>`. */
