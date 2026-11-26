@@ -4802,6 +4802,7 @@
         "aliases": "Tên khác",
         "actor_id": "Tác nhân",
         "actor_ids": "Tác nhân",
+        "platforms": "Nền tảng",
         "function_ids": "Chức năng liên quan",
         "feature_ids": "Tính năng liên quan",
         "includes": "Include",

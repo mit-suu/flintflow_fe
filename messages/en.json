@@ -4802,6 +4802,7 @@
         "aliases": "Aliases",
         "actor_id": "Actor",
         "actor_ids": "Actors",
+        "platforms": "Platforms",
         "function_ids": "Related functions",
         "feature_ids": "Related features",
         "includes": "Include",
