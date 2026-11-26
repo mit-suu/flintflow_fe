@@ -3498,6 +3498,12 @@
           "isGuidance": "Là chữ hướng dẫn",
           "isContent": "Là nội dung thật"
         },
+        "fields": {
+          "title": "Chỗ FlintFlow đọc chưa chắc",
+          "confidence": "Độ tin {percent}%",
+          "keep": "Giữ giá trị này",
+          "drop": "Bỏ"
+        },
         "mismatch": {
           "title": "Mục có tên khác với nội dung bên trong",
           "body": "Mục này tên là \"{heading}\" nhưng nội dung đọc được lại thuộc loại khác.",

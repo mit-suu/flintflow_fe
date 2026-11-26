@@ -189,6 +189,33 @@ describe("ImportWorkspace - upload SRS trong layout workspace", () => {
     expect(imp.current.confirmReview).toHaveBeenCalledWith({ confirm_all: true });
   });
 
+  it("FLF-462 bước 1.6: chỉ còn phần tử I-4 độ tin thấp ⇒ liệt kê tên / giá trị gợi ý, Giữ / Bỏ gọi đúng confirmReview với fields[]", () => {
+    const d = doc({ status: "fields_review" });
+    setImport({
+      doc: d,
+      data: data({
+        import: d,
+        extraction: {
+          sections: [],
+          review_fields: [
+            { section_id: "fixed:2.2.1", path: "use_cases[id=UC-02].name", value: "Đăng nhập hệ thống", confidence: 0.5, source_block_ids: ["B0010"], origin: "ai", confirmed: false },
+          ],
+          review_guidance: [],
+          review_content_mismatch: [],
+        },
+      }),
+    });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.getByText("Đăng nhập hệ thống")).toBeInTheDocument();
+    expect(screen.queryByText(/Còn vài chỗ FlintFlow đọc được/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Giữ giá trị này" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ fields: [{ section_id: "fixed:2.2.1", path: "use_cases[id=UC-02].name", confirmed: true }] });
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ fields: [{ section_id: "fixed:2.2.1", path: "use_cases[id=UC-02].name", confirmed: false }] });
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả theo gợi ý của FlintFlow" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ confirm_all: true });
+  });
+
   it("FLF-462 bước 1.6: chỉ còn field độ tin thấp (không có đoạn lớp 4 / mục lệch cụ thể) ⇒ nút Tiếp tục xác nhận tất cả", () => {
     const d = doc({ status: "fields_review" });
     setImport({ doc: d, data: data({ import: d }) });

@@ -3498,6 +3498,12 @@
           "isGuidance": "Guidance text",
           "isContent": "Real content"
         },
+        "fields": {
+          "title": "Places FlintFlow is not sure about",
+          "confidence": "Confidence {percent}%",
+          "keep": "Keep this value",
+          "drop": "Drop"
+        },
         "mismatch": {
           "title": "Section whose name does not match its content",
           "body": "This section is named \"{heading}\" but the content read from it is actually a different kind.",

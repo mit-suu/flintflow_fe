@@ -209,22 +209,25 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview ? (preview.summary.present === 0 ? "template" : "written") : null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} source={source.sections} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
-      // FLF-462 (bước 1.6): đoạn lớp 4 chữ hướng dẫn / mục tên đúng nội dung sai chờ xác nhận
+      // FLF-462 (bước 1.6): phần tử I-4 độ tin thấp / đoạn lớp 4 chữ hướng dẫn / mục tên đúng nội dung sai chờ xác nhận
+      const reviewFields = imp.data?.extraction.review_fields ?? [];
       const reviewGuidance = imp.data?.extraction.review_guidance ?? [];
       const reviewMismatch = imp.data?.extraction.review_content_mismatch ?? [];
-      if (reviewGuidance.length || reviewMismatch.length) {
+      if (reviewFields.length || reviewGuidance.length || reviewMismatch.length) {
         return (
           <ReviewConfirm
+            fields={reviewFields}
             guidance={reviewGuidance}
             contentMismatch={reviewMismatch}
             busy={imp.busy === "confirm" || imp.busy === "resume"}
+            onField={(f, confirmed) => void imp.confirmReview({ fields: [{ section_id: f.section_id, path: f.path, confirmed }] })}
             onGuidance={(g, isGuidance) => void imp.confirmReview({ guidance: [{ section_id: g.section_id, block_id: g.block_id, is_guidance: isGuidance }] })}
             onMismatch={(m) => void imp.confirmReview({ content_mismatch: [{ section_id: m.section_id }] })}
             onConfirmAll={() => void imp.confirmReview({ confirm_all: true })}
           />
         );
       }
-      // Chỉ còn phần tử I-4 độ tin thấp (không có đoạn lớp 4 / mục tên lệch cụ thể) ⇒ Tiếp tục = xác nhận tất cả theo gợi ý
+      // Không có gì cụ thể để liệt kê (bản ghi cũ) ⇒ Tiếp tục = xác nhận tất cả theo gợi ý
       return (
         <div className="flex flex-wrap items-center gap-3 rounded-card bg-surface-container px-4 py-3">
           <p className="flex-1 text-body text-on-surface">{t("legacy.fieldsReview")}</p>
