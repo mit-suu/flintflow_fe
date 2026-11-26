@@ -175,6 +175,9 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
               ? t("credit.none")
               : t.rich("credit.estimate", { credits: estimate.credits, strong: (c) => <strong>{c}</strong> })
             : t("credit.unknown")}
+          {!!estimate?.reference_documents && (
+            <span className="text-on-surface-muted"> · {t("credit.referenceNote", { count: estimate.reference_documents, credits: estimate.reference_credits ?? 0 })}</span>
+          )}
           {balance !== null && <span className="text-on-surface-muted"> · {t("credit.balance", { balance })}</span>}
           {short && (
             <>

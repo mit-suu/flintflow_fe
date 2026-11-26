@@ -367,6 +367,9 @@ export interface CreditEstimate {
   check_calls?: number;
   /** FLF-456: lô dịch khung (chọn ngôn ngữ khác file khi file chỉ còn khung) — đã gộp vào `ai_calls` / `credits`. */
   translate_batches?: number;
+  /** FLF-458: tài liệu tham khảo đang chờ đọc, đọc cùng lượt Bắt đầu — đã gộp vào `ai_calls` / `credits`. */
+  reference_documents?: number;
+  reference_credits?: number;
   ai_calls: number;
   credits: number;
   available_credits: number | null;
