@@ -56,13 +56,32 @@ export interface MigrationPairing {
 
 /** `high`: đã chọn sẵn, dùng luôn nếu không đổi. `guess`: đoán, phải bấm "Đúng" hoặc chọn khác. */
 export type SuggestConfidence = "high" | "guess";
-/** Lý do của lựa chọn chọn sẵn — FE dịch thành câu ngắn (`reasons.*`). */
-export type SuggestReason = "no_place" | "close_name" | "map_columns" | "no_table_in_new" | "keep_history" | "first_heading";
+/**
+ * Lý do của lựa chọn chọn sẵn — FE dịch thành câu ngắn (`reasons.*`). `best_fit`: đúng nghĩa theo tên / hướng dẫn / loại dữ liệu;
+ * `same_data`: mục đích đã in đúng dữ liệu này (gộp vào, không in lần hai); `kept_for_data`: không mục nào hợp nhưng có dữ liệu ⇒ giữ
+ * thành mục riêng. `close_name` / `first_heading` chỉ còn ở bản ghi cũ.
+ */
+export type SuggestReason = "no_place" | "close_name" | "map_columns" | "no_table_in_new" | "keep_history" | "first_heading" | "best_fit" | "same_data" | "kept_for_data";
 /** Lựa chọn chọn sẵn của một dòng (luôn miễn phí). Bản ghi trước khi có gợi ý thì thiếu. */
 export interface Suggestion {
   suggested?: string;
   suggested_reason?: SuggestReason;
   confidence?: SuggestConfidence;
+}
+
+/** Vì sao một mục của mẫu mới hợp để đặt mục cũ: cùng loại mục, khớp chữ hướng dẫn, hợp loại dữ liệu, tên giống. */
+export type PlaceWhy = "same_section" | "guidance" | "data_fit" | "title";
+/** Mục của mẫu mới hợp để đặt một mục cũ, xếp theo điểm (BE tối đa 3). */
+export interface PlaceTargetHint {
+  new_key: string;
+  score: number;
+  why: PlaceWhy[];
+}
+/** Gợi ý chỗ đặt + lượng dữ liệu của mục cũ — bản ghi trước khi có chấm điểm thì thiếu. */
+export interface PlacementHints {
+  targets?: PlaceTargetHint[];
+  /** Số phần tử Spine / đoạn chữ của mục cũ. */
+  data_size?: number;
 }
 
 export interface MatchedItem {
@@ -82,15 +101,20 @@ export interface MissingItem {
   guidance: string | null;
   /** Mục thừa đã chọn "chuyển vào" mục này — mục nhận nội dung, không còn phải viết (BE đặt `needs_content = false`). */
   moved_in?: string[];
+  /** Mục chưa có cặp nhưng in từ dữ liệu Spine (tầm nhìn, giả định…) ⇒ không phải "Cần viết" (BE đặt `needs_content = false`). */
+  filled_from_spine?: true;
 }
 
-export interface ExtraItem extends Suggestion {
+export interface ExtraItem extends Suggestion, PlacementHints {
   id: string;
   old_key: string;
   heading_text: string;
   section_id: string;
   follower_keys: string[];
-  /** `keep_custom` | `drop_from_print` | `move_to:<new_key>` (BE đã bỏ `delete` khỏi nhóm Thừa; FE vẫn lọc phòng BE cũ). */
+  /**
+   * `keep_custom` | `drop_from_print` | `move_to:<new_key>` (BE đã bỏ `delete` khỏi nhóm Thừa; FE vẫn lọc phòng BE cũ). `move_to` có cho
+   * mọi mục của mẫu mới: mục trống, mục đã có nội dung (gộp sau nội dung đang có), heading nhóm (thành mục con cuối của nhóm).
+   */
   choices: string[];
   /** Lựa chọn cần AI (tính credit). */
   ai_choices: string[];
@@ -100,9 +124,10 @@ export interface ExtraItem extends Suggestion {
 /** Lựa chọn "Không in ra": bỏ khỏi bản in, dữ liệu vẫn giữ và trở lại khi hoàn tác. Tên do BE chốt — đổi ở đây. */
 export const DROP_FROM_PRINT_CHOICE = "drop_from_print";
 
-export type ConflictKind = "table_columns" | "split_section" | "record_of_changes";
+/** `placement`: mục có cặp theo id nhưng sai nghĩa ⇒ giữ cặp (`keep_pair`), gộp vào mục hợp hơn (`move_to:<k>`) hoặc giữ thành mục riêng. */
+export type ConflictKind = "table_columns" | "split_section" | "record_of_changes" | "placement";
 
-export interface ConflictItem extends Suggestion {
+export interface ConflictItem extends Suggestion, PlacementHints {
   id: string;
   kind: ConflictKind;
   old_key: string;
@@ -110,10 +135,12 @@ export interface ConflictItem extends Suggestion {
   candidate_keys: string[];
   old_columns: string[][];
   new_columns: string[][];
-  /** `map_by_header` | `keep_old_table` | `delete` | `keep_custom` | `to:<new_key>` | `ai_resolve`. */
+  /** `map_by_header` | `keep_old_table` | `delete` | `keep_custom` | `to:<new_key>` | `ai_resolve` | `distribute` | `keep_pair` | `move_to:<new_key>`. */
   choices: string[];
   ai_choices: string[];
   decision_required: true;
+  /** `split_section` có `distribute`: từng phần tử Spine của mục cũ ⇒ heading đích theo nội dung. */
+  item_targets?: { id: string; new_key: string }[];
 }
 
 export interface EditedItem {
@@ -164,12 +191,22 @@ export interface MigrationCreditEstimate {
 }
 
 export type OutlineStatus = "kept" | "receives" | "needs_content" | "dropped";
+/** Một phần in dưới mục của mẫu mới: cặp chính, phần gộp vào, hay phần tử chia theo từng yêu cầu. */
+export interface OutlinePart {
+  heading_text: string;
+  kind: "pair" | "merged" | "distributed";
+}
 /** Một dòng của dàn tiêu đề tài liệu sau khi đổi (bước Áp dụng), theo thứ tự mẫu mới. */
 export interface OutlineEntry {
   heading_text: string;
   level: number;
   status: OutlineStatus;
+  /** `receives`: heading cũ gộp vào (kể cả vào mục đã có cặp); dòng của phần gộp (`kept`): chính heading cũ. */
   from_heading?: string[];
+  /** Mục in từ dữ liệu Spine (không chép từ file cũ). */
+  from_spine?: true;
+  /** Các phần in dưới mục, theo thứ tự. Bản BE cũ không có ⇒ dùng `from_heading`. */
+  parts?: OutlinePart[];
   table_change?: "map" | "keep" | "drop";
   /** Chỉ dòng `dropped`: nội dung sẽ không in (tối đa 5) + tổng số. */
   dropped_items?: { id: string | null; text: string }[];

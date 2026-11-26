@@ -32,7 +32,7 @@ interface TargetPickerProps {
 const publishedVersions = (tpl: OrgTemplateSummary): number[] => tpl.versions.filter((v) => v.status === "published").map((v) => v.version);
 
 /** So khớp không phân biệt dấu / hoa thường (gõ "ngan hang" ra "Ngân hàng"). */
-const fold = (s: string) =>
+export const fold = (s: string) =>
   s
     .normalize("NFD")
     .replace(/[̀-ͯ]/g, "")
