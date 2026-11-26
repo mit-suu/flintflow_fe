@@ -520,9 +520,17 @@ export interface VersionResponse {
   document_revision: string;
 }
 
+/** FLF-461: chế độ 3/4 đếm mục còn cần xử lý thay vì 12 giai đoạn. */
+export interface SectionTodo {
+  remaining: number;
+  total: number;
+}
+
 /** `GET /projects/:id/progress`. */
 export interface ProgressResponse {
   readiness: Readiness;
   progress: StepProgress;
+  /** Chỉ chế độ 3/4 đang ở Luồng 2; dự án khác vắng / null. */
+  section_progress?: SectionTodo | null;
   sections: SectionProgress[];
 }
