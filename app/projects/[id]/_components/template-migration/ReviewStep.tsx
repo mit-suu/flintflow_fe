@@ -258,7 +258,8 @@ function ReviewRow({ item, migration, busy, onDecide, onEditPairs }: RowProps & 
           className="h-9 w-full sm:w-[300px] rounded-control bg-surface-container-lowest px-2 text-body text-on-surface outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
         >
           {value === undefined && <option value="">{t("pick")}</option>}
-          {item.choices.map((c) => (
+          {/* Nhóm Thừa không còn "Xoá" (BE đã bỏ; lọc phòng BE cũ): xoá hẳn nội dung thì tạo CR sau khi áp mẫu */}
+          {item.choices.filter((c) => !(item.group === "extra" && c === "delete")).map((c) => (
             <option key={c} value={c}>
               {label(c)}
               {item.ai_choices.includes(c) || c === "ai_resolve" ? ` ${t("aiSuffix")}` : ""}

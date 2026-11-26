@@ -26,6 +26,8 @@ export interface CreditGateRequest {
   available: number | null;
   /** Lưu ý trước khi chạy (đã dịch), vd cảnh báo PDF khi đính kèm (FLF-449). */
   notes?: string[];
+  /** FLF-466: dòng ghi chú dưới danh sách, vd dải credit "ước tính" của phần màn (số chốt có ở bước chốt danh sách màn). */
+  note?: string;
 }
 
 interface CreditGateCardProps extends CreditGateRequest {
@@ -40,7 +42,7 @@ interface CreditGateCardProps extends CreditGateRequest {
  * hiện số credit ước tính và số dư; **người dùng bấm Chạy mới gọi AI**, Huỷ thì không trừ credit, tiến độ giữ nguyên.
  * Component độc lập, nhận dữ liệu qua props để agent (đợt sau) hiện lại trong chat.
  */
-export default function CreditGateCard({ title, lines, total, totalMax, totalUnknown = false, available, notes = [], busy = false, onRun, onCancel }: CreditGateCardProps) {
+export default function CreditGateCard({ title, lines, total, totalMax, totalUnknown = false, available, notes = [], note, busy = false, onRun, onCancel }: CreditGateCardProps) {
   const t = useTranslations("workspace.creditGate");
   const ranged = totalMax !== undefined && totalMax > total;
   const short = !totalUnknown && available !== null && available < total;
@@ -65,12 +67,13 @@ export default function CreditGateCard({ title, lines, total, totalMax, totalUnk
           ))}
         </ul>
       )}
-      {notes.map((note) => (
-        <p key={note} role="note" className="flex items-start gap-2 rounded-inner bg-accent-gold-soft px-3 py-2 text-caption leading-relaxed text-on-surface">
+      {notes.map((n) => (
+        <p key={n} role="note" className="flex items-start gap-2 rounded-inner bg-accent-gold-soft px-3 py-2 text-caption leading-relaxed text-on-surface">
           <Icon name="warning" size={14} className="shrink-0 mt-0.5 text-accent-gold-text" />
-          <span>{note}</span>
+          <span>{n}</span>
         </p>
       ))}
+      {note && <p className="text-caption text-on-surface-muted">{note}</p>}
       <div className="flex flex-wrap items-baseline justify-between gap-2 border-t border-outline-variant pt-2">
         {!totalUnknown && <span className="text-body font-bold">{ranged ? t("totalRange", { min: total, max: totalMax }) : t("total", { credits: total })}</span>}
         {available !== null && <span className={`text-caption ${short ? "text-error font-bold" : "text-on-surface-muted"}`}>{t("available", { credits: available })}</span>}

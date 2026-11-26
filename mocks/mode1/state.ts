@@ -5,7 +5,7 @@
  */
 import type { Project } from "@/types/project";
 import type { Baseline } from "@/types/spine";
-import type { DocBlock, ExtractionSection, ImportedDocument, ReuploadDiff, ReviewField, TemplateProfile, StepPlanEntry } from "@/types/import";
+import type { DocBlock, ExtractionSection, ImportedDocument, ReuploadDiff, ReviewContentMismatch, ReviewField, ReviewGuidance, TemplateProfile, StepPlanEntry } from "@/types/import";
 import type { DocVersion } from "@/types/doc-version";
 import type { RocRow } from "@/types/document";
 import type { CrDetail } from "@/types/change-request";
@@ -39,6 +39,10 @@ export interface Mode1MockState {
   /** Test đặt `true` để job tạo bản gốc kế tiếp lỗi (BE hoàn về trước finalize, `paused: resume_later`). */
   failNextFinalize: boolean;
   reviewFields: ReviewField[];
+  /** FLF-462 (bước 1.6): đoạn lớp 4 chữ hướng dẫn chờ xác nhận. */
+  reviewGuidance: ReviewGuidance[];
+  /** FLF-462 (bước 1.6): mục tên đúng nội dung sai chờ xem qua. */
+  reviewContentMismatch: ReviewContentMismatch[];
   baselines: Baseline[];
   versions: DocVersion[];
   blocks: Map<string, DocBlock[]>;
@@ -136,6 +140,8 @@ export const createMode1MockState = (): Mode1MockState => ({
   finalizeJob: null,
   failNextFinalize: false,
   reviewFields: [],
+  reviewGuidance: [],
+  reviewContentMismatch: [],
   baselines: [],
   versions: [],
   blocks: new Map(),

@@ -58,6 +58,8 @@ export interface Progress {
   screen_cursor: string | null;
   screen_queue: string[];
   elicit_turns_this_phase: number;
+  /** FLF-466: lần báo credit đang chờ user xác nhận (vắng ⇒ không có). */
+  credit_ack_required?: { scope: "after_brief" | "screens_locked" | "screens_added"; credits: number; created_at: string; screens?: string[] } | null;
 }
 
 /** `skipped` (FLF-182): step không áp dụng cho template của project mode 1 — ẩn, không tính tiến độ. */

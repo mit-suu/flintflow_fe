@@ -29,6 +29,11 @@ describe("CreditGateCard (FLF-332 - cổng cứng xác nhận credit)", () => {
     expect(onRun).toHaveBeenCalledTimes(1);
   });
 
+  it("FLF-466: dải màn ước tính hiện ở dòng ghi chú", () => {
+    renderWithIntl(<CreditGateCard {...base} available={120} note="Phần màn là ước tính" onRun={vi.fn()} onCancel={vi.fn()} />);
+    expect(screen.getByText("Phần màn là ước tính")).toBeInTheDocument();
+  });
+
   it("số dư thấp hơn ước tính ⇒ cảnh báo kèm link nạp", () => {
     renderWithIntl(<CreditGateCard {...base} available={10} onRun={vi.fn()} onCancel={vi.fn()} />);
     expect(screen.getByRole("status")).toHaveTextContent(/Số dư chưa đủ/);

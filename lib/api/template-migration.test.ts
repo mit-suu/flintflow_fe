@@ -19,6 +19,14 @@ describe("lib/api/template-migration", () => {
     expect(body).toEqual({ template_id: "t1", version: 2 });
   });
 
+  it("start về mẫu chuẩn FlintFlow gửi JSON { kind: standard, language? }", async () => {
+    const bodies: unknown[] = [];
+    mockServer.use(http.post(URL_, async ({ request }) => (bodies.push(await request.json()), ok())));
+    await startTemplateMigration("p1", { kind: "standard" });
+    await startTemplateMigration("p1", { kind: "standard", language: "vi" });
+    expect(bodies).toEqual([{ kind: "standard" }, { kind: "standard", language: "vi" }]);
+  });
+
   it("start từ file gửi multipart; chỉ kèm publish_to_org / name / template_id khi Lead đăng", async () => {
     const seen: Record<string, string>[] = [];
     mockServer.use(

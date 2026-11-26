@@ -1491,8 +1491,8 @@
       "templateProposal": {
         "cardTitle": "Save this structure as an organization template?",
         "cardBody": "The structure of this baseline (headings, table columns, guidance) can become a template for your organization. Content is never saved, and every proper name below was replaced.",
-        "replacedTitle": "{count, plural, one {# heading changed} other {# headings changed}}",
-        "noReplaced": "No proper names were found in the headings.",
+        "replacedTitle": "{count, plural, one {# item changed} other {# items changed}}",
+        "noReplaced": "No proper names were found in this template.",
         "dropped": "Left out of the template",
         "droppedReason": "Left out of the template: {reason}",
         "showStructure": "Show structure ({count, plural, one {# heading} other {# headings}})",
@@ -1503,6 +1503,16 @@
         "sentNotice": "This structure was sent to your Lead for approval.",
         "savedNotice": "Saved to the template library. This project now follows that template.",
         "declinedNotice": "Not saved. This structure will not be proposed again.",
+        "chatLabel": "What would you like to change in this proposal?",
+        "chatPlaceholder": "For example: keep the section \"Technical appendix\", turn \"Company A process\" into a blank",
+        "chatCost": "Each edit uses AI credits.",
+        "chatSend": "Send edit request",
+        "chatFailed": "Could not edit the proposal. It is unchanged, please try again.",
+        "replacedKind": {
+          "heading": "Section title",
+          "guidance": "Guidance text",
+          "column": "Column title"
+        },
         "actionFailed": "Could not complete this. Please try again.",
         "saveStructureTitle": "Save structure as template",
         "saveStructureBody": "Turn the structure of the latest version into an organization template. Proper names are replaced first, which uses AI credits.",
@@ -1647,6 +1657,8 @@
       "incomplete": "not written yet",
       "commentsLoadFailed": "Could not load comments",
       "draftLabel": "draft",
+      "noReleaseTitle": "No released version yet",
+      "noReleaseBody": "This project has no released version yet. Drafts are only for the people editing; the document appears here as soon as a version is released.",
       "viewerPickBaseline": "Viewers can only comment on released versions - pick a baseline above.",
       "viewerNoBaseline": "Viewers can only comment on released versions - this project has none yet.",
       "downloadFailed": "Download failed",
@@ -1662,6 +1674,8 @@
       "baselineOption": "Version {version}",
       "downloading": "Downloading…",
       "download": "Download version {version} (.docx)",
+      "googleDocs": "Export to Google Docs",
+      "googleDocsTitle": "Export this version to Google Docs",
       "backToProjects": "Back to projects",
       "backToWorkspace": "Back to workspace",
       "retry": "Try again",
@@ -2905,6 +2919,12 @@
       "running": "Running…",
       "cancel": "Cancel",
       "pipelineTitle": "Draft the rest of the SRS",
+      "scope": {
+        "after_brief": "Draft the rest of the SRS after the brief is approved",
+        "screens_locked": "Draft the details of the confirmed screens",
+        "screens_added": "Draft the details of the newly added screens"
+      },
+      "screenRange": "The screens part is an estimate: about {min} to {max} screens, ~{creditsMin} to ~{creditsMax} credits. The exact number is shown once the screen list is confirmed.",
       "unitLine": "Phase {unit} · {steps, plural, =1 {1 step} other {# steps}}",
       "attachmentsTitle": "Read {count, plural, =1 {1 attached document} other {# attached documents}}",
       "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead.",
@@ -3447,8 +3467,23 @@
         }
       },
       "legacy": {
-        "fieldsReview": "This file reading stopped halfway in an earlier version. Press Continue to let FlintFlow finish it.",
+        "fieldsReview": "A few places FlintFlow read with low confidence. Press Continue to confirm them as FlintFlow read them.",
         "continue": "Continue"
+      },
+      "review": {
+        "title": "Confirm before continuing",
+        "intro": "FlintFlow is not fully sure about a few things below - please confirm them before FlintFlow creates the baseline.",
+        "guidance": {
+          "title": "Passage unclear whether it is template guidance text",
+          "isGuidance": "Guidance text",
+          "isContent": "Real content"
+        },
+        "mismatch": {
+          "title": "Section whose name does not match its content",
+          "body": "This section is named \"{heading}\" but the content read from it is actually a different kind.",
+          "ack": "Seen"
+        },
+        "confirmAll": "Confirm everything as FlintFlow suggests"
       },
       "outcome": {
         "mode3": {
@@ -3462,7 +3497,7 @@
           "draft": "Draft the missing sections"
         }
       },
-      "review": {
+      "reviewExisting": {
         "title": "Review {count} sections before drafting the rest",
         "body": "These sections already passed FlintFlow's rule checks, at no credit cost. They either feed into the parts about to be drafted or still carry a red flag that needs a second look, so FlintFlow reviews them with AI before moving on - any finding will show up in the flag list of the drafting step.",
         "credit": "About {credits} credits for this review round",
@@ -3713,6 +3748,18 @@
     "TRANSLATION_INCOMPLETE_COUNT_ONE": "{missing} item is not translated into this language yet, so the file can't be downloaded. Translate the rest, then try again.",
     "TRANSLATION_INCOMPLETE_COUNT": "{missing} items are not translated into this language yet, so the file can't be downloaded. Translate the rest, then try again.",
     "DOCUMENT_LANGUAGE_UNAVAILABLE": "This version can't be downloaded in another language yet - only in the project's document language.",
+    "SNAPSHOT_UNAVAILABLE": "This version has no content snapshot to rebuild in another language.",
+    "PACKAGE_CHANGED_AFTER_SUBMIT": "The document changed after the package was submitted. Please resubmit to the Lead.",
+    "DOC_VERSION_BUSY": "Another version write is in progress. Please wait a moment and try again.",
+    "CREDIT_ACK_REQUIRED": "Please confirm the estimated credits before running the remaining steps.",
+    "NO_CREDIT_ACK_PENDING": "No credit confirmation is currently pending.",
+    "TEMPLATE_PROPOSAL_AI_UNAVAILABLE": "The AI service is temporarily unavailable to update the template proposal. Please try again.",
+    "TEMPLATE_PROPOSAL_NOT_FOUND": "Template proposal not found.",
+    "TEMPLATE_PROPOSAL_CONFLICT": "This template proposal was updated elsewhere. Please reload the page.",
+    "TEMPLATE_PROPOSAL_UNAVAILABLE": "This template proposal is no longer available.",
+    "VIEWER_NO_STABLE_VERSION": "This project has no released version to view yet.",
+    "PACKAGE_EMPTY": "No change has been written to the draft since the last release.",
+    "PACKAGE_ALREADY_SUBMITTED": "The change package is already awaiting Lead review and cannot be submitted again.",
     "NOTHING_TO_UNDO": "Nothing left to undo.",
     "BASELINE_BLOCKED": "There are unresolved red flags - the baseline can't be recorded yet.",
     "BASELINE_ALREADY_SUBMITTED": "The document is already waiting for the Lead to approve it.",
@@ -4356,6 +4403,8 @@
       "reviewText": "Legacy change request: approve or reject each group. When the last group is decided and at least one is approved ⇒ the changes are written to the draft.",
       "writtenText": "Written to the draft (version {version}) - download the marked-up copy (Track Changes + comments, author {crId}) under Versions; submit the whole package to the Lead under Change package.",
       "writtenNewText": "Written to a new version - download the marked-up copy (Track Changes + comments, author {crId}) under Versions.",
+      "releasedText": "Released in an official version (version {version}) - download the clean or marked-up copy (author {crId}) under Versions.",
+      "releasedNewText": "Released in an official version - download the clean or marked-up copy (author {crId}) under Versions.",
       "viewDoc": "View document",
       "closedText": "{status}.",
       "closedReasonText": "{status} - {reason}.",
@@ -4648,6 +4697,7 @@
         "ready_to_submit": "Ready to submit",
         "in_review": "Awaiting approval (legacy)",
         "written": "Written to draft",
+        "released": "Released",
         "rejected": "Closed (rejected)",
         "cancelled": "Cancelled"
       },
@@ -4680,7 +4730,8 @@
         "imported": "Imported version",
         "cr_revision": "Draft after CR",
         "release": "Release version",
-        "signed_baseline": "Signed baseline"
+        "signed_baseline": "Signed baseline",
+        "system_change": "System change"
       },
       "blockKind": {
         "heading": "Heading",
@@ -5104,9 +5155,21 @@
       "actionFailed": "The action did not succeed",
       "lockedNote": "The package is awaiting the Lead - the draft is locked: no new change request can be created or confirmed until the Lead approves the whole package or requests changes.",
       "changesRequestedNote": "The Lead requested changes: “{reason}”. Fix via a new change request (reverting is also a change request), then resubmit.",
+      "systemChanges": {
+        "title": "System changes",
+        "aria": "System changes in the package",
+        "type": {
+          "template_migration": "Template change",
+          "template_revert": "Template change undone",
+          "screen_mockup": "Screen redrawn"
+        }
+      },
+      "trackedUnavailable": {
+        "template_translated": "This release will have no Track Changes copy because the package includes a template change with translation."
+      },
       "listAria": "Change requests in the package",
       "empty": "No change has been written to the draft since the last release. Every change request the BA confirms lands in this package.",
-      "blockedEmpty": "No change request to submit yet.",
+      "blockedEmpty": "No change to submit yet.",
       "blockedRed": "{count, plural, one {# red flag} other {# red flags}} still open - resolve via change requests before submitting to the Lead.",
       "submit": "Submit whole package to Lead",
       "resubmit": "Resubmit to Lead",
@@ -5264,12 +5327,17 @@
       "downloadOriginalFile": "Download original file",
       "trackedTitle": "Track Changes + comments against version {base}, authors {authors}",
       "trackedTitlePrevious": "Track Changes + comments against the previous version, authors {authors}",
+      "trackedTitleSystem": "Track Changes against version {base}",
       "downloadTracked": "Download marked-up copy",
+      "trackedUnavailable": {
+        "template_translated": "No Track Changes copy: this version includes a template change with translation, so individual edits cannot be compared.",
+        "build_failed": "The Track Changes copy could not be built for this version."
+      },
       "downloadPdf": "Download PDF",
       "creatingPdf": "Creating PDF…",
       "downloadPdfTitle": "This Word file converted to PDF",
       "downloadInLanguage": "Download in {language}",
-      "downloadInLanguageTitle": "Rebuild this signed version in {language} (Word)",
+      "downloadInLanguageTitle": "Rebuild this version in {language} (Word)",
       "translationIncomplete": "{count, plural, one {# item is} other {# items are}} not translated into {language} yet, so this file can't be downloaded.",
       "translateRest": "Translate the rest",
       "translateAskEditor": "Ask a Lead or Analyst on this project to translate the rest, then download again."
@@ -5295,8 +5363,7 @@
       "row": {
         "added": "Row added",
         "removed": "Row removed",
-        "modified": "Row changed",
-        "moved": "Row moved"
+        "modified": "Row changed"
       }
     },
     "referenceDocs": {
@@ -5452,6 +5519,14 @@
         "familyLabel": "Publish to",
         "familyNew": "A new template",
         "familyNext": "New version of {name}",
+        "previousStandard": "Go back to the FlintFlow standard template used before the latest change. Untouched sections return to the original; for edited ones you choose to keep or drop the edit.",
+        "standardTitle": "FlintFlow standard template",
+        "standardHelp": "Move the document to the FlintFlow standard layout, without picking a template from your organization.",
+        "standardLanguage": "Language",
+        "standardLanguageKeep": "Keep current language",
+        "standardLanguageVi": "Vietnamese",
+        "standardLanguageEn": "English",
+        "useStandard": "Switch to standard template",
         "previousPrivate": "Go back to {name} (version {version}): the project's own copy of the template file it used before the latest change. Untouched sections return to the original; for edited ones you choose to keep or drop the edit."
       },
       "choices": {
@@ -5573,7 +5648,7 @@
           "vi": "Vietnamese",
           "en": "English"
         },
-        "languageChange": "Content will be translated from {from} to {to}. Released versions keep the old language.",
+        "languageChange": "Content will be translated from {from} to {to} and written over the current document (can be undone). Released versions keep the old language.",
         "languageChangeNoTranslation": "The document language changes from {from} to {to}; content is not translated.",
         "linksNote": "Discarding edits may break links; the system checks before writing.",
         "linksBroken": "Cannot apply yet because links between sections would break:",

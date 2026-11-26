@@ -16,12 +16,13 @@ export const CR_STATUSES = [
   "ready_to_submit",
   "in_review",
   "written",
+  "released",
   "rejected",
   "cancelled",
 ] as const;
 export type CrStatus = (typeof CR_STATUSES)[number];
 
-export const CR_TERMINAL_STATUSES: readonly CrStatus[] = ["written", "rejected", "cancelled"];
+export const CR_TERMINAL_STATUSES: readonly CrStatus[] = ["written", "released", "rejected", "cancelled"];
 /** Trạng thái CR đang giữ khoá phần tử Spine (BE `CR_STATUSES_HOLDING_LOCKS`). */
 export const CR_LOCKING_STATUSES: readonly CrStatus[] = ["impact_review", "proposing", "verifying", "manual_fix", "ready_to_submit", "in_review"];
 

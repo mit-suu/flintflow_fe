@@ -212,6 +212,8 @@ export type PipelineErrorCode =
   | "REGENERATE_LIMIT"
   | "CALL_LIMIT"
   | "STEP_NOT_RUNNABLE"
+  | "CREDIT_ACK_REQUIRED"
+  | "NO_CREDIT_ACK_PENDING"
   | "NO_WORKING_DRAFT"
   | "INVARIANT_VIOLATION"
   | "OP_INVALID"
@@ -388,6 +390,39 @@ export interface RunEstimate {
   screen_estimate?: { min: number; max: number; basis: ScreenEstimateBasis } | null;
   /** `balance − reserved` của ví org; null khi không xác định được ví. */
   available_credits: number | null;
+  /** FLF-466: lần báo credit đang tính; vắng / null ⇒ ước tính chạy liền như cũ. */
+  scope_kind?: CreditAckScope | null;
+  /** FLF-466: sau Approve Brief, số màn mới là dải ước tính (số chốt có ở S-4.1). */
+  screen_range?: ScreenRange | null;
+  /** FLF-466: lần báo đang chờ xác nhận (lưu ở BE nên reload vẫn thấy). */
+  ack_required?: CreditAckRequired | null;
+}
+
+/** FLF-466: các lần báo credit theo số màn — sau Approve Brief, sau chốt danh sách màn (S-4.1), sau thêm màn. */
+export type CreditAckScope = "after_brief" | "screens_locked" | "screens_added";
+
+export interface CreditAckRequired {
+  scope: CreditAckScope;
+  credits: number;
+  created_at: string;
+  screens?: string[];
+}
+
+export interface ScreenRange {
+  min: number;
+  max: number;
+  credits_per_screen: number;
+  credits_min: number;
+  credits_max: number;
+  inputs: { goals: number; other_requirements: number; feature_notes: number; total: number };
+  estimated: true;
+}
+
+/** `POST /projects/:id/run-estimate/ack`. */
+export interface RunEstimateAck {
+  scope: CreditAckScope;
+  credits: number;
+  spine_version: number;
 }
 
 export type StepEventType = StepEvent["type"];

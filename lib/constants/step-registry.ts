@@ -7,7 +7,8 @@
 import registry from "./step-registry.json";
 import type { StepStatus } from "@/types/spine";
 
-export const PHASES = ["B-0", "B-1", "B-2", "S-1", "S-2", "S-3", "S-4", "S-5", "S-6", "S-7", "S-8", "S-9"] as const;
+/** FLF-466: S-1 phân tích chạy trước B-2 (Approve Brief B-2.3 mở S-2) — thứ tự lấy từ BE `PHASES`. */
+export const PHASES = ["B-0", "B-1", "S-1", "B-2", "S-2", "S-3", "S-4", "S-5", "S-6", "S-7", "S-8", "S-9"] as const;
 export type PhaseId = (typeof PHASES)[number];
 
 export type StepKind = "soft" | "fixed" | "loop" | "gate";

@@ -6,6 +6,7 @@ import {
   continueImportFlow2,
   getImport,
   importFromGoogleDocs,
+  patchFields,
   pauseImport,
   resumeImport,
   runImportReview,
@@ -16,14 +17,14 @@ import {
 } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
-import type { GetImportResponse, ImportStatus } from "@/types/import";
+import type { FieldsPatchRequest, GetImportResponse, ImportStatus } from "@/types/import";
 import { useErrorText } from "../../_components/mode1/i18n";
 import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 
 /** Nhịp poll `GET /import` khi lượt import chạy nền (#6/#10 trả ngay). */
 export const EXTRACT_POLL_MS = 2000;
 
-export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "review" | "reviewStop";
+export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "confirm" | "review" | "reviewStop";
 
 /** Bước chạy nền của lượt một mạch (FLF-343): trích ⇒ tạo bản gốc 0.1 ⇒ kiểm tra. */
 const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
@@ -165,6 +166,19 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
       run("resume", async () => {
         const res = await resumeImport(projectId, importId);
         setStarted(true);
+        return res;
+      }),
+    /**
+     * FLF-462 (bước 1.6): xác nhận field / đoạn lớp 4 chữ hướng dẫn / mục tên đúng nội dung sai. Hết việc cần xác nhận
+     * (BE chuyển `baselining`) ⇒ tự gọi tiếp `/import/resume` để job tạo bản gốc chạy nối tiếp, như một mạch cũ.
+     */
+    confirmReview: (body: Omit<FieldsPatchRequest, "import_id">) =>
+      run("confirm", async () => {
+        const res = await patchFields(projectId, { import_id: importId, ...body });
+        if (res.data?.import.status === "baselining") {
+          await resumeImport(projectId, importId);
+          setStarted(true);
+        }
         return res;
       }),
     /** Nút Dừng lúc đang đọc nội dung (#10b) — BE dừng trước lượt AI kế tiếp; `resume` chạy tiếp từ đúng chỗ dừng. */
