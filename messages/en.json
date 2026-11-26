@@ -3406,7 +3406,7 @@
         },
         "credit": {
           "estimate": "About <strong>{credits} credits</strong>",
-          "referenceNote": "Includes {count} reference documents read in the same run ({credits} credits)",
+          "referenceNote": "Includes {count, plural, =1 {1 reference document} other {# reference documents}} read in the same run ({credits, plural, =1 {1 credit} other {# credits}})",
           "none": "Reading this file costs no credits",
           "unknown": "The credit estimate is not available yet",
           "balance": "you have {balance}",
