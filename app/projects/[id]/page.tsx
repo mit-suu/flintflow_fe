@@ -801,26 +801,32 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       .catch(() => null);
     const ack = est?.ack_required;
     if (!est || !ack) return true;
-    const range = est.screen_range;
-    const min = est.credits_min ?? est.credits_total;
-    const max = est.credits_max ?? est.credits_total;
-    const hasRange = est.units.some((u) => u.screens);
+    const range = est.screen_range && est.screen_range.max > 0 ? est.screen_range : null;
+    // BE cũ (không có `basis`): tổng chưa gồm phần vòng màn hình ⇒ cộng thêm ở đây
+    const rangeInTotal = range?.basis !== undefined;
+    const min = (est.credits_min ?? est.credits_total) + (range && !rangeInTotal ? range.credits_min : 0);
+    const max = (est.credits_max ?? est.credits_total) + (range && !rangeInTotal ? range.credits_max : 0);
+    const unitHasRange = est.units.some((u) => u.screens);
+    const lines = est.units.map((u) =>
+      u.screens
+        ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
+        : { label: t("creditGate.unitLine", { name: u.label ?? t("creditGate.unitFallback", { unit: u.unit }), steps: u.steps }), credits: u.credits },
+    );
+    // Dòng phần màn là một dòng như các giai đoạn khác (FLF-485 #9), không chỉ là chú thích
+    if (range && !unitHasRange) lines.push({ label: t("creditGate.screenRangeLine", { min: range.min, max: range.max }), credits: range.credits_min, creditsMax: range.credits_max });
     const ok = await confirmCredits({
       title: t(`creditGate.scope.${ack.scope}`),
-      lines: est.units.map((u) =>
-        u.screens
-          ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
-          : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
-      ),
+      lines,
       total: min,
       totalMax: max,
       available: est.available_credits,
-      notes: hasRange ? [t("creditGate.screenRangeNote")] : undefined,
-      ...(range && range.max > 0 ? { note: t("creditGate.screenRange", { min: range.min, max: range.max, creditsMin: range.credits_min, creditsMax: range.credits_max }) } : {}),
+      notes: range || unitHasRange ? [t(range?.basis === "scale_note" ? "creditGate.screenRangeNoteScale" : "creditGate.screenRangeNote")] : undefined,
     });
     if (!ok) return false;
     try {
-      await ackRunEstimate(projectId);
+      // #19: ack ghi Spine và trả phiên bản mới ⇒ nâng base version trước khi chạy, tránh 409 SPINE_VERSION_CONFLICT
+      const acked = await ackRunEstimate(projectId);
+      if (acked.data?.spine_version !== undefined) onSpineChanged(acked.data.spine_version);
       return true;
     } catch {
       return false;

@@ -930,13 +930,13 @@ export const handlers = [
     const url = new URL(request.url);
     const scope = (url.searchParams.get("scope") ?? "all") as "unit" | "all";
     const from = url.searchParams.get("from") ?? "S-1.1";
-    type MockUnit = { unit: string; steps: number; ai_steps: number; interview_credits: number; credits: number; credits_min: number; credits_max: number; screens?: { min: number; max: number } };
-    const exact = (unit: string, steps: number, credits: number): MockUnit => ({ unit, steps, ai_steps: steps, interview_credits: 1, credits, credits_min: credits, credits_max: credits });
+    type MockUnit = { unit: string; label: string; steps: number; ai_steps: number; interview_credits: number; credits: number; credits_min: number; credits_max: number; screens?: { min: number; max: number } };
+    const exact = (unit: string, steps: number, credits: number): MockUnit => ({ unit, label: `Giai đoạn ${unit}`, steps, ai_steps: steps, interview_credits: 1, credits, credits_min: credits, credits_max: credits });
     // FLF-485: lượt "all" có đơn vị S-5 ước tính (6–14 màn, 13 credit/màn, cận trên cộng một vòng không màn)
     const units: MockUnit[] = scope === "unit" ? [exact(from.replace(/\.\d+$/, ""), 4, 17)] : [
       exact("S-1", 4, 17),
       exact("S-2", 5, 21),
-      { unit: "S-5", steps: 75, ai_steps: 45, interview_credits: 15, credits: 195, credits_min: 78, credits_max: 195, screens: { min: 6, max: 14 } },
+      { unit: "S-5", label: "Vòng màn hình (ước tính)", steps: 75, ai_steps: 45, interview_credits: 15, credits: 195, credits_min: 78, credits_max: 195, screens: { min: 6, max: 14 } },
     ];
     const credits_max = units.reduce((n, u) => n + u.credits_max, 0);
     const credits_min = units.reduce((n, u) => n + u.credits_min, 0);

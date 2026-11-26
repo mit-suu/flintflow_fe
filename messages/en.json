@@ -2925,13 +2925,15 @@
         "screens_added": "Draft the details of the newly added screens"
       },
       "screenRange": "The screens part is an estimate: about {min} to {max} screens, ~{creditsMin} to ~{creditsMax} credits. The exact number is shown once the screen list is confirmed.",
-      "unitLine": "Phase {unit} · {steps, plural, =1 {1 step} other {# steps}}",
+      "unitFallback": "Phase {unit}",
+      "unitLine": "{name} · {steps, plural, =1 {1 step} other {# steps}}",
       "attachmentsTitle": "Read {count, plural, =1 {1 attached document} other {# attached documents}}",
       "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead.",
       "creditsRange": "~{min}–{max} credits",
-      "totalRange": "Estimated total: ~{min}–{max} credits",
+      "totalRange": "Estimated total: ~{min} – {max} credits",
       "screenRangeLine": "Screen details · about {min}–{max} screens",
       "screenRangeNote": "The screen count is estimated from the Brief. The exact figure is known after the Screen List step.",
+      "screenRangeNoteScale": "The screen count is estimated from the number of use cases stated in the Brief. The exact figure is known after the Screen List step.",
       "shortRange": "The balance is enough if the project has few screens, and may fall short if it has many. The AI stops when credits run out, finished parts are not charged again.",
       "estimateFailed": "Credits could not be estimated. Press Run to continue drafting; the AI stops when credits run out."
     },
