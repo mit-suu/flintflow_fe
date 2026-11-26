@@ -9,6 +9,7 @@ import ClarifyPanel from "./ClarifyPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import { OthersPending, ProposalDiff, useLocTitle } from "./LocationDisplay";
 import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
+import OriginalDiagramGroup from "./OriginalDiagramGroup";
 import { useMode1Labels } from "./i18n";
 import { diffLines, type DiffToken } from "@/lib/word-diff";
 import PausedBanner from "./PausedBanner";
@@ -581,14 +582,17 @@ function BatchRow({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
  * FLF-375: bước đề xuất gom một khung — các phần đã đạt kiểm thành danh sách gọn + **Đồng ý tất cả**; phần phải quyết
  * riêng (`needsOwnCard`) giữ thẻ có nút riêng như cũ.
  */
-function ProposalBatch({ locations, chat }: { locations: CrLocation[]; chat: CrChat }) {
+function ProposalBatch({ projectId, locations, chat }: { projectId: string; locations: CrLocation[]; chat: CrChat }) {
   const t = useTranslations("mode1.crThread.batch");
   const rows = locations.filter((l) => !needsOwnCard(l));
-  const own = locations.filter(needsOwnCard);
+  // Hình gốc sẽ bị thay (đề xuất của code, kiểm đạt) ⇒ một khối có ảnh trước / sau thay cho mỗi hình một thẻ chữ
+  const diagrams = locations.filter((l) => isDiagramLocation(l) && l.conclusion === "edit" && !!l.proposal && !isFailing(l));
+  const own = locations.filter((l) => needsOwnCard(l) && !diagrams.includes(l));
   const pending = rows.filter((l) => !chat.isAccepted(l));
   return (
     <div className="flex flex-col gap-2">
       {/* FLF-375 (spec 04): việc cần bạn quyết lên đầu; phần đã đạt kiểm thu gọn bên dưới */}
+      <OriginalDiagramGroup projectId={projectId} locations={diagrams} chat={chat} />
       {own.length > 0 && (
         <section className="flex flex-col gap-2" aria-label={t("ownAria")}>
           <p className="font-bold text-[#8A6D1F]">{t("ownTitle", { count: own.length })}</p>
@@ -859,7 +863,7 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
       {approved && proposed && toReview.some((l) => !l.found_by.includes("preview")) && (
         <AiBubble step={t("proposeStep", { settled, total: toReview.length })} label={t("proposeLabel")}>
           <p className="text-on-surface-muted">{t("proposeHint")}</p>
-          <ProposalBatch locations={toReview.filter((l) => !l.found_by.includes("preview"))} chat={chat} />
+          <ProposalBatch projectId={projectId} locations={toReview.filter((l) => !l.found_by.includes("preview"))} chat={chat} />
           <DroppedList locations={dropped} chat={chat} />
         </AiBubble>
       )}
@@ -893,7 +897,7 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
           ) : (
             <p className="text-on-surface-muted">{t("proposeNone")}</p>
           )}
-          <ProposalBatch locations={toReview} chat={chat} />
+          <ProposalBatch projectId={projectId} locations={toReview} chat={chat} />
           <DroppedList locations={dropped} chat={chat} />
         </AiBubble>
       )}

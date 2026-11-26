@@ -95,6 +95,7 @@ import Mode1CrThread from "./_components/mode1/Mode1CrThread";
 import { usePendingSections } from "./hooks/mode1/usePendingSections";
 import { usePendingQueue } from "./hooks/usePendingQueue";
 import ResolveQueueDock from "./_components/resolve-queue/ResolveQueueDock";
+import NoticeTray from "./_components/NoticeTray";
 import { useResolveQueue } from "./_components/resolve-queue/useResolveQueue";
 import { useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
@@ -1480,6 +1481,21 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     setAppliedEdit(null);
     if (!mode1) setEditMode(false);
   };
+
+  /**
+   * Mode 1: "Tạo change request" từ bản xem trước — một đường duy nhất cho nút trên thẻ chat và nút trong hộp xem chi tiết:
+   * mở thẻ chọn nguồn + người yêu cầu ngay trong chat, CR mang bản xem trước. Lệnh thêm / xoá use case (FLF-318) mang cả
+   * đoạn hỏi đáp làm mô tả. Giữ bản xem trước ở BE (`handOffPreview`) để CR đọc được nó.
+   */
+  const createCrFromPreview = (previewId: string | null) => {
+    const turns = useCaseTurnsRef.current;
+    const instruction = turns?.[0] ?? changes.pendingInstruction;
+    crChat.startFromPreview(instruction, turns ? describeConversation(turns) : instruction, previewId);
+    useCaseTurnsRef.current = null;
+    changes.handOffPreview();
+    setEditCardOpen(false);
+    setEditDetailOpen(false);
+  };
   /** Bật chip sửa và đưa con trỏ vào ô chat — `prefill` điền sẵn chỗ cần sửa (nút "Sửa mục này" trên tài liệu). */
   const startEditing = (prefill?: string) => {
     if (editDisabledReason) {
@@ -2225,6 +2241,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     return t(`session.${notice.key}`);
   };
   const shownToast = toast ?? (ws.notice ? noticeText(ws.notice) : null);
+  // Khung chat đang làm việc sửa tài liệu (CR đang mở / đang chọn nguồn / thẻ xem trước) ⇒ thẻ nhắc khác thu gọn
+  const chatNeedsRoom = editCardOpen || (mode1 && editMode && (crChat.detail !== null || crChat.pending !== null));
 
   // FLF-431 (BarberGo #21): thẻ chạy lại bước hiện cả khi cổng của bước khác (Ký baseline) đang mở
   const rerunCardAllowed = viewedStep !== null && canShowRerunCard(aiWorking, runner.state, viewedStep);
@@ -2429,28 +2447,34 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
             <>
               {/* Tài liệu tham khảo từ hộp Tạo dự án còn đang tải nền / lỗi */}
               <ReferenceUploadsNote projectId={projectId} className="mx-3 mb-2" />
-              {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
-              {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
-              {/* FLF-395: mẫu tổ chức của dự án có bản mới (Lead / Analyst) — "Để sau" chỉ ẩn trong phiên */}
-              {canChangeTemplate && (
-                <TemplateUpdateBanner
-                  projectId={projectId}
-                  update={ws.project?.template_update}
-                  canEdit={canEdit}
-                  onUpdate={(target) => router.push(templateMigrationHref(projectId, target), { scroll: false })}
-                  className="mx-3 mb-2"
-                />
-              )}
-              {/* UC-85: đề xuất lưu cấu trúc dự án thành mẫu tổ chức - chỉ tác giả baseline thấy */}
-              {ws.ready && canChangeTemplate && (
-                <TemplateProposalCard
-                  projectId={projectId}
-                  orgRole={ws.orgRole}
-                  refreshToken={documentRefreshToken + proposalRefresh}
-                  onSaved={handleTemplateChanged}
-                  className="mx-3 mb-2"
-                />
-              )}
+              {/* Thẻ nhắc không gắn với lượt chat đang làm: gom vào khay có trần chiều cao; đang có CR / bản xem trước thì thu
+                  về một dòng để thread change request đủ chỗ */}
+              <NoticeTray collapsed={chatNeedsRoom}>
+                {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
+                {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
+                {/* FLF-395: mẫu tổ chức của dự án có bản mới (Lead / Analyst) — "Để sau" chỉ ẩn trong phiên */}
+                {canChangeTemplate && (
+                  <TemplateUpdateBanner
+                    projectId={projectId}
+                    update={ws.project?.template_update}
+                    canEdit={canEdit}
+                    onUpdate={(target) => router.push(templateMigrationHref(projectId, target), { scroll: false })}
+                    className="mx-3 mb-2"
+                  />
+                )}
+                {/* UC-85: đề xuất lưu cấu trúc dự án thành mẫu tổ chức - chỉ tác giả baseline thấy */}
+                {ws.ready && canChangeTemplate && (
+                  <TemplateProposalCard
+                    projectId={projectId}
+                    orgRole={ws.orgRole}
+                    refreshToken={documentRefreshToken + proposalRefresh}
+                    onSaved={handleTemplateChanged}
+                    className="mx-3 mb-2"
+                  />
+                )}
+                {/* FLF-443: việc chờ bạn quyết - thẻ một việc mỗi lần, nhường chỗ cho câu hỏi / thẻ duyệt của AI */}
+                <ResolveQueueDock controller={resolveQueue} onShowSection={showSection} />
+              </NoticeTray>
               {/* §3.6: file đính kèm trông như SRS ⇒ gợi ý cập nhật phiên bản mới. FLF-457: cả trước baseline (đang soạn) */}
               {canEdit && ws.srsSuggestions[0] && (
                 <SrsAttachmentChip
@@ -2464,8 +2488,6 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   onKeepAsReference={() => ws.dismissSrsSuggestion(ws.srsSuggestions[0].key)}
                 />
               )}
-              {/* FLF-443: việc chờ bạn quyết - thẻ một việc mỗi lần, nhường chỗ cho câu hỏi / thẻ duyệt của AI */}
-              <ResolveQueueDock controller={resolveQueue} onShowSection={showSection} />
               {/* FLF-480 (B17): CR còn mở đã ẩn khỏi khung chat bằng "Phiên mới" */}
               {mode1 && crChat.hiddenOpen && (
                 <p className="mx-3 mb-2 flex flex-wrap items-center gap-x-2 text-xs text-slate-500">
@@ -2747,20 +2769,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               requiresCr={mode1}
               onShowDetail={() => setEditDetailOpen(true)}
               onApply={() => {
-                // FLF-318: bản xem trước của lệnh thêm / xoá use case ⇒ tạo CR ngay trong chat, kèm đúng bản xem trước
-                // và cả đoạn hỏi đáp làm mô tả
-                const turns = useCaseTurnsRef.current;
-                const previewId = changes.preview?.ok ? changes.preview.preview_id : undefined;
-                if (mode1 && turns && previewId) {
-                  crChat.startFromPreview(turns[0], describeConversation(turns), previewId);
-                  useCaseTurnsRef.current = null;
-                  cancelPreview();
-                  setEditCardOpen(false);
-                  return;
-                }
-                // Mode 1: không áp thẳng — mở form tạo change request điền sẵn
+                // Mode 1: không áp thẳng — tạo CR ngay trong chat, kèm bản xem trước (bản lỗi ⇒ CR đi từ câu lệnh)
                 if (mode1) {
-                  setEditDetailOpen(true);
+                  const p = changes.preview;
+                  createCrFromPreview(p?.ok && p.violations.length === 0 && p.preview_id ? p.preview_id : null);
                   return;
                 }
                 // Sau baseline BE bắt buộc lý do (400 nếu thiếu) — mở bản xem trước đầy đủ để hỏi
@@ -3110,16 +3122,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
       {/* Diff đầy đủ: lệnh sửa (bấm "Xem chi tiết") hoặc lượt cập nhật mục đã cũ (nút trên header tài liệu) */}
       {changes.preview && changes.previewSource === "instruction" && editDetailOpen && mode1 && (
-        <CreateCrPreviewModal
-          preview={changes.preview}
-          instruction={changes.pendingInstruction}
-          spine={spineState.spine}
-          onCancel={() => setEditDetailOpen(false)}
-          onCreate={(draft) => {
-            applyChatCrDraft(draft);
-            setEditDetailOpen(false);
-          }}
-        />
+        <CreateCrPreviewModal preview={changes.preview} spine={spineState.spine} onCancel={() => setEditDetailOpen(false)} onCreate={createCrFromPreview} />
       )}
       {changes.preview && ((changes.previewSource === "instruction" && editDetailOpen && !mode1) || changes.previewSource === "reconcile") && (
         <DiffPreviewModal

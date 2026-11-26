@@ -15,7 +15,7 @@ export type DiagramTranslator = ReturnType<typeof useTranslations<"mode1.origina
 
 export const isDiagramLocation = (loc: Pick<CrLocation, "found_by">): boolean => loc.found_by.includes("diagram");
 
-type Block = { kind?: string; text?: string; image_ref?: string | null; diagram?: { kind: OriginalDiagramKind } | null };
+type Block = { kind?: string; text?: string; image_ref?: string | null; diagram?: { kind: OriginalDiagramKind; owner_id?: string | null } | null };
 
 const blocksOf = (text: string | null | undefined): Block[] => {
   if (!text) return [];
@@ -28,10 +28,10 @@ const blocksOf = (text: string | null | undefined): Block[] => {
 };
 
 /** Hình gốc có trong giá trị cũ mà giá trị mới không còn (theo `image_ref`). */
-export const replacedDiagrams = (loc: Pick<CrLocation, "proposal" | "current_text">): { kind: OriginalDiagramKind; caption: string }[] => {
+export const replacedDiagrams = (loc: Pick<CrLocation, "proposal" | "current_text">): { kind: OriginalDiagramKind; ownerId: string | null; caption: string }[] => {
   const before = blocksOf(loc.proposal?.old_text ?? loc.current_text).filter((b) => b.kind === "image" && b.diagram);
   const kept = new Set(blocksOf(loc.proposal?.new_text).map((b) => b.image_ref));
-  return before.filter((b) => !kept.has(b.image_ref)).map((b) => ({ kind: b.diagram!.kind, caption: (b.text ?? "").trim() }));
+  return before.filter((b) => !kept.has(b.image_ref)).map((b) => ({ kind: b.diagram!.kind, ownerId: b.diagram!.owner_id ?? null, caption: (b.text ?? "").trim() }));
 };
 
 /** Tên hiển thị của vị trí: "Hình gốc — Sơ đồ use case" thay cho "Mục riêng CS03". */

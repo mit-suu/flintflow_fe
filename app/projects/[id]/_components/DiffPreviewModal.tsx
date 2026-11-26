@@ -1,6 +1,6 @@
 "use client";
 
-import { useContext, useId, useMemo, useState } from "react";
+import { useContext, useEffect, useId, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ChangeDiff, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
@@ -152,7 +152,15 @@ export default function DiffPreviewModal({
   const summary = useMemo(() => changeSummary(visibleChanges, allNames), [changeSummary, visibleChanges, allNames]);
   // FLF-411 #23: mục BE suy ra mà tài liệu đang xem không có (vd "5.5 Glossary" ở file không có mục đó) ⇒ không kể ra
   const impactSections = (preview.impact?.sections ?? []).filter((s) => !documentSections || documentSections.size === 0 || documentSections.has(s.id));
-  const referrerNames = Array.from(new Set((preview.impact?.referrers ?? []).map((r) => referrerLabel(r.path, allNames))));
+  const referrerNames = Array.from(
+    new Set((preview.impact?.referrers ?? []).filter((r) => { const p = parseElementPath(r.path); return !(p && isInternalCollection(p.collection)); }).map((r) => referrerLabel(r.path, allNames)))
+  );
+  // Esc đóng hộp kể cả khi focus chưa vào trong hộp (mở lên không tự focus)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && onCancel();
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCancel]);
   const unlinkedUseCases = useCasesWithoutFunction(preview.changes, { newUseCase: t("newUseCase"), useCase: t("useCase") });
   // Tài liệu đã ký baseline: `change.service` từ chối lô không có lý do (400). Hỏi ngay ở đây thay vì
   // để user bấm Xác nhận rồi ăn lỗi khó hiểu. Luồng CR (`confirmWhenInvalid`) không áp thẳng — lý do
@@ -183,9 +191,6 @@ export default function DiffPreviewModal({
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}
-        onKeyDown={(e) => {
-          if (e.key === "Escape") onCancel();
-        }}
         className="bg-white rounded-[20px] p-6 w-[640px] max-w-full max-h-[85vh] ff-scroll overflow-y-auto shadow-[0_30px_80px_rgba(0,0,0,0.3)] flex flex-col gap-4"
         onClick={(e) => e.stopPropagation()}
       >

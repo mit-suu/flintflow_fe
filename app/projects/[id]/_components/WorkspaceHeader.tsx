@@ -38,6 +38,8 @@ interface WorkspaceHeaderProps {
   /** Đang xem bước khác bước hiện tại ⇒ cho đường quay lại (L9). */
   onBackToCurrent?: () => void;
   onExportClick?: () => void;
+  /** Có tài liệu để xem / xuất. `false` (dự án tải SRS chưa có file) ⇒ ẩn cụm Xem & comment + Export: bấm vào không có gì. */
+  documentActions?: boolean;
   /** Mở / đóng panel "Trợ lý Google Docs" — không truyền ⇒ không có nút (thiếu client id Google, hoặc Viewer). */
   onDocsAssistantClick?: () => void;
   docsAssistantActive?: boolean;
@@ -88,6 +90,7 @@ export default function WorkspaceHeader({
   currentStep = null,
   onBackToCurrent,
   onExportClick,
+  documentActions = true,
   onDocsAssistantClick,
   docsAssistantActive = false,
   actions,
@@ -186,6 +189,7 @@ export default function WorkspaceHeader({
         )}
         {/* Thao tác phụ gom một nhóm nền xám (cùng kiểu cụm VI/EN): header hẹp thì chỉ còn icon, nằm trong khung chung nên
             không lơ lửng cạnh các nút có chữ */}
+        {documentActions && (
         <div role="group" aria-label={t("secondaryActions")} className="shrink-0 inline-flex items-center gap-0.5 rounded-full bg-surface-sidebar p-1">
           {/* UC-49: bản đọc + comment (Viewer góp ý trên baseline, Lead/Analyst xử lý) */}
           {project && (
@@ -228,6 +232,7 @@ export default function WorkspaceHeader({
             />
           )}
         </div>
+        )}
         {notificationBell}
         {/* Màn hẹp header đã chật: đổi ngôn ngữ vẫn có ở trang chủ / hồ sơ */}
         <LocaleSwitcher className="hidden sm:inline-flex shrink-0" />

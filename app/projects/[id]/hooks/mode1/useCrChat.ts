@@ -680,14 +680,15 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     prefill,
     setPrefill,
     /**
-     * FLF-318: bản xem trước thêm / xoá use case (vòng hỏi đáp như trước baseline) ⇒ "Tạo change request" mở thẻ chọn nguồn
-     * + người yêu cầu ngay trong chat, CR tạo ra kèm bản xem trước đó.
+     * "Tạo change request" từ một bản xem trước (thẻ chat hay hộp xem chi tiết) ⇒ mở thẻ chọn nguồn + người yêu cầu ngay trong
+     * chat, CR tạo ra kèm bản xem trước đó (FLF-318: lệnh thêm / xoá use case mang cả đoạn hỏi đáp làm mô tả).
+     * `previewId = null`: bản xem trước lỗi ⇒ CR đi từ câu lệnh.
      */
-    startFromPreview: (instruction: string, description: string, previewId: string) => {
+    startFromPreview: (instruction: string, description: string, previewId: string | null) => {
       setSent(null);
       setError(null);
       setPending(instruction.trim());
-      setPendingSeed({ previewId, description });
+      setPendingSeed(previewId ? { previewId, description } : null);
     },
     /** Đang chờ chọn nguồn cho một bản xem trước (thẻ trong chat nói rõ CR mang đúng các thay đổi đã xem). */
     pendingFromPreview: pendingSeed !== null,
@@ -802,6 +803,25 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
           })
         );
         await advance(d);
+      }),
+    /**
+     * "Giữ tất cả" hình gốc: ghi từng chỗ rồi chạy tiếp một lần (gọi `reject` lặp lại sẽ chạy tiếp sau mỗi chỗ). Một chỗ lỗi ⇒
+     * dừng, các chỗ đã ghi giữ nguyên, lỗi hiện như mọi thao tác khác.
+     */
+    rejectMany: (locs: readonly CrLocation[]) =>
+      void withCr(async (id) => {
+        let last: CrDetail | null = null;
+        for (const loc of locs) {
+          const d = await call("reject", () =>
+            patchLocation(projectId, id, loc.location_id, {
+              conclusion: "not_related",
+              reason: loc.found_by.includes("diagram") ? "Người yêu cầu giữ hình gốc của tài liệu" : "Người yêu cầu bỏ đề xuất này trong khung chat",
+            })
+          );
+          if (!d) return;
+          last = d;
+        }
+        if (last) await advance(last);
       }),
     /** C-4 "Vẫn làm": ghi ý định giữ yêu cầu, AI soạn lại theo đúng yêu cầu (BE soạn ngay trong request, tốn credit). */
     proceed: (loc: CrLocation) =>
