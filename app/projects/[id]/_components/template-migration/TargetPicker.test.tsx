@@ -135,4 +135,23 @@ describe("TargetPicker", () => {
     fireEvent.change(screen.getByLabelText("Bản của mẫu Mẫu ngân hàng"), { target: { value: "2" } });
     expect(screen.getByRole("button", { name: "Đổi sang mẫu Mẫu ngân hàng bản 2" })).toBeEnabled();
   });
+  it("đích mẫu chuẩn FlintFlow: bắt đầu bằng { kind: standard }, chọn ngôn ngữ thì kèm language", async () => {
+    const onStart = vi.fn();
+    renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={null} previous={null} onStart={onStart} />);
+    await radio();
+    expect(screen.queryByText(/FPT/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Đổi sang mẫu chuẩn" }));
+    expect(onStart).toHaveBeenLastCalledWith({ kind: "standard" });
+    fireEvent.change(screen.getByLabelText("Ngôn ngữ"), { target: { value: "en" } });
+    fireEvent.click(screen.getByRole("button", { name: "Đổi sang mẫu chuẩn" }));
+    expect(onStart).toHaveBeenLastCalledWith({ kind: "standard", language: "en" });
+  });
+
+  it("previous_standard ⇒ Quay về mẫu trước bắt đầu bằng { kind: standard }", async () => {
+    const onStart = vi.fn();
+    renderWithIntl(<TargetPicker orgId="o1" canPublish={false} busy={false} preselect={null} previous={null} previousStandard onStart={onStart} />);
+    await radio();
+    fireEvent.click(screen.getByRole("button", { name: "Quay về mẫu trước" }));
+    expect(onStart).toHaveBeenCalledWith({ kind: "standard" });
+  });
 });

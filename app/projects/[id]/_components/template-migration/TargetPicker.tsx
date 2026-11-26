@@ -22,6 +22,8 @@ interface TargetPickerProps {
   preselect: MigrationTargetQuery | null;
   /** Mẫu dự án đang theo trước lần đổi gần nhất — lối tắt "quay về". */
   previous: PreviousTemplate | null;
+  /** Mẫu trước của lần đổi gần nhất là mẫu chuẩn FlintFlow ⇒ "Quay về mẫu trước" bắt đầu bằng đích `standard`. */
+  previousStandard?: boolean;
   /** Mẫu + bản dự án đang theo — không cho chọn lại đúng bản đó (BE trả `409 TEMPLATE_MIGRATION_SAME_TEMPLATE`). */
   current?: Pick<TemplateCurrent, "template_id" | "version"> | null;
   onStart: (input: StartMigrationInput) => void;
@@ -50,7 +52,7 @@ interface Loaded {
  * Tổ chức có thể có hàng trăm mẫu ⇒ tìm kiếm + danh sách cuộn riêng, chọn **một** mẫu (một nút chính ở dưới, không phải mỗi dòng
  * một nút). Tải danh sách lỗi hoặc tổ chức chưa có mẫu ⇒ vẫn còn đường tải file.
  */
-export default function TargetPicker({ orgId, canPublish, busy, preselect, previous, current = null, onStart }: TargetPickerProps) {
+export default function TargetPicker({ orgId, canPublish, busy, preselect, previous, previousStandard = false, current = null, onStart }: TargetPickerProps) {
   const t = useTranslations("mode1.templateMigration.picker");
   const fileRef = useRef<HTMLInputElement>(null);
   const nameId = useId();
@@ -66,6 +68,9 @@ export default function TargetPicker({ orgId, canPublish, busy, preselect, previ
   const [name, setName] = useState("");
   /** Đăng thành bản mới của họ mẫu có sẵn (`""` = họ mẫu mới, cần tên). */
   const [familyId, setFamilyId] = useState("");
+  /** Ngôn ngữ của mẫu chuẩn FlintFlow; `""` = giữ ngôn ngữ tài liệu hiện tại. */
+  const [standardLanguage, setStandardLanguage] = useState<"" | "vi" | "en">("");
+  const standardLanguageId = useId();
 
   useEffect(() => {
     if (!orgId) return;
@@ -103,6 +108,16 @@ export default function TargetPicker({ orgId, canPublish, busy, preselect, previ
   return (
     <div className="flex flex-col gap-5">
       <p className="text-body text-on-surface-variant leading-relaxed">{t("intro")}</p>
+
+      {previousStandard && !previous && (
+        <div className="rounded-card bg-surface-container-low p-4 flex flex-wrap items-center gap-3">
+          <Icon name="history" size={18} className="shrink-0 text-on-surface-muted" />
+          <p className="flex-1 min-w-[200px] text-body text-on-surface leading-relaxed">{t("previousStandard")}</p>
+          <Button size="sm" variant="secondary" disabled={busy} onClick={() => onStart({ kind: "standard" })}>
+            {t("usePrevious")}
+          </Button>
+        </div>
+      )}
 
       {previous && (
         <div className="rounded-card bg-surface-container-low p-4 flex flex-wrap items-center gap-3">
@@ -220,6 +235,31 @@ export default function TargetPicker({ orgId, canPublish, busy, preselect, previ
             </Button>
           </div>
         )}
+      </section>
+
+      {/* Mẫu chuẩn FlintFlow: luôn có, không cần thư viện của tổ chức */}
+      <section className="flex flex-wrap items-center gap-3 rounded-card bg-surface-container-low p-4" aria-label={t("standardTitle")}>
+        <div className="flex-1 min-w-[200px] flex flex-col gap-0.5">
+          <h4 className="text-body font-extrabold text-on-surface">{t("standardTitle")}</h4>
+          <p className="text-caption text-on-surface-muted leading-relaxed">{t("standardHelp")}</p>
+        </div>
+        <label htmlFor={standardLanguageId} className="flex items-center gap-2 text-caption font-bold text-on-surface-medium">
+          {t("standardLanguage")}
+          <select
+            id={standardLanguageId}
+            value={standardLanguage}
+            disabled={busy}
+            onChange={(e) => setStandardLanguage(e.target.value as "" | "vi" | "en")}
+            className="h-8 rounded-control bg-surface-container-lowest px-2 text-caption font-bold text-on-surface outline-none focus:ring-2 focus:ring-primary/30"
+          >
+            <option value="">{t("standardLanguageKeep")}</option>
+            <option value="vi">{t("standardLanguageVi")}</option>
+            <option value="en">{t("standardLanguageEn")}</option>
+          </select>
+        </label>
+        <Button size="sm" variant="secondary" loading={busy} disabled={busy} onClick={() => onStart(standardLanguage ? { kind: "standard", language: standardLanguage } : { kind: "standard" })}>
+          {t("useStandard")}
+        </Button>
       </section>
 
       {/* Tải file là lối phụ: thu gọn để danh sách mẫu là thứ nhìn thấy trước */}

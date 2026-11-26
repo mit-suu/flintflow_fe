@@ -10,7 +10,7 @@ import { useDocument } from "../hooks/useDocument";
 import type { DocumentSource, TranslationStatus } from "@/types/document";
 import type { DocumentLanguage } from "@/types/project";
 import type { Baseline } from "@/types/spine";
-import { versionFileName } from "@/types/doc-version";
+import { projectCode, versionFileName } from "@/types/doc-version";
 import type { Flag } from "@/types/flags";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { hookErrorText } from "@/lib/hook-errors";
@@ -21,6 +21,7 @@ import { openMigrationMissing } from "./template-migration/missing-flags";
 interface ExportPanelProps {
   projectId: string;
   projectName?: string;
+  projectCode?: string;
   onClose: () => void;
     /** Cờ đang mở, cùng nguồn với Verification panel (BUG-26: hai nơi từng đếm ra hai số khác nhau). */
   flags?: Flag[];
@@ -74,6 +75,7 @@ const FORMAT_OPTIONS: ReadonlyArray<{ value: PanelFormat; label: string; extensi
 export default function ExportPanel({
   projectId,
   projectName,
+  projectCode: propProjectCode,
   onClose,
   flags,
   documentLanguage = null,
@@ -193,6 +195,7 @@ export default function ExportPanel({
       // (`_v0.1`, không gộp về `_v0`); bản baseline không có watermark DRAFT ⇒ tên không `_DRAFT` (`FAP_v0.1.docx`)
       const fallbackName = versionFileName({
         name: projectName ?? t("untitled"),
+        code: propProjectCode ?? projectCode(projectId),
         release: source === "baseline",
         base: baselineVersion ?? null,
         ext: format === "pdf" ? "pdf" : "docx",

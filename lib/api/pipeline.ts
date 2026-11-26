@@ -12,6 +12,8 @@ import type {
   StepEvent,
   StepsResponse,
   RunEstimate,
+  RunEstimateAck,
+  CreditAckScope,
   VersionResponse,
 } from "@/types/pipeline";
 import { streamSse, type SseHandlers } from "../ai-stream";
@@ -75,13 +77,17 @@ export const getRunState = (projectId: string, stepId: string) =>
  * Ước tính credit cho lượt chạy liền sắp tới (FLF-332): `scope: "all"` từ bước `from` tới hết pipeline (sau Approve Brief),
  * `"unit"` chỉ đơn vị giai đoạn của bước đó. Không giữ credit, không gọi AI.
  */
-export const getRunEstimate = (projectId: string, query: { scope?: "unit" | "all"; from?: string } = {}) => {
+export const getRunEstimate = (projectId: string, query: { scope?: "unit" | "all"; from?: string; scope_kind?: CreditAckScope } = {}) => {
   const params = new URLSearchParams();
   if (query.scope) params.set("scope", query.scope);
   if (query.from) params.set("from", query.from);
+  if (query.scope_kind) params.set("scope_kind", query.scope_kind);
   const qs = params.toString();
   return apiCall<RunEstimate>(`/projects/${projectId}/run-estimate${qs ? `?${qs}` : ""}`);
 };
+
+/** FLF-466: xác nhận lần báo credit đang chờ (sau Approve Brief, chốt danh sách màn, thêm màn); gỡ chặn `409 CREDIT_ACK_REQUIRED`. */
+export const ackRunEstimate = (projectId: string) => apiCall<RunEstimateAck>(`/projects/${projectId}/run-estimate/ack`, { method: "POST" });
 
 /** Lượt chạy còn sống của dự án — khôi phục pill "đang chạy nền" khi mở lại trang. */
 export const getActiveRunState = (projectId: string) => apiCall<RunState | null>(`/projects/${projectId}/run-state/active`);

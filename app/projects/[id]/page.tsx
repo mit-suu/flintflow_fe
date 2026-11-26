@@ -66,7 +66,7 @@ import ProjectActionDialogs from "@/components/project/ProjectActionDialogs";
 import { resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
-import { getRunEstimate, submitGate } from "@/lib/api/pipeline";
+import { ackRunEstimate, getRunEstimate, submitGate } from "@/lib/api/pipeline";
 import { estimateActionCost } from "@/lib/api/chat";
 import { fetchBalance } from "@/lib/api/billing";
 import { isAiErrorCode } from "@/lib/ai-error-codes";
@@ -784,6 +784,43 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     recordStepStat(stepId, { duration_ms: payload.duration_ms, credits: payload.credits_used ?? 0 });
   }, []);
 
+  /**
+   * FLF-466: thẻ credit theo lần báo BE đang chờ (`ack_required`, lưu ở BE nên reload vẫn có). Không có gì chờ ⇒ `true` ngay.
+   * Bấm Chạy ⇒ xác nhận với BE rồi chạy tiếp; Huỷ ⇒ `false`, không trừ credit, tiến độ giữ nguyên. Sau Approve Brief số màn
+   * mới là dải ước tính (số chốt có ở bước chốt danh sách màn).
+   */
+  const confirmCreditAck = useCallback(async (): Promise<boolean> => {
+    const est = await getRunEstimate(projectId)
+      .then((r) => r.data)
+      .catch(() => null);
+    const ack = est?.ack_required;
+    if (!est || !ack) return true;
+    const range = est.screen_range;
+    const min = est.credits_min ?? est.credits_total;
+    const max = est.credits_max ?? est.credits_total;
+    const hasRange = est.units.some((u) => u.screens);
+    const ok = await confirmCredits({
+      title: t(`creditGate.scope.${ack.scope}`),
+      lines: est.units.map((u) =>
+        u.screens
+          ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
+          : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
+      ),
+      total: min,
+      totalMax: max,
+      available: est.available_credits,
+      notes: hasRange ? [t("creditGate.screenRangeNote")] : undefined,
+      ...(range && range.max > 0 ? { note: t("creditGate.screenRange", { min: range.min, max: range.max, creditsMin: range.credits_min, creditsMax: range.credits_max }) } : {}),
+    });
+    if (!ok) return false;
+    try {
+      await ackRunEstimate(projectId);
+      return true;
+    } catch {
+      return false;
+    }
+  }, [projectId, confirmCredits, t]);
+
   /** FLF-489: vừa duyệt xong bước chạy lại, quy trình dừng ở bước tới lượt — thẻ "Tiếp tục: <bước>" */
   const [afterRerun, setAfterRerun] = useState<{ done: string; next: string } | null>(null);
 
@@ -804,33 +841,10 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     onTranscriptChanged: () => {
       if (ws.activeSession?._id) void ws.reloadActiveSession(ws.activeSession._id);
     },
-    // FLF-332: sau Approve Brief (B-2 → S-1) là lượt soạn hàng loạt cả SRS ⇒ chốt con số trước khi soạn (cổng cứng §1.2)
-    beforePhaseRun: async (next, from) => {
-      if (!(from?.startsWith("B-") && next.startsWith("S-"))) return true;
-      const est = await getRunEstimate(projectId, { scope: "all", from: next })
-        .then((r) => r.data)
-        .catch(() => null);
-      // FLF-485 lát E: gọi ước tính lỗi thì vẫn hiện thẻ (không chạy lặng lẽ); tổng 0 thật thì chạy luôn
-      if (est && est.credits_total <= 0) return true;
-      if (!est) {
-        return confirmCredits({ title: t("creditGate.pipelineTitle"), lines: [], total: 0, totalUnknown: true, available: null, notes: [t("creditGate.estimateFailed")] });
-      }
-      const min = est.credits_min ?? est.credits_total;
-      const max = est.credits_max ?? est.credits_total;
-      const hasRange = est.units.some((u) => u.screens);
-      return confirmCredits({
-        title: t("creditGate.pipelineTitle"),
-        lines: est.units.map((u) =>
-          u.screens
-            ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
-            : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
-        ),
-        total: min,
-        totalMax: max,
-        available: est.available_credits,
-        notes: hasRange ? [t("creditGate.screenRangeNote")] : undefined,
-      });
-    },
+    // FLF-466: BE quyết lần báo credit (sau Approve Brief, sau chốt danh sách màn, sau thêm màn) và lưu `ack_required`;
+    // FE chỉ hiện thẻ khi BE đang chờ xác nhận, không tự suy theo ranh giới giai đoạn
+    beforePhaseRun: () => confirmCreditAck(),
+    onCreditAckRequired: () => confirmCreditAck(),
   });
 
   // Lớp 5: tới lượt user mà tab đang ẩn thì đổi tiêu đề tab (và báo, nếu user đã cho phép)
@@ -853,6 +867,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
 
   const spine = spineState.spine;
+  // FLF-466: reload / mở lại trang giữa lúc BE còn chờ xác nhận credit ⇒ hiện lại thẻ (lần báo lưu ở BE), không âm thầm bỏ
+  const creditAckPending = !!spine?.progress.credit_ack_required;
+  const ackPromptedRef = useRef(false);
+  useEffect(() => {
+    if (!ws.ready || mode1 || !creditAckPending || ackPromptedRef.current) return;
+    ackPromptedRef.current = true;
+    void confirmCreditAck();
+  }, [ws.ready, mode1, creditAckPending, confirmCreditAck]);
   // P06: nhãn bước vòng S-5 dùng tên màn ("Hàng đợi màn · Book Appointment"), nạp trước khi thành phần con dựng nhãn
   const screenNames = useMemo(() => new Map((spine?.screens ?? []).map((sc) => [sc.id, sc.name] as const)), [spine?.screens]);
   setStepScreenNames(screenNames);
@@ -2302,6 +2324,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               <ProjectDocumentsButton
                 projectId={projectId}
                 projectName={ws.project?.name}
+                projectCode={ws.project?.project_code}
                 mode1={mode1}
                 refreshToken={ws.documentsVersion}
                 creditConfirm={creditGate.pending ? { ...creditGate.pending, onRun: creditGate.run, onCancel: creditGate.cancel } : null}
@@ -2817,10 +2840,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   <Mode1VersionsMenu
                     projectId={projectId}
                     projectName={ws.project?.name}
+                    projectCode={ws.project?.project_code}
                     documentLanguage={documentLanguage}
                     onClose={close}
                     onTranslate={
-                      canEdit && ws.project?.converted_from === "fpt"
+                      canEdit
                         ? (locale, version) => {
                             close();
                             setTranslateStatus(undefined);
@@ -3068,6 +3092,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <ExportPanel
           projectId={projectId}
           projectName={documentName}
+          projectCode={ws.project?.project_code}
           flags={flags}
           onClose={() => setExportOpen(false)}
           documentLanguage={documentLanguage}
@@ -3104,8 +3129,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         />
       )}
 
-      {/* FLF-334 B: dự án chuyển từ mode 2 cũng mở được hộp dịch (dịch nốt để tải version bằng ngôn ngữ khác) */}
-      {(!mode1 || ws.project?.converted_from === "fpt") && canEdit && (
+      {/* FLF-334 B / FLF-466: dự án Mode 1 / Mode 2 đều mở được hộp dịch (dịch nốt để tải version bằng ngôn ngữ khác) */}
+      {canEdit && (
         <TranslateDialog
           projectId={projectId}
           open={translateOpen}

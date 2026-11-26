@@ -33,3 +33,17 @@ if (typeof Element !== "undefined" && !Element.prototype.scrollIntoView) {
 afterEach(() => {
   cleanup();
 });
+
+/**
+ * Node 24 + jsdom: `FormData`/`File`/`Blob` toàn cục là bản của jsdom, còn `fetch` (undici, MSW bọc) chỉ hiểu bản gốc
+ * của Node ⇒ `request.formData()` trong handler nổ assert `webidl.is.File`. Lấy lại bản gốc từ `Response`/`node:buffer`
+ * để upload multipart trong test đi qua đúng đường fetch thật. Test chạy `node` không bị ảnh hưởng.
+ */
+if (typeof document !== "undefined") {
+  const probe = await new Response("a=b", { headers: { "content-type": "application/x-www-form-urlencoded" } }).formData();
+  const NativeFormData = probe.constructor as typeof FormData;
+  const buffer = await import("node:buffer");
+  globalThis.FormData = NativeFormData;
+  globalThis.File = buffer.File as unknown as typeof File;
+  globalThis.Blob = buffer.Blob as unknown as typeof Blob;
+}

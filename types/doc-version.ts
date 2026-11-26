@@ -5,7 +5,18 @@
 import type { BlockDiffEntry, BlockDiffSummary, DiffSectionStat } from "./import";
 import type { Baseline, IsoDateTime } from "./spine";
 
-export type DocVersionKind = "imported" | "cr_revision" | "release";
+export type DocVersionKind = "imported" | "cr_revision" | "release" | "system_change";
+
+/** FLF-466: loại thay đổi hệ thống (đổi mẫu / hoàn tác đổi mẫu / vẽ lại bằng mockup hoặc dùng ảnh gốc) — bám BE `SYSTEM_CHANGE_TYPES`. */
+export type SystemChangeType = "template_migration" | "template_revert" | "screen_mockup";
+
+export interface SystemChangeInfo {
+  type: SystemChangeType;
+  ref: string;
+  summary: string;
+}
+
+export type TrackedUnavailableReason = "template_translated" | "build_failed";
 
 export interface DocVersion {
   version: string;
@@ -13,9 +24,13 @@ export interface DocVersion {
   based_on: string | null;
   cr_ids: string[];
   baseline_id: string | null;
+  /** FLF-466: chỉ `kind = system_change`; version khác ⇒ `null`. */
+  system_change?: SystemChangeInfo | null;
   has_clean_file: boolean;
   /** Mode 1 v3 (BPMN 3.14): có bản Track Changes của CR — tải qua `variant=tracked`. */
   has_tracked_file: boolean;
+  /** Bản phát hành không có bản Track Changes: `template_translated` (đổi mẫu kèm dịch), `build_failed` (dựng lỗi). Vắng / `null` = không có lý do. */
+  tracked_unavailable_reason?: TrackedUnavailableReason | null;
   /** Có file gốc người dùng upload (bản import 0.1 — FLF-184), tải qua `variant=original`. */
   has_original_file: boolean;
   /**
@@ -23,6 +38,8 @@ export interface DocVersion {
    * `false` ⇒ ẩn lựa chọn ngôn ngữ.
    */
   other_language_available: boolean;
+  /** FLF-466: mã dự án ngắn cố định BE sinh — ưu tiên ghép tên file tải về thay cho hậu tố id FE tự cắt. */
+  project_code?: string;
   created_by: string;
   created_at: IsoDateTime;
 }
@@ -55,6 +72,17 @@ export interface ReviewPackageCr {
   written_at: IsoDateTime;
 }
 
+/** FLF-466: mỗi thay đổi hệ thống một dòng riêng trong gói (không phải CR). */
+export interface ReviewPackageSystemChange {
+  /** Số phụ của bản nháp chứa thay đổi này (1.3). */
+  version: string;
+  type: SystemChangeType;
+  ref: string;
+  summary: string;
+  created_by: string;
+  created_at: IsoDateTime;
+}
+
 export interface ReviewPackageSubmission {
   status: "pending" | "rejected";
   submitted_by: string;
@@ -82,6 +110,10 @@ export interface ReviewPackage {
   /** "1.0 · 3 thay đổi chưa duyệt" — chỉ số chính, không số phụ (business-flow §2). */
   draft_label: string;
   change_requests: ReviewPackageCr[];
+  /** FLF-466: thay đổi hệ thống kể từ lần phát hành trước. Vắng ở BE cũ ⇒ coi như rỗng. */
+  system_changes?: ReviewPackageSystemChange[];
+  /** Báo trước khi duyệt: bản phát hành sắp tới sẽ không có Track Changes (đổi mẫu kèm dịch). */
+  tracked_unavailable_reason?: "template_translated" | null;
   red_open: number;
   /** FLF-492: credit ước tính cho tuỳ chọn "AI viết gọn" mô tả dòng CR khi phát hành; BE cũ không trả ⇒ coi như 0. */
   concise_record_credits?: number;
@@ -133,19 +165,28 @@ export interface VersionFileNameParts {
   /** FLF-334 B: chỉ truyền khi khác ngôn ngữ tài liệu ⇒ hậu tố `_EN` / `_VI` cuối tên. */
   language?: string | null;
   ext?: "docx" | "pdf";
+  /** FLF-466: mã dự án ngắn (`P77049B`) chèn sau tên. */
+  code?: string | null;
+  /** FLF-466: `base` là số của chính file (`1.3`) ⇒ không mã CR, không `_DRAFT`. */
+  numbered?: boolean;
 }
+
+/** FLF-466: mã dự án ngắn = `P` + 6 ký tự cuối của id, viết hoa — bản sao `projectCode` BE. */
+export const projectCode = (projectId: string): string => `P${String(projectId).slice(-6).toUpperCase()}`;
 
 /**
  * Tên file tải về — bản sao `versionFileName` BE (FLF-334), chỉ dùng khi BE không gửi `Content-Disposition`:
- * `Lumen_v2.0.docx` · `Lumen_v1.0+CR-014_DRAFT.docx` · `Lumen_v0.1_DRAFT.docx` · `Lumen_DRAFT.docx` · `…_tracked_DRAFT` · `…_original`.
+ * Có `code` (FLF-466): `Lumen_P77049B_v2.0.docx` · `Lumen_P77049B_v1.3.docx` (`numbered`) · `Lumen_P77049B_DRAFT.docx`.
+ * Không `code`: `Lumen_v2.0.docx` · `Lumen_v1.0+CR-014_DRAFT.docx` · `Lumen_v0.1_DRAFT.docx` · `Lumen_DRAFT.docx` · `…_tracked_DRAFT` · `…_original`.
  */
 export const versionFileName = (parts: VersionFileNameParts): string => {
   const base = parts.base ? sanitizeFileBase(parts.base.trim().replace(/^v/i, "")) : null;
-  const cr = !parts.release && base && parts.latestCr ? `+${sanitizeFileBase(parts.latestCr)}` : "";
+  const cr = !parts.numbered && !parts.release && base && parts.latestCr ? `+${sanitizeFileBase(parts.latestCr)}` : "";
   const label = base ? `_v${base}${cr}` : "";
-  const tail = parts.original ? "_original" : parts.release ? "" : "_DRAFT";
+  const tail = parts.original ? "_original" : parts.release || (parts.numbered && base) ? "" : "_DRAFT";
+  const code = parts.code ? `_${sanitizeFileBase(parts.code)}` : "";
   const language = parts.language ? `_${sanitizeFileBase(parts.language).toUpperCase()}` : "";
-  return `${sanitizeFileBase(parts.name)}${label}${parts.tracked ? "_tracked" : ""}${tail}${language}.${parts.ext ?? "docx"}`;
+  return `${sanitizeFileBase(parts.name)}${code}${label}${parts.tracked ? "_tracked" : ""}${tail}${language}.${parts.ext ?? "docx"}`;
 };
 
 /**

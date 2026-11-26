@@ -477,7 +477,7 @@ export type DiffBlockKind = "paragraph" | "table" | "image" | "heading";
 
 /** Một hàng của bảng trong diff theo hàng; hàng không đổi liền nhau gộp `unchanged` (FE vẽ `⋯ n hàng`). */
 export type TableRowDiff =
-  | { change: BlockChange; before?: string[]; after?: string[]; cells_changed?: number[] }
+  | { change: Exclude<BlockChange, "moved">; before?: string[]; after?: string[]; cells_changed?: number[] }
   | { change: "unchanged"; count: number; rows: string[][] };
 
 export interface TableDiff {

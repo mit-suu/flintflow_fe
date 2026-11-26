@@ -66,4 +66,17 @@ describe("VersionDiffView", () => {
     renderWithIntl(<VersionDiffView entries={[]} fromLabel="0.4" toLabel="1.0" />);
     expect(screen.getByText("Không có khác biệt.")).toBeInTheDocument();
   });
+
+  it("FLF-466 P11: bảng không còn hàng 'moved', không hiện ký hiệu ↕", () => {
+    const tableEntry: BlockDiffEntry = {
+      block_id: null,
+      change: "modified",
+      kind: "table",
+      section: "2 Thuật ngữ",
+      table: { header: ["Term", "Meaning"], rows: [{ change: "unchanged", count: 2, rows: [["Cart", "Items"], ["Order", "Buy"]] }, { change: "modified", before: ["Shop", "Seller"], after: ["Shop", "Seller page"], cells_changed: [1] }] },
+    };
+    renderWithIntl(<VersionDiffView entries={[tableEntry]} fromLabel="0.4" toLabel="1.0" />);
+    expect(screen.queryByText("↕")).not.toBeInTheDocument();
+    expect(screen.getByText("~")).toBeInTheDocument();
+  });
 });

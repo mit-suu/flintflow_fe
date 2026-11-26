@@ -839,14 +839,14 @@ export function useCrChat(projectId: string, enabled = true, onWritten?: (crId: 
     submit: () =>
       void withCr(async (id, before) => {
         const d = await call("submit", () => runCrAction(projectId, id, "submit"));
-        if (d && (d.change_request.status === "written" || d.change_request.status === "in_review")) {
+        if (d && (d.change_request.status === "written" || d.change_request.status === "released" || d.change_request.status === "in_review")) {
           writeStore(storageKey(projectId, id, "accepted"), null);
           writeStore(storageKey(projectId, id, "impact"), null);
           setSent(id);
           setDetail(null);
           setRedraftFor(null);
           // Cờ của nhóm chỉ đóng khi CR thật sự ghi vào bản nháp (`in_review` cũ chưa ghi gì)
-          onWrittenRef.current?.(id, d.change_request.status === "written" ? (before.change_request.flag_ids ?? []) : []);
+          onWrittenRef.current?.(id, d.change_request.status !== "in_review" ? (before.change_request.flag_ids ?? []) : []);
         } else if (d && d.change_request.status === "manual_fix") {
           // Kiểm lại lúc xác nhận thấy lỗi mới => chưa ghi gì; không báo thành công, chỉ ra chỗ phải xử lý
           setError(t("submitManual"));

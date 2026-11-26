@@ -1491,8 +1491,8 @@
       "templateProposal": {
         "cardTitle": "Lưu cấu trúc này thành mẫu của tổ chức?",
         "cardBody": "Cấu trúc của bản baseline này (heading, cột bảng, chữ hướng dẫn) có thể thành mẫu cho cả tổ chức. Nội dung không bao giờ được lưu, và mọi tên riêng dưới đây đã được thay.",
-        "replacedTitle": "{count} heading đã đổi",
-        "noReplaced": "Không thấy tên riêng nào trong các heading.",
+        "replacedTitle": "{count} mục đã đổi",
+        "noReplaced": "Không thấy tên riêng nào trong mẫu này.",
         "dropped": "Bỏ khỏi mẫu",
         "droppedReason": "Bỏ khỏi mẫu: {reason}",
         "showStructure": "Xem cấu trúc ({count} heading)",
@@ -1503,6 +1503,16 @@
         "sentNotice": "Đã gửi cấu trúc này cho Lead duyệt.",
         "savedNotice": "Đã lưu vào thư viện mẫu. Dự án này giờ theo mẫu đó.",
         "declinedNotice": "Đã không lưu. Cấu trúc này sẽ không được đề xuất lại.",
+        "chatLabel": "Muốn sửa gì ở đề xuất này?",
+        "chatPlaceholder": "Ví dụ: giữ lại mục “Phụ lục kỹ thuật”, đổi “Quy trình của công ty A” thành chỗ trống",
+        "chatCost": "Mỗi lần sửa dùng credit AI.",
+        "chatSend": "Gửi yêu cầu sửa",
+        "chatFailed": "Chưa sửa được đề xuất. Đề xuất giữ nguyên, vui lòng thử lại.",
+        "replacedKind": {
+          "heading": "Tiêu đề mục",
+          "guidance": "Chữ hướng dẫn",
+          "column": "Tiêu đề cột"
+        },
         "actionFailed": "Chưa làm được việc này. Vui lòng thử lại.",
         "saveStructureTitle": "Lưu cấu trúc thành mẫu",
         "saveStructureBody": "Biến cấu trúc của bản mới nhất thành mẫu của tổ chức. Tên riêng được thay trước, việc này dùng credit AI.",
@@ -1647,6 +1657,8 @@
       "incomplete": "chưa soạn",
       "commentsLoadFailed": "Không tải được comment",
       "draftLabel": "nháp",
+      "noReleaseTitle": "Chưa có bản phát hành",
+      "noReleaseBody": "Dự án chưa có bản phát hành nào. Bản nháp chỉ dành cho người soạn; bạn sẽ thấy tài liệu ngay khi có bản được phát hành.",
       "viewerPickBaseline": "Viewer chỉ comment được trên phiên bản đã phát hành - chọn một bản baseline ở trên.",
       "viewerNoBaseline": "Viewer chỉ comment được trên phiên bản đã phát hành - dự án chưa có bản nào.",
       "downloadFailed": "Tải file thất bại",
@@ -1662,6 +1674,8 @@
       "baselineOption": "Bản {version}",
       "downloading": "Đang tải…",
       "download": "Tải bản {version} (.docx)",
+      "googleDocs": "Xuất Google Docs",
+      "googleDocsTitle": "Xuất bản này lên Google Docs",
       "backToProjects": "Về danh sách dự án",
       "backToWorkspace": "Về không gian làm việc",
       "retry": "Thử lại",
@@ -2905,6 +2919,12 @@
       "running": "Đang chạy…",
       "cancel": "Huỷ",
       "pipelineTitle": "Soạn phần còn lại của SRS",
+      "scope": {
+        "after_brief": "Soạn phần còn lại của SRS sau khi chốt Brief",
+        "screens_locked": "Soạn chi tiết các màn đã chốt",
+        "screens_added": "Soạn chi tiết các màn mới thêm"
+      },
+      "screenRange": "Phần màn là ước tính: khoảng {min} đến {max} màn, ~{creditsMin} đến ~{creditsMax} credit. Số chính xác sẽ báo khi chốt danh sách màn.",
       "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
       "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}",
       "pdfNote": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx.",
@@ -3716,6 +3736,18 @@
     "TRANSLATION_INCOMPLETE_COUNT_ONE": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "TRANSLATION_INCOMPLETE_COUNT": "Tài liệu còn {missing} mục chưa dịch sang ngôn ngữ này nên chưa tải được. Hãy dịch nốt rồi tải lại.",
     "DOCUMENT_LANGUAGE_UNAVAILABLE": "Bản này chưa tải được bằng ngôn ngữ khác - chỉ tải được theo ngôn ngữ tài liệu của dự án.",
+    "SNAPSHOT_UNAVAILABLE": "Bản này không có ảnh chụp nội dung để dựng lại ở ngôn ngữ khác.",
+    "PACKAGE_CHANGED_AFTER_SUBMIT": "Nội dung tài liệu đã thay đổi sau khi gửi duyệt gói. Hãy gửi lại gói cho Lead.",
+    "DOC_VERSION_BUSY": "Đang có lượt ghi phiên bản khác. Vui lòng đợi một lát rồi thử lại.",
+    "CREDIT_ACK_REQUIRED": "Cần xác nhận credit dự tính trước khi chạy tiếp các bước còn lại.",
+    "NO_CREDIT_ACK_PENDING": "Không có yêu cầu xác nhận credit nào đang chờ.",
+    "TEMPLATE_PROPOSAL_AI_UNAVAILABLE": "Dịch vụ AI tạm thời không khả dụng để sửa đề xuất mẫu. Thử lại sau.",
+    "TEMPLATE_PROPOSAL_NOT_FOUND": "Không tìm thấy đề xuất mẫu này.",
+    "TEMPLATE_PROPOSAL_CONFLICT": "Đề xuất mẫu vừa thay đổi ở phiên khác. Vui lòng tải lại trang.",
+    "TEMPLATE_PROPOSAL_UNAVAILABLE": "Đề xuất mẫu này không còn khả dụng.",
+    "VIEWER_NO_STABLE_VERSION": "Dự án chưa có bản phát hành nào để xem.",
+    "PACKAGE_EMPTY": "Chưa có thay đổi nào được ghi vào bản nháp kể từ lần phát hành trước.",
+    "PACKAGE_ALREADY_SUBMITTED": "Gói thay đổi đang chờ Lead duyệt - không gửi lại được.",
     "NOTHING_TO_UNDO": "Không còn thay đổi nào để hoàn tác.",
     "BASELINE_BLOCKED": "Còn cờ đỏ chưa xử lý - chưa thể ghi baseline.",
     "BASELINE_ALREADY_SUBMITTED": "Tài liệu đang chờ Lead duyệt - không gửi lại được.",
@@ -4359,6 +4391,8 @@
       "reviewText": "Change request theo luồng cũ: duyệt hoặc từ chối từng nhóm. Khi nhóm cuối được quyết mà có nhóm được duyệt ⇒ thay đổi được ghi vào bản nháp.",
       "writtenText": "Đã ghi vào bản nháp (bản {version}) - tải bản có đánh dấu (Track Changes + comment, tác giả {crId}) ở mục Version; gửi Lead duyệt cả gói ở mục Gói thay đổi.",
       "writtenNewText": "Đã ghi vào bản mới - tải bản có đánh dấu (Track Changes + comment, tác giả {crId}) ở mục Version.",
+      "releasedText": "Đã phát hành trong bản chính thức (bản {version}) - tải bản sạch hoặc bản có đánh dấu (tác giả {crId}) ở mục Version.",
+      "releasedNewText": "Đã phát hành trong bản chính thức - tải bản sạch hoặc bản có đánh dấu (tác giả {crId}) ở mục Version.",
       "viewDoc": "Xem tài liệu",
       "closedText": "{status}.",
       "closedReasonText": "{status} - {reason}.",
@@ -4650,6 +4684,7 @@
         "ready_to_submit": "Sẵn sàng nộp",
         "in_review": "Chờ duyệt (luồng cũ)",
         "written": "Đã ghi vào bản nháp",
+        "released": "Đã phát hành",
         "rejected": "Đã đóng (từ chối)",
         "cancelled": "Đã huỷ"
       },
@@ -4682,7 +4717,8 @@
         "imported": "Bản import",
         "cr_revision": "Bản nháp sau CR",
         "release": "Bản release",
-        "signed_baseline": "Bản baseline đã ký"
+        "signed_baseline": "Bản baseline đã ký",
+        "system_change": "Thay đổi hệ thống"
       },
       "blockKind": {
         "heading": "Tiêu đề",
@@ -5106,9 +5142,21 @@
       "actionFailed": "Thao tác không thành công",
       "lockedNote": "Gói đang chờ Lead duyệt - bản nháp tạm khoá: chưa tạo hay xác nhận change request mới được cho tới khi Lead duyệt cả gói hoặc yêu cầu sửa.",
       "changesRequestedNote": "Lead yêu cầu sửa: “{reason}”. Sửa qua change request mới (hoàn tác cũng là một change request) rồi gửi lại.",
+      "systemChanges": {
+        "title": "Thay đổi hệ thống",
+        "aria": "Thay đổi hệ thống trong gói",
+        "type": {
+          "template_migration": "Đổi mẫu",
+          "template_revert": "Hoàn tác đổi mẫu",
+          "screen_mockup": "Vẽ lại màn"
+        }
+      },
+      "trackedUnavailable": {
+        "template_translated": "Bản phát hành này sẽ không có bản Track Changes vì gói có đổi mẫu kèm dịch."
+      },
       "listAria": "Change request trong gói",
       "empty": "Chưa có thay đổi nào ghi vào bản nháp kể từ lần phát hành trước. Mỗi change request BA xác nhận sẽ vào gói này.",
-      "blockedEmpty": "Chưa có change request nào để gửi duyệt.",
+      "blockedEmpty": "Chưa có thay đổi nào để gửi duyệt.",
       "blockedRed": "Còn {count} cờ đỏ - xử lý qua change request trước khi gửi Lead duyệt.",
       "submit": "Gửi Lead duyệt cả gói",
       "resubmit": "Gửi lại cho Lead",
@@ -5266,12 +5314,17 @@
       "downloadOriginalFile": "Tải file gốc",
       "trackedTitle": "Track Changes + comment so với bản {base}, tác giả {authors}",
       "trackedTitlePrevious": "Track Changes + comment so với bản trước, tác giả {authors}",
+      "trackedTitleSystem": "Track Changes so với bản {base}",
       "downloadTracked": "Tải bản có đánh dấu",
+      "trackedUnavailable": {
+        "template_translated": "Không có bản Track Changes: bản này có đổi mẫu kèm dịch nên không so sánh từng chỗ sửa được.",
+        "build_failed": "Chưa dựng được bản Track Changes cho bản này."
+      },
       "downloadPdf": "Tải PDF",
       "creatingPdf": "Đang tạo PDF…",
       "downloadPdfTitle": "Chính bản Word này chuyển sang PDF",
       "downloadInLanguage": "Tải bản {language}",
-      "downloadInLanguageTitle": "Dựng lại bản đã chốt này bằng {language} (Word)",
+      "downloadInLanguageTitle": "Dựng lại bản này bằng {language} (Word)",
       "translationIncomplete": "Còn {count} mục chưa dịch sang {language} nên chưa tải được bản này.",
       "translateRest": "Dịch nốt",
       "translateAskEditor": "Nhờ Lead hoặc Analyst của dự án dịch nốt phần còn lại rồi tải lại."
@@ -5297,8 +5350,7 @@
       "row": {
         "added": "Hàng thêm",
         "removed": "Hàng xoá",
-        "modified": "Hàng sửa",
-        "moved": "Hàng đổi chỗ"
+        "modified": "Hàng sửa"
       }
     },
     "referenceDocs": {
@@ -5454,6 +5506,14 @@
         "familyLabel": "Đăng vào",
         "familyNew": "Mẫu mới trong thư viện",
         "familyNext": "Bản mới của {name}",
+        "previousStandard": "Quay về mẫu chuẩn FlintFlow dùng trước lần đổi gần nhất. Mục chưa sửa trở lại nguyên bản, mục đã sửa bạn chọn giữ hay bỏ.",
+        "standardTitle": "Mẫu chuẩn FlintFlow",
+        "standardHelp": "Chuyển tài liệu sang khung mẫu chuẩn của FlintFlow, không cần chọn mẫu của tổ chức.",
+        "standardLanguage": "Ngôn ngữ",
+        "standardLanguageKeep": "Giữ ngôn ngữ hiện tại",
+        "standardLanguageVi": "Tiếng Việt",
+        "standardLanguageEn": "Tiếng Anh",
+        "useStandard": "Đổi sang mẫu chuẩn",
         "previousPrivate": "Quay về mẫu {name} (bản {version}): bản riêng của dự án, lưu từ file mẫu dự án dùng trước lần đổi gần nhất. Mục chưa sửa trở lại nguyên bản, mục đã sửa bạn chọn giữ hay bỏ."
       },
       "choices": {
@@ -5575,7 +5635,7 @@
           "vi": "tiếng Việt",
           "en": "tiếng Anh"
         },
-        "languageChange": "Nội dung sẽ được dịch từ {from} sang {to}. Version đã phát hành giữ ngôn ngữ cũ.",
+        "languageChange": "Nội dung sẽ được dịch từ {from} sang {to} và ghi đè vào tài liệu hiện tại (hoàn tác được). Version đã phát hành giữ ngôn ngữ cũ.",
         "languageChangeNoTranslation": "Ngôn ngữ tài liệu đổi từ {from} sang {to}, không dịch lại nội dung.",
         "linksNote": "Bỏ sửa có thể làm gãy liên kết; hệ thống kiểm trước khi ghi.",
         "linksBroken": "Chưa áp dụng được vì liên kết giữa các mục sẽ bị gãy:",

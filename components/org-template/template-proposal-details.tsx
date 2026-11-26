@@ -21,6 +21,7 @@ export default function TemplateProposalDetails({ proposal, headingsOpen = false
           <ul className="flex flex-col gap-1">
             {proposal.replaced_names.map((r) => (
               <li key={r.key} className="rounded-control bg-surface-container-lowest px-3 py-2 text-body text-on-surface">
+                {r.kind && r.kind !== "heading" && <span className="mr-1.5 text-caption font-bold text-on-surface-muted">{t(`replacedKind.${r.kind}`)}</span>}
                 <span className="text-on-surface-muted line-through">{r.original}</span>
                 {r.generic !== null ? (
                   <span>

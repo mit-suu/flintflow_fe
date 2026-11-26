@@ -110,6 +110,7 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
           busy={m.busy === "start"}
           preselect={preselect}
           previous={m.latestApplied?.previous_template ?? null}
+          previousStandard={m.latestApplied?.previous_standard === true}
           current={currentTemplate}
           onStart={(input) => void afterChange(() => m.start(input))}
         />

@@ -396,6 +396,11 @@ export interface UseStepRunnerOptions {
    * không chạy tiếp, tiến độ giữ nguyên (người dùng chạy lại từ chat khi muốn). Không hỏi khi chạy tiếp trong cùng đơn vị.
    */
   beforePhaseRun?: (next: string, from: string | null) => Promise<boolean>;
+  /**
+   * FLF-466: BE chặn `409 CREDIT_ACK_REQUIRED` (sau Approve Brief, sau chốt danh sách màn, sau thêm màn) ⇒ hiện thẻ credit rồi
+   * xác nhận với BE. Trả `true` ⇒ chạy lại đúng lượt vừa bị chặn; `false` ⇒ dừng, tiến độ giữ nguyên (không báo lỗi).
+   */
+  onCreditAckRequired?: () => Promise<boolean>;
   /** BF §3.2: userId người đang mở trang — để biết câu hỏi đang chờ có phải của mình không. */
   myUserId?: string | null;
 }
@@ -447,6 +452,7 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
  * và recompute cờ SAU `ops_applied`, waive cờ hay bật/tắt step cũng tăng version. Đọc lại version rồi chạy lại
  * đúng một lần; lệch thật (tab khác vừa ghi) thì lần hai cũng 409 và lúc đó mới báo lỗi.
  */
+const isCreditAckRequired = (err: unknown): boolean => err instanceof ApiClientError && err.code === "CREDIT_ACK_REQUIRED";
 const isVersionConflict = (err: unknown): boolean => err instanceof ApiClientError && err.code === "SPINE_VERSION_CONFLICT";
 
 /** Đơn vị giai đoạn (`S-4`, `S-5@S03`) — lượt hỏi gộp đầu giai đoạn; id bước luôn có dấu chấm (`S-4.1`). */
@@ -478,7 +484,7 @@ const trackAwaiting = () => {
   };
 };
 
-export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onStoppedAfterRerun, onRevisionMessage, beforePhaseRun, onTranscriptChanged, myUserId = null }: UseStepRunnerOptions) {
+export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onStoppedAfterRerun, onRevisionMessage, beforePhaseRun, onCreditAckRequired, onTranscriptChanged, myUserId = null }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const meRef = useRef<string | null>(myUserId);
   useEffect(() => {
@@ -500,6 +506,13 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   const answerLockRef = useRef(false);
   const gateLockRef = useRef(false);
 
+  const creditAckRef = useRef(onCreditAckRequired);
+  useEffect(() => {
+    creditAckRef.current = onCreditAckRequired;
+  }, [onCreditAckRequired]);
+  /** Lượt tự gọi lại sau khi xác nhận credit (ref vì hai hàm tham chiếu chính mình). */
+  const turnsRef = useRef<{ step?: (stepId: string, options?: { reopen?: boolean; standalone?: boolean; ackRetried?: boolean } & ChatStart) => Promise<void>; phase?: (phase: string, options?: ChatStart & { ackRetried?: boolean }) => Promise<void> }>({});
+
   // Callback của trang đổi theo mỗi lần render ⇒ giữ qua ref, không để nó dựng lại bộ canh chừng / `answer`
   const transcriptChangedRef = useRef(onTranscriptChanged);
   useEffect(() => {
@@ -510,7 +523,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
   useEffect(() => () => abortRef.current?.abort(), []);
 
   const runStepTurn = useCallback(
-    async (stepId: string, options: { reopen?: boolean; standalone?: boolean } & ChatStart = {}) => {
+    async (stepId: string, options: { reopen?: boolean; standalone?: boolean; ackRetried?: boolean } & ChatStart = {}) => {
       let baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
         dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
@@ -521,6 +534,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       let sawGate = false;
       // Bước im (server tự Accept): luồng đóng ngay sau `gate_ready` mang `auto` — lượt chạy lẻ kết thúc ở đó
       let autoAccepted = false;
+      let needsAck = false;
       abortRef.current?.abort();
       const controller = new AbortController();
       abortRef.current = controller;
@@ -601,6 +615,12 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
                 continue;
               }
             }
+            // FLF-466: chưa xác nhận credit ⇒ không phải lỗi; hỏi người dùng rồi chạy lại đúng lượt này
+            if (isCreditAckRequired(err) && creditAckRef.current && !options.ackRetried) {
+              needsAck = true;
+              dispatch({ type: "reset" });
+              break;
+            }
             dispatch({ type: "failed", ...toFailure(err) });
             return;
           }
@@ -612,6 +632,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         if (!sawGate) onSpineChanged();
         if (abortRef.current === controller) abortRef.current = null;
       }
+      if (needsAck && (await creditAckRef.current?.())) await turnsRef.current.step?.(stepId, { ...options, ackRetried: true });
     },
     [projectId, sessionId, getBaseVersion, onSpineChanged]
   );
@@ -621,7 +642,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
    * sự kiện của từng bước nên màn hình tiến trình không phải đổi gì.
    */
   const runPhaseTurn = useCallback(
-    async (phase: string, options: ChatStart = {}) => {
+    async (phase: string, options: ChatStart & { ackRetried?: boolean } = {}) => {
       const baseVersion = getBaseVersion();
       if (!sessionId || baseVersion === null) {
         dispatch({ type: "failed", code: "NOT_PIPELINE_SESSION", message: "Chưa có phiên pipeline hoặc Spine chưa tải xong" });
@@ -640,6 +661,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
       let failed = false;
       // Sự kiện `error` cũng đóng luồng: giữ lại lỗi để hiện khối lỗi + nút thử lại, không reset về rảnh
       let sawError = false;
+      let needsAck = false;
       const awaiting = trackAwaiting();
       let started = false;
       const request = {
@@ -674,7 +696,13 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         });
       } catch (err) {
         failed = true;
-        if (!controller.signal.aborted) dispatch({ type: "failed", ...toFailure(err) });
+        if (controller.signal.aborted) {
+          // lượt đã bị huỷ: không báo gì
+        } else if (isCreditAckRequired(err) && creditAckRef.current && !options.ackRetried) {
+          // FLF-466: chưa xác nhận credit ⇒ không phải lỗi; hỏi người dùng rồi chạy lại đúng lượt này
+          needsAck = true;
+          dispatch({ type: "reset" });
+        } else dispatch({ type: "failed", ...toFailure(err) });
       } finally {
         if (!stoppedAtGate) phaseRef.current = null;
         // Giai đoạn đã xong: luồng đóng mà không có cổng chốt nào. Không trả về "rảnh" ở đây thì màn hình
@@ -691,9 +719,14 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         onSpineChanged();
         if (abortRef.current === controller) abortRef.current = null;
       }
+      if (needsAck && (await creditAckRef.current?.())) await turnsRef.current.phase?.(phase, { ...options, ackRetried: true });
     },
     [projectId, sessionId, getBaseVersion, onSpineChanged]
   );
+
+  useEffect(() => {
+    turnsRef.current = { step: runStepTurn, phase: runPhaseTurn };
+  }, [runStepTurn, runPhaseTurn]);
 
   /** Lối vào từ ngoài: lượt chạy trước (của tab này) chưa xong ⇒ bỏ qua, không mở luồng thứ hai (FLF-400). */
   const withRunLock = useCallback(async (turn: () => Promise<void>) => {

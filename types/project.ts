@@ -96,6 +96,7 @@ export interface ScreenMockupRunView {
  */
 export interface Project {
   _id: string;
+  project_code?: string;
   name: string;
   domain?: string | null;
   status: ProjectStatus;

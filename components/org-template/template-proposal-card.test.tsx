@@ -11,6 +11,7 @@ vi.mock("@/lib/api/org-library", () => ({
   getTemplateProposal: vi.fn(),
   actOnTemplateProposal: vi.fn(),
   createTemplateProposal: vi.fn(),
+  chatOnTemplateProposal: vi.fn(),
 }));
 
 const proposal: TemplateProposal = {
@@ -64,7 +65,7 @@ describe("TemplateProposalCard (UC-85)", () => {
     vi.mocked(api.actOnTemplateProposal).mockRejectedValue(new ApiClientError(409, "TEMPLATE_PROPOSAL_CONFLICT", "Đề xuất vừa được xử lý ở nơi khác - tải lại để xem."));
     renderWithIntl(<TemplateProposalCard projectId="p1" orgRole="analyst" />);
     fireEvent.click(await screen.findByRole("button", { name: "Không lưu" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Đề xuất vừa được xử lý ở nơi khác");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Đề xuất mẫu vừa thay đổi ở phiên khác. Vui lòng tải lại trang.");
     expect(screen.getByRole("heading", { name: "Lưu cấu trúc này thành mẫu của tổ chức?" })).toBeInTheDocument();
   });
 
@@ -95,6 +96,34 @@ describe("SaveStructureEntry (UC-85, Lead)", () => {
     vi.mocked(api.createTemplateProposal).mockRejectedValue(new ApiClientError(409, "TEMPLATE_PROPOSAL_UNAVAILABLE", "Cấu trúc này đã có trong thư viện mẫu của tổ chức."));
     renderWithIntl(<SaveStructureEntry projectId="p1" onCreated={vi.fn()} />);
     fireEvent.click(screen.getByRole("button", { name: "Lưu cấu trúc thành mẫu" }));
-    expect(await screen.findByRole("alert")).toHaveTextContent("Cấu trúc này đã có trong thư viện mẫu của tổ chức.");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Đề xuất mẫu này không còn khả dụng.");
+  });
+});
+
+describe("TemplateProposalCard FLF-466 P10 (chat sửa & nhãn guidance/column)", () => {
+  it("hiện nhãn Chữ hướng dẫn / Tiêu đề cột và gửi chat sửa đề xuất cập nhật thẻ", async () => {
+    const rich: TemplateProposal = {
+      ...proposal,
+      replaced_names: [
+        { key: "G0001", original: "[Điền tên dự án Lumen]", generic: "[Điền tên dự án {Project name}]", reason: null, kind: "guidance" },
+        { key: "C0001", original: "Lumen Module", generic: "{Module}", reason: null, kind: "column" },
+      ],
+    };
+    const revised: TemplateProposal = {
+      ...rich,
+      replaced_names: [{ key: "G0001", original: "[Điền tên dự án Lumen]", generic: "[Tên đối tác]", reason: null, kind: "guidance" }],
+    };
+    vi.mocked(api.getTemplateProposal).mockResolvedValue(rich);
+    vi.mocked(api.chatOnTemplateProposal).mockResolvedValue(revised);
+
+    renderWithIntl(<TemplateProposalCard projectId="p1" orgRole="lead" />);
+    expect(await screen.findByText("Chữ hướng dẫn")).toBeInTheDocument();
+    expect(screen.getByText("Tiêu đề cột")).toBeInTheDocument();
+
+    const input = screen.getByLabelText("Muốn sửa gì ở đề xuất này?");
+    fireEvent.change(input, { target: { value: "Đổi thành Tên đối tác" } });
+    fireEvent.click(screen.getByRole("button", { name: "Gửi yêu cầu sửa" }));
+    await waitFor(() => expect(api.chatOnTemplateProposal).toHaveBeenCalledWith("p1", "Đổi thành Tên đối tác"));
+    expect(await screen.findByText("[Tên đối tác]")).toBeInTheDocument();
   });
 });

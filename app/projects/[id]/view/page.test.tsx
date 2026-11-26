@@ -183,12 +183,21 @@ describe("view/page.tsx - comment ghim vào nội dung (UC-49)", () => {
 
   it("Viewer, dự án chưa có baseline ⇒ không có nút 💬, panel nói chỉ comment trên bản đã phát hành", async () => {
     orgId.value = "org-1";
-    mockServer.use(http.get("*/orgs/org-1", () => HttpResponse.json({ data: { _id: "org-1", name: "Org", role: "viewer" }, error: null })));
+    const sources: string[] = [];
+    mockServer.use(
+      http.get("*/orgs/org-1", () => HttpResponse.json({ data: { _id: "org-1", name: "Org", role: "viewer" }, error: null })),
+      http.get("*/projects/:projectId/document", ({ request }) => {
+        sources.push(new URL(request.url).searchParams.get("source") ?? "");
+        return HttpResponse.json({ data: null, error: { code: "FORBIDDEN", message: "no" } }, { status: 403 });
+      })
+    );
 
     renderWithIntl(<ReadOnlyDocumentPage />);
 
-    expect(await screen.findByText(/Viewer chỉ comment được trên phiên bản đã phát hành - dự án chưa có bản nào/)).toBeInTheDocument();
-    expect(await screen.findByText(/1\. Product Overview/)).toBeInTheDocument();
+    // FLF-466: Viewer chưa có bản phát hành ⇒ trạng thái trống, không gọi source=draft
+    expect(await screen.findByText("Chưa có bản phát hành")).toBeInTheDocument();
+    expect(sources).toEqual([]);
+    expect(screen.queryByText(/1\. Product Overview/)).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /^Comment mục/ })).not.toBeInTheDocument();
     // Không có bản phát hành ⇒ không có nút tải; quay về danh sách dự án, không về workspace
     expect(screen.queryByRole("button", { name: /^Tải bản/ })).not.toBeInTheDocument();
