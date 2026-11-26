@@ -1946,6 +1946,8 @@
       "untranslatedTitle": "Các mục này đang hiện chữ gốc cho tới khi được dịch",
       "untranslated": "{count} mục chưa dịch",
       "translate": "Dịch tài liệu",
+      "translateMissing": "Dịch {count} mục còn thiếu",
+      "translateMissingTitle": "Báo số credit trước, bạn đồng ý mới dịch",
       "emptyDocument": "Tài liệu sẽ hiện ở đây ngay khi các bước đầu tiên chạy xong.",
       "draftSection": "Nhờ AI soạn",
       "screenMockup": {
@@ -2169,6 +2171,7 @@
       "language": "Ngôn ngữ",
       "untranslated": "Còn {count} mục chưa dịch - file sẽ in chữ gốc ở các mục này. Vẫn tải được.",
       "translateFirst": "Dịch tài liệu trước",
+      "translateMissingAction": "Dịch {count} mục còn thiếu",
       "translateBeforeExport": "Dịch {count} mục còn thiếu (~{credits} credit) rồi xuất?",
       "translateThenExport": "Dịch rồi xuất",
       "exportAsIs": "Xuất luôn (giữ chữ gốc)",
@@ -2226,6 +2229,7 @@
     "diff": {
       "title": "Xem trước thay đổi",
       "deleted": "(xoá)",
+      "notYet": "(chưa có)",
       "none": "Không có thay đổi nào.",
       "impact": "Phạm vi ảnh hưởng",
       "rerender": "Diagram render lại: {ids}",
@@ -2247,6 +2251,7 @@
         "other": "liên quan"
       },
       "noChangeNote": "Nội dung của các mục này vẫn đúng - xác nhận để gỡ cờ “đã cũ”.",
+      "flagsRemoved": "Gỡ {count} cảnh báo liên quan.",
       "colPath": "Phần thay đổi",
       "colBefore": "Trước",
       "colAfter": "Sau",
@@ -2265,6 +2270,8 @@
       "reasonPlaceholder": "Ví dụ: Stakeholder đổi yêu cầu ở họp 20/09",
       "reasonNote": "Câu này đi vào mục Record of Changes của tài liệu.",
       "confirmNoChange": "Xác nhận không đổi",
+      "removedTitle": "Lượt viết lại này sẽ xoá {count} mục:",
+      "confirmRemoving": "Vẫn cập nhật (xoá {count} mục)",
       "close": "Đóng"
     },
     "brief": {
@@ -2900,7 +2907,13 @@
       "pipelineTitle": "Soạn phần còn lại của SRS",
       "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
       "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}",
-      "pdfNote": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx."
+      "pdfNote": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx.",
+      "creditsRange": "~{min}–{max} credit",
+      "totalRange": "Tổng ước tính: ~{min}–{max} credit",
+      "screenRangeLine": "Chi tiết màn hình · khoảng {min}–{max} màn",
+      "screenRangeNote": "Số màn hình là ước tính theo Brief. Con số chính xác có sau bước Danh sách màn hình.",
+      "shortRange": "Số dư đủ nếu dự án ít màn, có thể thiếu nếu nhiều màn. AI sẽ dừng khi hết credit, phần đã xong không tính lại.",
+      "estimateFailed": "Chưa ước tính được credit. Bấm Chạy để soạn tiếp, AI dừng khi hết credit."
     },
     "aiError": {
       "title": "{what}: AI lỗi{retried, select, yes {, đã thử lại 2 lần} other {}} - credit đã hoàn",
@@ -2959,6 +2972,8 @@
       "rerunStep": "Cập nhật lại bước này",
       "continueNotice": "Bước <strong>{step}</strong> tới lượt nhưng chưa chạy.",
       "continueRun": "Tiếp tục",
+      "continueAfterRerun": "Đã cập nhật lại bước <strong>{done}</strong>. Dự án đang ở bước <strong>{step}</strong>.",
+      "continueRunStep": "Tiếp tục: {step}",
       "keeping": "Đang duyệt…",
       "keepAsIs": "Giữ nguyên, duyệt lại",
       "close": "Đóng",
@@ -4240,6 +4255,8 @@
       "readyText": "✓ Mọi đề xuất đã đạt kiểm tra. Xác nhận để ghi ngay vào bản nháp chung - Lead sẽ duyệt cả gói khi phát hành.",
       "submit": "Xác nhận & ghi vào bản nháp",
       "readyMore": "Còn muốn sửa thêm? Gõ tiếp ở ô chat - lệnh mới được gộp vào {crId}.",
+      "removesContent": "Thay đổi này xoá nội dung: {items}. Xoá nội dung luôn cần bạn xác nhận, kể cả ở mức Chỉ ở mốc chốt.",
+      "removesContentMore": "và {count, plural, =1 {1 mục khác} other {# mục khác}}.",
       "notRequester": "Đề xuất này đang treo ở {who} - chỉ người đó xác nhận được (người xác nhận đứng tên thay đổi). Bạn xem được mọi chỗ; cần đổi khác thì tạo change request của bạn.",
       "pausedWhat": "Bước AI",
       "continue": "Tiếp tục",
@@ -4285,6 +4302,8 @@
       }
     },
     "crChat": {
+      "hiddenOpen": "{crId} vẫn đang mở.",
+      "reopenInChat": "Mở lại trong khung chat",
       "draftLocked": "Bản nháp đang chờ Lead duyệt gói thay đổi - tạm khoá, chưa mở change request mới được. Chờ Lead duyệt hoặc yêu cầu sửa rồi làm tiếp.",
       "hintLocked": "Bản nháp đang chờ Lead duyệt - chưa mở change request mới được",
       "hintNew": "Gõ yêu cầu sửa tài liệu, vd: Thêm yêu cầu hiệu năng cho màn tra cứu",
@@ -5101,8 +5120,12 @@
       "confirmReleaseQuestion": "Duyệt cả gói {count} thay đổi và phát hành bản {version}? Phát hành rồi thì bất biến - sai thì phát hành bản mới.",
       "releasing": "Đang phát hành…",
       "confirmRelease": "Xác nhận phát hành",
+      "conciseRecord": "AI viết gọn mô tả các dòng thay đổi trong Lịch sử thay đổi",
+      "conciseRecordHint": "{credits, plural, =0 {Không tốn credit.} other {Tốn khoảng # credit.}} Mặc định tắt: mô tả được dựng sẵn từ chính các thay đổi.",
       "blockedMigrationMissing": "Còn {count} mục của mẫu mới chưa viết sau khi đổi mẫu. Viết xong (qua change request) mới gửi duyệt hoặc phát hành được.",
-      "unsentPill": "{count, plural, =1 {1 CR chưa gửi Lead} other {# CR chưa gửi Lead}}"
+      "unsentPill": "{count, plural, =1 {1 CR chưa gửi Lead} other {# CR chưa gửi Lead}}",
+      "previousRounds": "{count, plural, =1 {1 lần yêu cầu sửa trước} other {# lần yêu cầu sửa trước}}",
+      "previousRoundReason": "“{reason}”"
     },
     "paused": {
       "title": "{what} đang tạm dừng - {reason, select, credits {hết credit} interrupted {bị gián đoạn} other {AI lỗi, đã thử lại 2 lần}}",
@@ -5370,6 +5393,7 @@
       "stale": "Dữ liệu tài liệu vừa thay đổi trong lúc chuẩn bị nên chưa áp dụng. Kiểm lại các lựa chọn ở bước này rồi tiếp tục.",
       "applyingElsewhere": "Lần đổi mẫu này đang được áp dụng ở một phiên khác. Chờ xong rồi tải lại.",
       "refresh": "Tải lại",
+      "untranslatedNote": "{count} đoạn chưa dịch được, đang giữ chữ gốc{sections, select, none {} other { ở các mục: {sections}}}. Sửa qua yêu cầu thay đổi.",
       "appliedNote": "Đã chuyển tài liệu sang mẫu {name} (bản {version}).",
       "changeAgain": "Đổi sang mẫu khác",
       "cancelMigration": "Huỷ lần đổi mẫu",

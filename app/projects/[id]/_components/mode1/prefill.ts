@@ -50,8 +50,18 @@ export const crPrefillHref = (projectId: string, prefill: CrPrefill): string => 
   return `/projects/${projectId}?${params.toString()}`;
 };
 
+/** Câu + nguồn điền sẵn cho khung chat — đọc từ URL (`readChatCrDraft`) hoặc dựng trực tiếp (FLF-480 B12: "Tạo CR" trong hộp xem trước). */
+export interface ChatCrDraft {
+  text: string;
+  source?: SourceKind;
+  ref?: string;
+  requester?: string;
+  preview_id?: string;
+  comment_id?: string;
+}
+
 /** FLF-375: đọc câu + nguồn điền sẵn cho khung chat (`crPrefillHref`); không phải link điền sẵn ⇒ `null`. */
-export const readChatCrDraft = (params: URLSearchParams): { text: string; source?: SourceKind; ref?: string; requester?: string; preview_id?: string; comment_id?: string } | null => {
+export const readChatCrDraft = (params: URLSearchParams): ChatCrDraft | null => {
   if (params.get("crdraft") !== "1" && params.get("new") !== "1") return null;
   const source = params.get("source");
   const text = params.get("text") ?? [params.get("title"), params.get("description")].filter(Boolean).join("\n");

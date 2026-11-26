@@ -51,7 +51,11 @@ export default function HomePage() {
   const { reloadBalance } = useAppShell();
   // Viewer chỉ xem: không tạo/sửa/chuyển/xoá dự án hay thư mục (BE cũng chặn ghi với 403). Chưa biết vai trò ⇒ coi
   // như được — cùng quy ước với trang thanh toán, lỡ bấm thì BE vẫn chặn.
-  const canAuthor = useActiveOrganization()?.role !== "viewer";
+  const role = useActiveOrganization()?.role;
+  const canAuthor = role !== "viewer";
+  // FLF-480 (ChoViet #16): "Lưu trữ" / "Xoá vĩnh viễn" chỉ Lead làm được ở BE (`requireRole("lead")`) — ẩn cả hai
+  // với Analyst, không để bấm xong mới nhận 403.
+  const canDelete = role === "lead";
 
   const [tab, setTab] = useState<DashboardTab>("all");
   const [sortBy, setSortBy] = useState<ProjectSort>("updated");
@@ -250,6 +254,7 @@ export default function HomePage() {
         return next;
       }),
     readOnly: !canAuthor,
+    canDelete,
   };
 
   const projectsBody = initialLoading || listLoading ? (

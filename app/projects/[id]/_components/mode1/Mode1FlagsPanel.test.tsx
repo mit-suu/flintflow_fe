@@ -2,9 +2,9 @@
  * Cột cờ của mode 1 v3 (bám BPMN — Flow 1 ⇒ 3.1, Flow 6): cờ đỏ chặn release, mỗi cờ đỏ có lối **Tạo CR** mở form 3.1
  * điền sẵn nguồn gap report; không còn chạy / mở lại step, không waive, không ký baseline v1.
  */
-import { screen, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { Flag } from "@/types/spine";
 import Mode1FlagsPanel from "./Mode1FlagsPanel";
 import { readChatCrDraft } from "./prefill";
@@ -90,5 +90,45 @@ describe("Mode1FlagsPanel - Viewer (readOnly)", () => {
   it("chỉ xem (Viewer) ⇒ mục mẫu trống vẫn liệt kê nhưng không có nút Tạo CR", () => {
     renderWithIntl(<Mode1FlagsPanel projectId={P} readOnly flags={[flag("y1", { level: "yellow", rule_id: "template_section_empty" })]} />);
     expect(screen.queryByRole("link", { name: "Tạo CR" })).not.toBeInTheDocument();
+  });
+});
+
+describe("Mode1FlagsPanel - FLF-493 nút Vẽ lại cờ sơ đồ", () => {
+  const stale = (id: string) => flag(id, { rule_id: "diagram_stale", target_id: `D${id}`, section_id: "fixed:5.1", message: "Sơ đồ chưa cập nhật" });
+
+  it("cờ diagram_stale ⇒ có nút Vẽ lại cạnh Tạo CR; bấm gọi onRedraw đúng cờ đó", async () => {
+    const onRedraw = vi.fn(async () => undefined);
+    const f = stale("F1");
+    renderWithIntl(<Mode1FlagsPanel projectId={P} flags={[f, flag("F2")]} onRedraw={onRedraw} />);
+    const buttons = screen.getAllByRole("button", { name: "Vẽ lại" });
+    expect(buttons).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: "Tạo CR" })).toHaveLength(2);
+    fireEvent.click(buttons[0]);
+    await waitFor(() => expect(onRedraw).toHaveBeenCalledWith([f]));
+  });
+
+  it("không truyền onRedraw hoặc Viewer (readOnly) ⇒ không có nút Vẽ lại", () => {
+    const { unmount } = renderWithIntl(<Mode1FlagsPanel projectId={P} flags={[stale("F1")]} />);
+    expect(screen.queryByRole("button", { name: /Vẽ lại/ })).not.toBeInTheDocument();
+    unmount();
+    renderWithIntl(<Mode1FlagsPanel projectId={P} flags={[stale("F1")]} readOnly onRedraw={vi.fn()} />);
+    expect(screen.queryByRole("button", { name: /Vẽ lại/ })).not.toBeInTheDocument();
+  });
+
+  it("từ 2 cờ vẽ lại được ⇒ có Vẽ lại tất cả, MỘT lời gọi cho cả lô", async () => {
+    const onRedraw = vi.fn(async () => undefined);
+    const flags = [stale("F1"), stale("F2")];
+    renderWithIntl(<Mode1FlagsPanel projectId={P} flags={flags} onRedraw={onRedraw} />);
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại tất cả" }));
+    await waitFor(() => expect(onRedraw).toHaveBeenCalledTimes(1));
+    expect(onRedraw).toHaveBeenCalledWith(flags);
+  });
+
+  it("báo cáo vẫn lỗi ⇒ một dòng dưới cờ", async () => {
+    const f = stale("F1");
+    const onRedraw = vi.fn(async () => ({ failed: [f], stillBroken: [], flagsCheckFailed: false }));
+    renderWithIntl(<Mode1FlagsPanel projectId={P} flags={[f]} onRedraw={onRedraw} />);
+    fireEvent.click(screen.getByRole("button", { name: "Vẽ lại" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("Chưa vẽ lại được sơ đồ");
   });
 });

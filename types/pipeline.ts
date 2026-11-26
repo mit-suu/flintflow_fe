@@ -81,6 +81,8 @@ export interface PreviewResult {
   notes?: string;
   /** Hoà giải: không có gì cần đổi — xác nhận nguyên trạng để gỡ cờ "đã cũ" (BUG-16). */
   no_change?: boolean;
+  /** FLF-493 (hoà giải): mục lô sẽ xoá (quy tắc, validation, phần tử…) — hộp xem trước nêu rõ, vẫn cho áp. */
+  removed_items?: { path: string; label: string }[];
   /** AI cảnh báo yêu cầu không hợp lý — không bao giờ tự ghi; "Vẫn làm" gửi `preview_id` như xác nhận thường. */
   warning?: string;
   /** Cờ đỏ mới mà bản sửa này sẽ mở (chặn baseline). */
@@ -361,8 +363,16 @@ export interface RunEstimateUnit {
   steps: number;
   ai_steps: number;
   interview_credits: number;
+  /** Cận trên (= `credits_max` khi BE mới). */
   credits: number;
+  /** FLF-485: cận dưới / cận trên; BE cũ không trả ⇒ coi như bằng `credits`. */
+  credits_min?: number;
+  credits_max?: number;
+  /** Khoảng số màn, chỉ có ở đơn vị S-5 ước tính (chưa có danh sách màn). */
+  screens?: { min: number; max: number };
 }
+
+export type ScreenEstimateBasis = "screens" | "use_cases" | "brief" | "default";
 
 export interface RunEstimate {
   scope: "unit" | "all";
@@ -370,7 +380,12 @@ export interface RunEstimate {
   units: RunEstimateUnit[];
   steps_total: number;
   ai_steps_total: number;
+  /** Cận trên (BE mới) — số an toàn cho client cũ. */
   credits_total: number;
+  credits_min?: number;
+  credits_max?: number;
+  /** `screens` = đã có màn (chính xác); còn lại là khoảng đoán; null khi lượt không đi qua vòng màn hình. */
+  screen_estimate?: { min: number; max: number; basis: ScreenEstimateBasis } | null;
   /** `balance − reserved` của ví org; null khi không xác định được ví. */
   available_credits: number | null;
 }
@@ -431,6 +446,8 @@ export interface GateResponse {
   spine_version: number;
   /** Sau `revision`: lời AI nói đã sửa gì (vắng khi BE không có gì để nói). */
   message_vi?: string;
+  /** FLF-489: bước vừa duyệt đã từng được chốt trước lượt này (chạy lại bước đã qua). Client không tự chạy tiếp quy trình. */
+  rerun?: boolean;
 }
 
 // ─── progress ────────────────────────────────────────────────────

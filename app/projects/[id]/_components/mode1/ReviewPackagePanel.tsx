@@ -41,6 +41,8 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
   const [blockingFlags, setBlockingFlags] = useState<Flag[]>([]);
   const [asking, setAsking] = useState<"changes" | "release" | null>(null);
   const [reason, setReason] = useState("");
+  // FLF-492: AI viết gọn mô tả dòng CR trong Record of Changes khi phát hành — mặc định tắt
+  const [conciseRecord, setConciseRecord] = useState(false);
 
   const reload = useCallback(
     () =>
@@ -69,6 +71,7 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
       await fn(spine.data?.spine_version ?? 0);
       setAsking(null);
       setReason("");
+      setConciseRecord(false);
       await reload();
       onChanged();
     } catch (err) {
@@ -127,6 +130,17 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
           {t("changesRequestedNote", { reason: pkg.submission.reason })}
         </p>
       )}
+      {/* FLF-480 (B13): lý do các vòng "Yêu cầu sửa" trước lần gửi lại hiện tại — trước đây mất khi gửi lại. */}
+      {pkg.rounds.length > 0 && (
+        <details className="text-body text-[#8A867E]">
+          <summary className="cursor-pointer select-none font-semibold text-[#4B4842]">{t("previousRounds", { count: pkg.rounds.length })}</summary>
+          <ul className="list-disc pl-4 mt-1 flex flex-col gap-1">
+            {pkg.rounds.map((round, i) => (
+              <li key={i}>{round.reason ? t("previousRoundReason", { reason: round.reason }) : null}</li>
+            ))}
+          </ul>
+        </details>
+      )}
 
       {count > 0 ? (
         <ul className="flex flex-col gap-1" aria-label={t("listAria")}>
@@ -182,14 +196,21 @@ export default function ReviewPackagePanel({ projectId, role, onChanged, refresh
       {asking === "release" && (
         <div className="flex flex-col gap-2 bg-[#F2F1FB] border border-[#DCD8F0] rounded-[10px] p-3 text-body text-[#554DB0]">
           <p>{t("confirmReleaseQuestion", { version: pkg.next_version ?? "", count })}</p>
+          <label className="flex items-start gap-2 text-body text-[#4B4842] cursor-pointer">
+            <input type="checkbox" checked={conciseRecord} disabled={busy !== null} onChange={(e) => setConciseRecord(e.target.checked)} className="mt-1 cursor-pointer" />
+            <span>
+              {t("conciseRecord")}
+              <span className="block text-caption text-[#8A867E]">{t("conciseRecordHint", { credits: pkg.concise_record_credits ?? 0 })}</span>
+            </span>
+          </label>
           <div className="flex flex-wrap gap-2 justify-end">
-            <button type="button" onClick={() => setAsking(null)} disabled={busy !== null} className={`${btn} border border-[#DCD8F0] bg-white text-[#4B4842]`}>
+            <button type="button" onClick={() => { setAsking(null); setConciseRecord(false); }} disabled={busy !== null} className={`${btn} border border-[#DCD8F0] bg-white text-[#4B4842]`}>
               {t("cancel")}
             </button>
             <button
               type="button"
               disabled={busy !== null}
-              onClick={() => void run("release", (v) => releaseDocument(projectId, v))}
+              onClick={() => void run("release", (v) => (conciseRecord ? releaseDocument(projectId, v, { concise_record: true }) : releaseDocument(projectId, v)))}
               className={`${btn} bg-[#6A62C4] text-white`}
             >
               {busy === "release" ? t("releasing") : t("confirmRelease")}

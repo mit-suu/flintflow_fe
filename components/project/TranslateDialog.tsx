@@ -37,6 +37,11 @@ interface TranslateDialogProps {
    * đóng giữa chừng (lượt đang chạy vẫn về).
    */
   onDone?: (result: TranslateResult) => void;
+  /**
+   * FLF-490: nơi mở tưởng còn thiếu (banner "N mục chưa dịch") nhưng ước tính đọc lại về `missing = 0` (đã dịch ở tab khác,
+   * hoặc bản render cache cũ). Nơi gọi tải lại tài liệu để banner tự tắt. Không dùng `onDone`: nó mang nghĩa "đã dịch / đã trừ credit".
+   */
+  onAlreadyComplete?: () => void;
   /** Ước tính đã có sẵn (vừa đọc để quyết có mở hộp không) ⇒ lần mở đầu khỏi đọc lại. */
   initialStatus?: TranslationStatus;
   /**
@@ -103,7 +108,7 @@ export default function TranslateDialog({ open, ...props }: TranslateDialogProps
   return <TranslateFlow {...props} />;
 }
 
-function TranslateFlow({ projectId, onClose, onDone, initialStatus, locale, baselineId, version }: Omit<TranslateDialogProps, "open">) {
+function TranslateFlow({ projectId, onClose, onDone, onAlreadyComplete, initialStatus, locale, baselineId, version }: Omit<TranslateDialogProps, "open">) {
   const scope: TranslationScope = { ...(locale ? { locale } : {}), ...(baselineId ? { baselineId } : version ? { version } : {}) };
   const t = useTranslations("app.translateDialog");
   const tc = useTranslations("app.common");
@@ -114,13 +119,20 @@ function TranslateFlow({ projectId, onClose, onDone, initialStatus, locale, base
   const [statusRequest, setStatusRequest] = useState(0);
   /** Vòng dịch dừng sau lượt đang chạy: bấm "Dừng", đóng hộp, hoặc hộp bị gỡ. */
   const stopRef = useRef(false);
+  const alreadyCompleteRef = useRef(onAlreadyComplete);
+  useEffect(() => {
+    alreadyCompleteRef.current = onAlreadyComplete;
+  }, [onAlreadyComplete]);
 
   useEffect(() => {
     if (seed && statusRequest === 0) return;
     let cancelled = false;
     getTranslationStatus(projectId, { locale, baselineId, version })
       .then((res) => {
-        if (!cancelled) setPhase(res.data ? { kind: "ready", status: res.data } : { kind: "statusError", error: null });
+        if (cancelled) return;
+        setPhase(res.data ? { kind: "ready", status: res.data } : { kind: "statusError", error: null });
+        // Nơi mở không biết trước là đã đủ ⇒ báo một lần để tài liệu tải lại (FLF-490)
+        if (res.data && res.data.missing === 0 && !(seed && seed.missing === 0)) alreadyCompleteRef.current?.();
       })
       .catch((err: unknown) => {
         if (!cancelled) setPhase({ kind: "statusError", error: err });

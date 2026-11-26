@@ -10,8 +10,9 @@ import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import { OthersPending, ProposalDiff, useLocTitle } from "./LocationDisplay";
 import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
 import { useMode1Labels } from "./i18n";
-import { diffTokens } from "@/lib/word-diff";
+import { diffLines, type DiffToken } from "@/lib/word-diff";
 import PausedBanner from "./PausedBanner";
+import { removedOfAll } from "./content-removal";
 
 function UserBubble({ children }: { children: ReactNode }) {
   return <div className="self-end max-w-[85%] bg-primary-soft text-on-surface rounded-[14px] rounded-br-[4px] px-3 py-2 text-body whitespace-pre-wrap">{children}</div>;
@@ -216,14 +217,37 @@ function ConflictCard({ loc, chat, request }: { loc: CrLocation; chat: CrChat; r
   const when = clock(c.changed_at);
   const since = clock(c.proposed_at);
   // BF §3.2: ① so với ② = người khác đã đổi gì; ① so với ③ = mình định đổi gì — chỗ khác nhau tô màu như Track Changes
+  // FLF-480 (B18): so theo dòng rồi theo từ; dòng có "|" (hàng bảng) hiện từng ô một khung nhỏ
+  const mark = (tk: DiffToken, i: number, ins: string) => (
+    <span key={i}>
+      {tk.kind === "same" ? tk.text : tk.kind === "del" ? <del className="text-[#B03030]">{tk.text}</del> : <ins className={`no-underline rounded px-0.5 ${ins}`}>{tk.text}</ins>}{" "}
+    </span>
+  );
   const marked = (body: string | null, ins: string) =>
-    body === null
-      ? "-"
-      : diffTokens(c.at_proposal, body).map((tk, i) => (
-          <span key={i}>
-            {tk.kind === "same" ? tk.text : tk.kind === "del" ? <del className="text-[#B03030]">{tk.text}</del> : <ins className={`no-underline rounded px-0.5 ${ins}`}>{tk.text}</ins>}{" "}
-          </span>
-        ));
+    body === null ? (
+      "-"
+    ) : (
+      <>
+        {diffLines(c.at_proposal, body).map((tokens, li) => {
+          const cells: DiffToken[][] = [[]];
+          for (const tk of tokens) {
+            if (tk.text === "|") cells.push([]);
+            else cells[cells.length - 1].push(tk);
+          }
+          return cells.length > 1 ? (
+            <div key={li} className="flex gap-1 my-0.5">
+              {cells.map((cell, ci) => (
+                <span key={ci} className="flex-1 min-w-0 rounded border border-outline-variant px-1">
+                  {cell.map((tk, i) => mark(tk, i, ins))}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <div key={li}>{tokens.map((tk, i) => mark(tk, i, ins))}</div>
+          );
+        })}
+      </>
+    );
   const col = (head: string, body: ReactNode, tone: string) => (
     <div className={`rounded-[8px] border px-2 py-1.5 ${tone}`}>
       <p className="text-caption font-bold mb-0.5">{head}</p>
@@ -234,7 +258,7 @@ function ConflictCard({ loc, chat, request }: { loc: CrLocation; chat: CrChat; r
     <article className="rounded-[12px] border border-[#EFD9A6] bg-[#FBF4E4] p-2.5 flex flex-col gap-2" aria-label={t("aria", { title })}>
       <p className="font-bold text-[#8A6D1F]">⚠ {when && since ? t("titleTimed", { title, who: c.changed_by, when, since }) : t("title", { title, who: c.changed_by })}</p>
       <div className="grid grid-cols-1 gap-1.5">
-        {col(since ? `${t("atProposal")} (${since})` : t("atProposal"), c.at_proposal, "border-outline-variant bg-white")}
+        {col(since ? `${t("atProposal")} (${since})` : t("atProposal"), c.at_proposal.includes("|") ? marked(c.at_proposal, "") : c.at_proposal, "border-outline-variant bg-white")}
         {col(t("current", { who: when ? `${c.changed_by}, ${when}` : c.changed_by }), marked(c.current, "bg-[#D6E4FA]"), "border-[#BFD3F2] bg-[#F2F6FD]")}
         {col(t("yours"), marked(c.proposal, "bg-[#CDEBD8]"), "border-[#BFE6CE] bg-[#F3FAF6]")}
       </div>
@@ -641,8 +665,9 @@ function DroppedList({ locations, chat }: { locations: CrLocation[]; chat: CrCha
  * BF §3.2: đề xuất chưa xác nhận **treo ở người yêu cầu** — người khác mở CR này chỉ thấy "đang treo ở X", không có nút
  * xác nhận (họ không có bối cảnh, người xác nhận đứng tên thay đổi).
  */
-function ReadyToSubmit({ c, chat, myUserId }: { c: CrDetail["change_request"]; chat: CrChat; myUserId: string | null }) {
+function ReadyToSubmit({ c, locations, chat, myUserId }: { c: CrDetail["change_request"]; locations: CrLocation[]; chat: CrChat; myUserId: string | null }) {
   const t = useTranslations("mode1.crThread");
+  const removed = removedOfAll(locations);
   const notMine = myUserId !== null && c.created_by !== myUserId;
   return (
     <AiBubble step={t("readyStep")} label={t("readyLabel")}>
@@ -651,6 +676,12 @@ function ReadyToSubmit({ c, chat, myUserId }: { c: CrDetail["change_request"]; c
       ) : (
         <>
           <p>{t("readyText")}</p>
+          {removed.length > 0 && (
+            <p role="note" className="rounded-[8px] bg-accent-gold-soft px-3 py-2 text-body text-on-surface">
+              {t("removesContent", { items: removed.slice(0, 5).join("; ") })}
+              {removed.length > 5 ? ` ${t("removesContentMore", { count: removed.length - 5 })}` : ""}
+            </p>
+          )}
           <div className="flex gap-1.5">
             <button type="button" disabled={chat.busy !== null} onClick={chat.submit} className={`${btn} btn-gradient-primary text-white`}>
               {t("submit")}
@@ -901,7 +932,7 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
           </div>
         </AiBubble>
       )}
-      {c.status === "ready_to_submit" && <ReadyToSubmit c={c} chat={chat} myUserId={myUserId} />}
+      {c.status === "ready_to_submit" && <ReadyToSubmit c={c} locations={d.locations} chat={chat} myUserId={myUserId} />}
 
       {chat.replies.map((r, i) => (
         <div key={i} className="flex flex-col gap-2">

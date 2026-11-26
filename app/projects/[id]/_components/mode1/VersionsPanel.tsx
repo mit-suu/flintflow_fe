@@ -202,8 +202,12 @@ export default function VersionsPanel({
           </div>
         )}
         <ul className="flex flex-col gap-2">
-          {versions.map((v) => {
+          {versions.map((v, index) => {
             const release = isReleaseVersion(v.version);
+            // FLF-484: bản phát hành có Track Changes gộp, so với bản ổn định liền trước (phát hành hoặc bản gốc import), không phải bản nháp cuối
+            const trackedBase = release
+              ? (versions.slice(index + 1).find((o) => o.kind === "release" || o.kind === "imported")?.version ?? null)
+              : v.based_on;
             return (
               <li
                 key={v.version}
@@ -293,8 +297,8 @@ export default function VersionsPanel({
                       onClick={() => void download(v.version, "tracked")}
                       disabled={busy !== null}
                       title={
-                        v.based_on
-                          ? t("trackedTitle", { base: v.based_on, authors: v.cr_ids.join(", ") })
+                        trackedBase
+                          ? t("trackedTitle", { base: trackedBase, authors: v.cr_ids.join(", ") })
                           : t("trackedTitlePrevious", { authors: v.cr_ids.join(", ") })
                       }
                       className="px-2.5 py-1 rounded-[8px] border border-[#DCD8F0] bg-[#F2F1FB] text-body font-bold text-[#554DB0] hover:bg-[#E8E6F7] disabled:opacity-50"

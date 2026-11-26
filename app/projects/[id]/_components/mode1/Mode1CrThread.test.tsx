@@ -289,6 +289,25 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
     expect(S().crs.get("CR-001")!.locations[0].reason).toBe("Bỏ vì mục đã được Minh sửa");
   });
 
+  it("FLF-480 (B18): bảng nhiều hàng ở thẻ xung đột ⇒ giữ từng hàng, chỗ đổi tô màu", async () => {
+    const d = await proposalsOf(1);
+    const loc = d.locations[0];
+    loc.conflict = {
+      at_proposal: "Mã | Nội dung\nM1 | Chào\nM2 | Tạm biệt",
+      current: "Mã | Nội dung\nM1 | Xin chào\nM2 | Tạm biệt",
+      proposal: "Mã | Nội dung\nM1 | Chào\nM2 | Hẹn gặp lại",
+      changed_by: "Minh",
+      changed_at: null,
+      proposed_at: null
+    };
+    d.change_request.status = "manual_fix";
+    renderWithIntl(<Harness />);
+    const card = within(await screen.findByLabelText("Chỗ bị người khác sửa trong lúc chờ")).getByRole("article");
+    expect(card.textContent).not.toContain("|");
+    expect(within(card).getAllByRole("insertion").map((e) => e.textContent)).toEqual(expect.arrayContaining(["Xin"]));
+    expect(within(card).getAllByText("M2").length).toBeGreaterThanOrEqual(3);
+  });
+
   it("yêu cầu gốc đụng thẳng phần vừa sửa ⇒ AI hỏi lại trong chat với gợi ý; chọn gợi ý ⇒ AI soạn lại theo câu trả lời", async () => {
     const d = await proposalsOf(1);
     const loc = d.locations[0];
@@ -329,6 +348,28 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
     fireEvent.click(screen.getByRole("button", { name: "Gửi chat" }));
     expect(await screen.findByText(/Ai yêu cầu thay đổi này/)).toBeInTheDocument();
     expect(S().crs.get("CR-001")!.change_request.amendments).toHaveLength(0);
+  });
+
+  it("FLF-483: CR sẵn sàng gửi có xoá nội dung ⇒ nói rõ xoá gì, không in mã; CR không xoá ⇒ không hiện khối", async () => {
+    const d = await proposalsOf(1);
+    d.change_request.status = "ready_to_submit";
+    d.locations[0].proposal = {
+      old_text: JSON.stringify({ validations: [{ id: "V1", condition: "Email hợp lệ" }, { id: "V2", condition: "Mật khẩu từ 8 ký tự" }] }),
+      new_text: JSON.stringify({ validations: [{ id: "V1", condition: "Email hợp lệ" }] }),
+      comment_text: null,
+      spine_ops: [{ op: "set" }],
+      assumptions: [],
+    };
+    const first = renderWithIntl(<Harness />);
+    const note = await screen.findByRole("note");
+    expect(note).toHaveTextContent("Thay đổi này xoá nội dung: Mật khẩu từ 8 ký tự.");
+    expect(note).not.toHaveTextContent("V2");
+    first.unmount();
+
+    d.locations[0].proposal = { ...d.locations[0].proposal!, new_text: d.locations[0].proposal!.old_text };
+    renderWithIntl(<Harness />);
+    await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" });
+    expect(screen.queryByText(/Thay đổi này xoá nội dung/)).not.toBeInTheDocument();
   });
 
   it("UC-46 / AC-43.3: gói đang chờ Lead duyệt ⇒ ô chat báo bản nháp khoá, lệnh sửa không mở CR mới", async () => {

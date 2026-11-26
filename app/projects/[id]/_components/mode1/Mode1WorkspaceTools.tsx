@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 import type { Flag } from "@/types/spine";
+import type { RedrawReport } from "../flag-rules";
 import Mode1FlagsPanel from "./Mode1FlagsPanel";
 import ReviewPackagePanel from "./ReviewPackagePanel";
 import AutoPassedChip from "../AutoPassedChip";
@@ -27,6 +28,8 @@ interface Mode1WorkspaceToolsProps {
   onTemplateChanged?: () => void;
   /** Trạng thái đổi mẫu (dùng chung với menu ⋯ của header); bỏ trống ⇒ không có thẻ trạng thái đổi mẫu. */
   templateAvailability?: TemplateChangeAvailability;
+  /** FLF-493: vẽ lại sơ đồ của cờ `diagram_stale` / `render_error` (không truyền ⇒ cờ sơ đồ chỉ có "Tạo CR"). */
+  onRedraw?: (flags: Flag[]) => Promise<RedrawReport | void>;
 }
 
 /**
@@ -43,6 +46,7 @@ export default function Mode1WorkspaceTools({
   sectionName = (id) => id,
   onTemplateChanged,
   templateAvailability,
+  onRedraw,
 }: Mode1WorkspaceToolsProps) {
   const t = useTranslations("mode1.workspaceTools");
 
@@ -50,7 +54,7 @@ export default function Mode1WorkspaceTools({
     <div className="flex flex-col gap-5">
       <section className="flex flex-col gap-2">
         <h4 className="text-body font-extrabold text-on-surface">{t("flagsTitle")}</h4>
-        <Mode1FlagsPanel projectId={projectId} flags={flags} readOnly={readOnly} />
+        <Mode1FlagsPanel projectId={projectId} flags={flags} readOnly={readOnly} onRedraw={onRedraw} />
       </section>
 
       {/* FLF-395: lần đổi mẫu kẹt, hoàn tác, mục thiếu sau đổi mẫu — lối vào "Đổi mẫu" ở menu ⋯ của header */}
