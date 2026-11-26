@@ -6,6 +6,7 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import type { CreditEstimate, StructurePreview as Preview } from "@/types/import";
 import StructureAbsorb, { StructureAbsorbLoading } from "./structure-absorb";
+import OutOfScopeNote from "./out-of-scope-note";
 
 /**
  * Màn đọc khung khi file còn đang tải / BE đang đọc khung — cùng khung với `StructurePreview` (tên file, tiêu đề, trang tài liệu
@@ -145,6 +146,8 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
       {textSections}
 
       {preview && <StructureAbsorb sections={preview.sections} playKey={playKey} />}
+
+      {preview && <OutOfScopeNote sections={preview.sections} />}
 
       {/* Thanh hành động dính đáy vùng cuộn: credit + Bắt đầu luôn trong tầm mắt, không phải cuộn xuống tìm */}
       <div className="sticky bottom-4 z-20 flex flex-wrap items-center gap-3 rounded-card bg-surface-container-lowest/95 backdrop-blur px-4 py-3 shadow-[0_10px_32px_-10px_rgba(30,25,60,0.28)]">

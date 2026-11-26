@@ -3509,6 +3509,11 @@
         "fileDuplicate": "{name}: {message}",
         "dismiss": "Dismiss"
       },
+      "outOfScope": {
+        "title": "Out of scope",
+        "hint": "{count, plural, one {This section is} other {These sections are}} not part of a software requirements specification under ISO/IEC/IEEE 29148 (for example a cost estimate). FlintFlow keeps the text as is: it does not draft it, check it or count it toward readiness. To change the text in a section, ask in the chat.",
+        "listLabel": "Out-of-scope sections"
+      },
       "absorb": {
         "documentLabel": "Your document",
         "storeLabel": "What FlintFlow understands",
@@ -3554,6 +3559,7 @@
     "structureChanges": {
       "nowEmpty": "After reading in detail, {count, plural, one {section {names} is actually empty} other {sections {names} are actually empty}} - added to the sections to draft / complete.",
       "nowFilled": "After reading in detail, {count, plural, one {section {names} already has content} other {sections {names} already have content}} - nothing to draft there.",
+      "nowOutOfScope": "The final result differs from the structure preview: {count, plural, one {section {names} is} other {sections {names} are}} out of scope - the text is kept as is, not drafted and not checked.",
       "other": "After reading in detail, {count, plural, one {section {names} differs} other {sections {names} differ}} from the structure preview.",
       "dismiss": "Dismiss"
     },

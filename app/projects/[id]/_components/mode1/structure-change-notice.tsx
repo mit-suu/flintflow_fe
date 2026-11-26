@@ -37,7 +37,8 @@ export default function StructureChangeNotice({ projectId, inline = false }: { p
   if (!changes.length) return null;
   const nowEmpty = changes.filter((c) => c.to === "missing");
   const nowFilled = changes.filter((c) => c.to === "present");
-  const other = changes.filter((c) => c.to !== "missing" && c.to !== "present");
+  const nowOutOfScope = changes.filter((c) => c.to === "out_of_scope");
+  const other = changes.filter((c) => c.to !== "missing" && c.to !== "present" && c.to !== "out_of_scope");
   const names = (list: StructureChange[]) => list.map((c) => c.title).join(", ");
 
   const dismiss = () => {
@@ -55,6 +56,7 @@ export default function StructureChangeNotice({ projectId, inline = false }: { p
       <div className="flex-1 min-w-0 flex flex-col gap-0.5 text-body text-on-surface">
         {nowEmpty.length > 0 && <p>{t("nowEmpty", { count: nowEmpty.length, names: names(nowEmpty) })}</p>}
         {nowFilled.length > 0 && <p>{t("nowFilled", { count: nowFilled.length, names: names(nowFilled) })}</p>}
+        {nowOutOfScope.length > 0 && <p>{t("nowOutOfScope", { count: nowOutOfScope.length, names: names(nowOutOfScope) })}</p>}
         {other.length > 0 && <p>{t("other", { count: other.length, names: names(other) })}</p>}
       </div>
       <button type="button" onClick={dismiss} aria-label={t("dismiss")} className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer">

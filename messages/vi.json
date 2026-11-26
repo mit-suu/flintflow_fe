@@ -3509,6 +3509,11 @@
         "fileDuplicate": "{name}: {message}",
         "dismiss": "Đóng"
       },
+      "outOfScope": {
+        "title": "Ngoài phạm vi",
+        "hint": "{count, plural, one {Mục này không thuộc} other {Các mục này không thuộc}} tài liệu đặc tả yêu cầu phần mềm theo ISO/IEC/IEEE 29148 (ví dụ dự toán chi phí). FlintFlow giữ nguyên chữ, không soạn, không kiểm tra và không tính vào mức sẵn sàng. Muốn sửa chữ trong mục, bạn nhắn yêu cầu trong chat.",
+        "listLabel": "Các mục ngoài phạm vi"
+      },
       "absorb": {
         "documentLabel": "Tài liệu của bạn",
         "storeLabel": "FlintFlow nắm được",
@@ -3554,6 +3559,7 @@
     "structureChanges": {
       "nowEmpty": "Sau khi đọc chi tiết, {count, plural, one {mục {names} thực ra còn trống} other {các mục {names} thực ra còn trống}} - đã thêm vào danh sách cần soạn / bổ sung.",
       "nowFilled": "Sau khi đọc chi tiết, {count, plural, one {mục {names} đã có nội dung} other {các mục {names} đã có nội dung}} - không cần soạn thêm.",
+      "nowOutOfScope": "Kết quả cuối khác bản sơ bộ: {count, plural, one {mục {names} thuộc} other {các mục {names} thuộc}} Ngoài phạm vi - giữ nguyên chữ, không soạn và không kiểm tra.",
       "other": "Sau khi đọc chi tiết, {count, plural, one {mục {names} khác} other {các mục {names} khác}} với màn đọc khung.",
       "dismiss": "Đóng thông báo"
     },
