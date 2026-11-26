@@ -123,15 +123,12 @@ describe("chip Nguồn trên block tài liệu", () => {
   });
 });
 
-describe("popup Tài liệu: Xem + Tải về", () => {
-  it("mỗi tài liệu đọc được có Xem (mở trình xem) và Tải về; tài liệu chưa đọc được chữ chỉ có Tải về", async () => {
-    mockServer.use(textHandler());
+describe("popup Tài liệu: chỉ Tải về", () => {
+  it("mỗi tài liệu có Tải về file gốc; không có nút Xem (web không xem được file gốc, chữ mở từ chip Nguồn)", () => {
     const doc = (id: string, parseStatus: "success" | "failed") =>
       ({ _id: id, projectId: P, uploadedBy: "u1", originalName: `${id}.docx`, mimeType: "x", size: 1, parseStatus, summaryStatus: "success", createdAt: "", updatedAt: "" }) as never;
     withViewer(<ReferenceDocumentsPanel projectId={P} docs={[doc("doc1", "success"), doc("doc2", "failed")]} onRemove={vi.fn()} onCrsCreated={vi.fn()} canExtract={false} />);
-    expect(screen.getAllByRole("button", { name: "Xem" })).toHaveLength(1);
     expect(screen.getAllByRole("button", { name: "Tải về" })).toHaveLength(2);
-    fireEvent.click(screen.getByRole("button", { name: "Xem" }));
-    expect(await screen.findByText("Mở đầu biên bản.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Xem/ })).not.toBeInTheDocument();
   });
 });

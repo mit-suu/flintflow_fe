@@ -23,8 +23,8 @@ describe("isDocsAssistantEnabled", () => {
     expect(mod.isDocsAssistantEnabled).toBe(false);
   });
 
-  it("có client id và cờ = true ⇒ bật", async () => {
+  it("tạm ẩn hẳn: có client id và cờ = true vẫn tắt (chỉ giữ xuất Google Docs)", async () => {
     const mod = await load({ NEXT_PUBLIC_GOOGLE_CLIENT_ID: "id.apps.googleusercontent.com", NEXT_PUBLIC_GOOGLE_DOCS_AGENT_ENABLED: "true" });
-    expect(mod.isDocsAssistantEnabled).toBe(true);
+    expect(mod.isDocsAssistantEnabled).toBe(false);
   });
 });

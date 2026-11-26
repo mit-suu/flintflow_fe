@@ -87,6 +87,11 @@ export interface UseChangesResult {
   /** `commentId` (FLF-271): lượt sửa theo góp ý Lead ghim — BE tự đóng comment `fixed` sau khi áp. */
   confirmPreview: (reason?: string, changeRequest?: ChangeRequestInfo, commentId?: string | null) => Promise<void>;
   cancelPreview: () => void;
+  /**
+   * Bản xem trước chuyển thành change request (mode 1): đóng thẻ nhưng **giữ** bản xem trước ở BE — CR tạo ngay sau đó đọc
+   * lại nó qua `preview_id` (bỏ ở BE trước thì CR mất các thay đổi đã xem, AI phải hỏi lại từ đầu).
+   */
+  handOffPreview: () => void;
   /** Nhận bản xem trước BE đã dựng từ tin chat thường (tin bị nhận là lệnh sửa) — để thẻ sửa có nút Áp dụng. */
   adoptPreview: (preview: PreviewResult, instruction: string) => void;
   /** `knownVersion`: lượt "Viết lại" nối tiếp ngay sau lượt áp (P12, chốt câu 9) — dùng version BE vừa trả. */
@@ -258,6 +263,14 @@ export function useChanges(
     setAlreadyApplied(null);
   }, [preview, conflict, projectId]);
 
+  const handOffPreview = useCallback(() => {
+    setPreview(null);
+    setPreviewSource(null);
+    setClarification(null);
+    setConflict(null);
+    setAlreadyApplied(null);
+  }, []);
+
   const redraftConflict = useCallback(async (): Promise<PreviewOutcome> => {
     if (!conflict) return "skipped";
     const { instruction, previewId } = conflict;
@@ -423,6 +436,7 @@ export function useChanges(
     requestOpsPreview,
     confirmPreview,
     cancelPreview,
+    handOffPreview,
     adoptPreview,
     reconcileOnce,
     undo,

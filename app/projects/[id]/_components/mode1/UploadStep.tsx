@@ -75,7 +75,7 @@ export default function UploadStep({
         }}
         onDragLeave={() => setDragging(false)}
         onDrop={onDrop}
-        className={`rounded-[18px] border-2 border-dashed px-6 py-10 flex flex-col items-center gap-2 text-center transition-colors cursor-pointer ${
+        className={`rounded-[18px] border-2 border-dashed px-6 py-10 flex flex-col items-center gap-2 text-center transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 ${
           dragging ? "border-[#6A62C4] bg-[#F2F1FB]" : "border-[#D6D2CB] bg-white hover:border-[#6A62C4]"
         } ${busy ? "opacity-60 cursor-wait" : ""}`}
       >

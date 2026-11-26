@@ -156,6 +156,34 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
     }
     if (srsUpload && reading) return <StructureReading fileName={srsUpload.name} />;
     if (imp.loading) return <ImportSkeleton withHeader={false} label={t("loading")} />;
+    // Lần tải đầu (dự án tải SRS chưa có file): nói rõ đang ở bước nào và tải xong thì sao (chưa tốn credit) — trước đây chỉ có
+    // một ô thả file dính mép trên, người vào lại tưởng workspace hỏng
+    if (showUpload && !status) {
+      return (
+        <section aria-labelledby="import-first-upload" className="min-h-[60vh] flex flex-col justify-center gap-6">
+          <div className="flex flex-col gap-2 text-center">
+            <h1 id="import-first-upload" className="text-title font-extrabold text-on-surface">
+              {t("upload.firstTitle")}
+            </h1>
+            <p className="text-body text-on-surface-variant leading-relaxed max-w-[520px] mx-auto">{t("upload.firstBody")}</p>
+          </div>
+          <ol className="flex flex-wrap justify-center gap-x-6 gap-y-2 text-body" aria-label={t("upload.stepsAria")}>
+            {(["upload", "structure", "read"] as const).map((step, i) => (
+              <li key={step} className={`flex items-center gap-2 ${i === 0 ? "text-on-surface font-bold" : "text-on-surface-muted"}`} aria-current={i === 0 ? "step" : undefined}>
+                <span className={`size-6 rounded-full grid place-items-center text-caption font-bold ${i === 0 ? "bg-primary text-on-primary" : "bg-surface-container-high text-on-surface-variant"}`}>{i + 1}</span>
+                {t(`upload.steps.${step}`)}
+              </li>
+            ))}
+          </ol>
+          <UploadStep
+            busy={imp.busy === "upload"}
+            title={t("upload.dropTitle")}
+            onUpload={(file) => void imp.upload(file).then(() => setPickAnother(false))}
+            onGoogleImport={(file) => void imp.uploadFromGoogle(file.id).then(() => setPickAnother(false))}
+          />
+        </section>
+      );
+    }
     if (showUpload) {
       return (
         <div className="flex flex-col gap-4">
@@ -279,7 +307,8 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
 
   return (
     <div className="h-screen flex flex-col overflow-hidden bg-surface-container-lowest">
-      <WorkspaceHeader project={project} user={user} fallbackName={uploads?.projectName} baselineStatus={badge} onLogout={() => void logoutAndRedirect()} />
+      {/* Chưa có file ⇒ không có gì để Xem & comment / Export */}
+      <WorkspaceHeader project={project} user={user} fallbackName={uploads?.projectName} baselineStatus={badge} documentActions={!(showUpload && !status)} onLogout={() => void logoutAndRedirect()} />
       <main className="flex-1 min-h-0 overflow-y-auto ff-scroll">
         {/* Đang tải lần import / đang đọc khung / màn đọc khung: cột rộng như skeleton của trang (không bóp hẹp rồi nới ra) */}
         <div className={`${imp.awaitingStart || reading || imp.loading || showingProgress ? "max-w-[1180px]" : "max-w-[760px]"} mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-4`}>

@@ -397,7 +397,7 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
     expect(cr().status).toBe("ready_to_submit");
   });
 
-  it("phần chưa đề xuất / sơ đồ gốc / có lưu ý AI vẫn là thẻ riêng - Đồng ý tất cả chỉ duyệt phần còn lại", async () => {
+  it("phần chưa đề xuất / có lưu ý AI là thẻ riêng, hình gốc là khối riêng - Đồng ý tất cả chỉ duyệt phần còn lại", async () => {
     const d = await proposalsOf(5);
     const [, missing, diagram, flagged] = d.locations;
     Object.assign(missing, { conclusion: null, proposal: null });
@@ -408,16 +408,28 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
 
     renderWithIntl(<Harness />);
     const own = await screen.findByLabelText("Cần bạn xem riêng");
-    expect(own).toHaveTextContent("⚠ Cần bạn xem riêng (3)");
-    for (const l of [missing, diagram, flagged]) expect(within(own).getByRole("article", { name: `Đề xuất ${l.location_id}` })).toBeInTheDocument();
+    expect(own).toHaveTextContent("⚠ Cần bạn xem riêng (2)");
+    for (const l of [missing, flagged]) expect(within(own).getByRole("article", { name: `Đề xuất ${l.location_id}` })).toBeInTheDocument();
+    // Hình gốc sẽ bị thay: gộp một khối có nút Thay / Giữ, không nằm trong thẻ riêng
+    const diagrams = screen.getByLabelText("Hình gốc sẽ đổi");
+    expect(within(own).queryByRole("article", { name: `Đề xuất ${diagram.location_id}` })).not.toBeInTheDocument();
+    expect(within(diagrams).getByRole("button", { name: "Giữ hình gốc" })).toBeInTheDocument();
     expect(within(screen.getByLabelText("Danh sách đề xuất")).getAllByRole("listitem")).toHaveLength(2);
 
     fireEvent.click(screen.getByRole("button", { name: "Đồng ý tất cả (2)" }));
     await waitFor(() => expect(screen.queryByRole("button", { name: /^Đồng ý tất cả/ })).not.toBeInTheDocument());
     expect(screen.getByText(/đã chốt 2\/5/)).toBeInTheDocument();
     expect(within(screen.getByRole("article", { name: `Đề xuất ${flagged.location_id}` })).getByRole("button", { name: "Đồng ý" })).toBeInTheDocument();
-    expect(within(screen.getByRole("article", { name: `Đề xuất ${diagram.location_id}` })).getByRole("button", { name: "Giữ hình gốc" })).toBeInTheDocument();
+    expect(within(screen.getByLabelText("Hình gốc sẽ đổi")).getByRole("button", { name: "Thay hình" })).toBeInTheDocument();
     expect(cr().status).not.toBe("ready_to_submit");
+  });
+
+  it("Giữ hình gốc ở khối hình gốc ⇒ vị trí đó thành không liên quan (giữ ảnh của tài liệu)", async () => {
+    const d = await proposalsOf(2);
+    d.locations[1].found_by = ["diagram"];
+    renderWithIntl(<Harness />);
+    fireEvent.click(within(await screen.findByLabelText("Hình gốc sẽ đổi")).getByRole("button", { name: "Giữ hình gốc" }));
+    await waitFor(() => expect(S().crs.get("CR-001")!.locations.map((l) => l.conclusion)).toEqual(["edit", "not_related"]));
   });
 
   it("Bỏ một phần từ chi tiết của dòng ⇒ chỉ phần đó thành không liên quan", async () => {

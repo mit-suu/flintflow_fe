@@ -30,10 +30,12 @@ interface ChatBubbleProps {
   hideBadge?: boolean;
   /** P05: câu hỏi trong tin này đã được trả lời (nội dung câu trả lời) ⇒ thu gọn, không trông như đang chờ. */
   answered?: string;
+  /** Bản xem trước này đã có bản mới hơn trong phiên ⇒ không còn "chờ xác nhận" (chỉ bản mới nhất còn dùng được). */
+  superseded?: boolean;
 }
 
 /** Nhãn của một tin AI — key trong `workspace.chatBubble.badge`, component dịch lúc render. */
-export type WriteBadgeKey = "chatOnly" | "pending" | "nothingWritten" | "applied" | "unchanged" | "knowledge" | "crCreated";
+export type WriteBadgeKey = "chatOnly" | "pending" | "superseded" | "nothingWritten" | "applied" | "unchanged" | "knowledge" | "crCreated";
 
 export interface WriteBadge {
   key: WriteBadgeKey;
@@ -96,6 +98,7 @@ export default function ChatBubble({
   isStreaming = false,
   hideBadge = false,
   answered,
+  superseded = false,
 }: ChatBubbleProps) {
   const t = useTranslations("workspace.chatBubble");
   const tSteps = useTranslations("aiActivity.steps");
@@ -157,7 +160,8 @@ export default function ChatBubble({
   };
 
   const parsed = parseAiMessage(message.content);
-  const writeBadge = hideBadge ? null : writeBadgeOf(message);
+  const badgeOfMessage = hideBadge ? null : writeBadgeOf(message);
+  const writeBadge: WriteBadge | null = superseded && badgeOfMessage?.key === "pending" ? { ...badgeOfMessage, key: "superseded" } : badgeOfMessage;
 
   // Smooth continuous typewriter ticker for streaming
   const [displayedReply, setDisplayedReply] = useState(parsed.reply);
