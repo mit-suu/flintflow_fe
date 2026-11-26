@@ -13,7 +13,8 @@ import type {
   PendingSection,
   RevertCrRequest,
 } from "@/types/change-request";
-import { apiCall } from "./client";
+import type { OriginalDiagramKind } from "@/types/spine";
+import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
 
 const crs = (projectId: string) => `/projects/${projectId}/change-requests`;
 const cr = (projectId: string, crId: string) => `${crs(projectId)}/${encodeURIComponent(crId)}`;
@@ -87,3 +88,21 @@ export const cancelCr = (projectId: string, crId: string, reason: string) =>
 
 /** Hoàn tác một CR đã ghi: BE tạo CR mới (nguồn `revert`, đã chạy kiểm) — 409 `CR_OWN_OPEN` khi người này còn CR dở. */
 export const revertCr = (projectId: string, crId: string, body: RevertCrRequest) => apiCall<CrDetail>(`${cr(projectId, crId)}/revert`, post(body));
+
+/**
+ * #23a: ảnh của vị trí sơ đồ gốc — `after` = sơ đồ FlintFlow vẽ từ dữ liệu sau CR (phần `part`), `original` = ảnh gốc của file.
+ * Cần token nên không dùng thẳng `<img src>`: trả object URL (người gọi tự `URL.revokeObjectURL`) + số phần của sơ đồ.
+ */
+export const fetchCrDiagramImage = async (
+  projectId: string,
+  crId: string,
+  locationId: string,
+  query: { kind: OriginalDiagramKind; owner?: string | null; part?: number; variant: "after" | "original" }
+): Promise<{ url: string; parts: number }> => {
+  const params = new URLSearchParams({ kind: query.kind, variant: query.variant, part: String(query.part ?? 0) });
+  if (query.owner) params.set("owner", query.owner);
+  const res = await authFetch(`${cr(projectId, crId)}/locations/${encodeURIComponent(locationId)}/diagram-preview.png?${params.toString()}`);
+  if (!res.ok) throw new ApiClientError(res.status, "DIAGRAM_PREVIEW_FAILED", await readRawErrorMessage(res, `HTTP ${res.status}`));
+  const parts = Number(res.headers.get("X-Diagram-Parts") ?? "1");
+  return { url: URL.createObjectURL(await res.blob()), parts: Number.isFinite(parts) && parts > 0 ? parts : 1 };
+};

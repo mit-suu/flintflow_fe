@@ -141,7 +141,8 @@ interface DocumentPaneProps {
    * Có bản tài liệu mới hơn bản đang hiển thị nhưng user đang thao tác dở nên chưa tự thay nội dung: hiện dải
    * "Có bản mới · Cập nhật" ở đầu tài liệu. Không truyền ⇒ không có dải.
    */
-  newerVersion?: { onApply: () => void } | null;
+  /** `message` (FLF-487): ai vừa ghi đúng mục người dùng đang sửa — thay câu chung "có bản mới". */
+  newerVersion?: { onApply: () => void; message?: string } | null;
   /**
    * FLF-443: nguồn tài liệu theo đường dẫn phần tử (`sourcesByPath`) ⇒ chip "Nguồn · n" ở đoạn / dòng / mục và cạnh tiêu đề
    * mục chi tiết function / feature. Không truyền ⇒ không có chip.
@@ -1141,7 +1142,7 @@ function DocumentPaneView({
         {newerVersion && (
           <div role="status" className="sticky top-0 z-10 rounded-control bg-primary-soft px-3 py-1.5 flex items-center gap-1.5 text-body text-on-surface">
             <Icon name="refresh" size={14} className="text-primary" />
-            <span>{t("newerVersion")}</span>
+            <span>{newerVersion.message ?? t("newerVersion")}</span>
             <span aria-hidden>·</span>
             <button type="button" onClick={newerVersion.onApply} className="font-bold text-primary hover:underline cursor-pointer">
               {t("newerVersionApply")}

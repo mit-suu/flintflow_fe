@@ -14,7 +14,7 @@ import type { ChatSession } from "@/types/chat";
 import { workspaceStepLabel as stepLabelOf } from "./phase-labels";
 import Icon from "@/components/ui/Icon";
 import { AiWaitLine } from "@/components/ui/ai-activity";
-import ChatBubble from "./ChatBubble";
+import ChatBubble, { writeBadgeOf } from "./ChatBubble";
 import ChatInput from "./ChatInput";
 import QuestionStepperInput, { formatAnswers } from "./QuestionStepperInput";
 import { parseChatQuestion } from "@/lib/question-options";
@@ -253,6 +253,8 @@ export default function ChatPane({
   const dividers = useMemo(() => stepDividers(messages), [messages]);
   // P05: tin hỏi đã có câu trả lời ngay sau ⇒ thu gọn trong lịch sử
   const answered = useMemo(() => answeredQuestionMessages(messages), [messages]);
+  // Chỉ bản xem trước mới nhất còn chờ xác nhận — bản cũ hơn đã bị lệnh sau thay, nhãn "Chờ bạn xác nhận" ở đó là sai
+  const latestPreviewIdx = useMemo(() => messages.findLastIndex((m) => writeBadgeOf(m)?.key === "pending"), [messages]);
   const last = messages[messages.length - 1];
   const questionKey =
     last?.role === "ai" ? `${messages.length}:${last.content}` : null;
@@ -363,6 +365,7 @@ export default function ChatPane({
                   onRequestRollback={onRequestRollback}
                   disabled={sending}
                   answered={answered.get(idx)}
+                  superseded={idx < latestPreviewIdx}
                 />
               </div>
             ))}

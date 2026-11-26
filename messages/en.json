@@ -1760,6 +1760,7 @@
       "badge": {
         "chatOnly": "Chat only",
         "pending": "Awaiting your confirmation ({count, plural, one {# change} other {# changes}})",
+        "superseded": "Replaced by a newer preview",
         "nothingWritten": "Nothing written",
         "applied": "Wrote {count, plural, one {# change} other {# changes}}",
         "unchanged": "No changes",
@@ -3354,7 +3355,16 @@
       "upload": {
         "title": "Upload the SRS file (.docx)",
         "again": "Upload the fixed file",
-        "cancel": "Keep the current file"
+        "cancel": "Keep the current file",
+        "firstTitle": "Upload the project's SRS file",
+        "firstBody": "This project works on your existing SRS document. Upload the file and FlintFlow reads its structure and shows the credit cost before reading the content.",
+        "stepsAria": "Getting started steps",
+        "steps": {
+          "upload": "Upload file",
+          "structure": "Review structure and credits",
+          "read": "Read content"
+        },
+        "dropTitle": "Drag and drop or choose a .docx file"
       },
       "preview": {
         "pickAnother": "Choose another file",
@@ -3692,6 +3702,30 @@
       "download": "Download",
       "downloading": "Downloading…",
       "downloadFailed": "Could not download the file. Try again later."
+    },
+    "liveWrite": {
+      "cr": "{name} just wrote {cr} to {where}",
+      "edit": "{name} just edited {where}",
+      "step": "{name} just had AI draft {where}",
+      "undo": "{name} just undid a change in {where}",
+      "someone": "A member",
+      "whereOne": "section {section}",
+      "whereMany": "{count} sections",
+      "staleBanner": "{name} just wrote to the section you are editing. The version you see is out of date.",
+      "update": "Update",
+      "dismiss": "Dismiss"
+    },
+    "bell": {
+      "label": "Notifications",
+      "aria": "Notifications ({count} new)",
+      "tabProject": "This project",
+      "tabAll": "All",
+      "projectEmpty": "No one has written to the document since you opened the project.",
+      "projectHint": "Only shown while this page is open. Click a row to go to that section."
+    },
+    "noticeTray": {
+      "show": "Other notices waiting",
+      "hide": "Hide other notices"
     }
   },
   "aiFollow": {
@@ -4703,7 +4737,23 @@
       "aria": "Replace original figure",
       "replace": "🖼 Replace the original figure with a diagram FlintFlow redraws from the new data",
       "caption": " (“{caption}”)",
-      "decline": "Not accepting ⇒ your original figure is kept; the document gets a yellow flag “Original figure out of date”."
+      "decline": "Not accepting ⇒ your original figure is kept; the document gets a yellow flag “Original figure out of date”.",
+      "group": {
+        "aria": "Original figures to change",
+        "title": "Original figures to change ({count})",
+        "hint": "Compare the document's original image with the FlintFlow diagram drawn from the data after this change request. Keep the original and it stays, with no further prompt until the data changes again.",
+        "before": "Original image",
+        "after": "After change request",
+        "beforeAlt": "Original image: {name}",
+        "afterAlt": "{name} after change request",
+        "loading": "Drawing…",
+        "imageFailed": "Could not show the figure - you can still decide; it is redrawn on write.",
+        "replace": "Replace figure",
+        "keep": "Keep original",
+        "replaced": "Will replace",
+        "replaceAll": "Replace all ({count})",
+        "keepAll": "Keep all originals"
+      }
     },
     "verifyResult": {
       "aria": "Check result {id}",
@@ -5459,7 +5509,6 @@
       "confirmUnknown": "The AI reads the whole document once and spends credits. Run?",
       "cancel": "Cancel",
       "run": "Run",
-      "view": "View",
       "noText": "No readable text in the file",
       "legacyDoc": "Cannot read .doc files, save it as .docx",
       "imagesSkipped": "Images / diagrams in the file are not read",

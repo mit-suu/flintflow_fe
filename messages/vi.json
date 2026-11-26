@@ -1760,6 +1760,7 @@
       "badge": {
         "chatOnly": "Chỉ trao đổi",
         "pending": "Chờ bạn xác nhận ({count} thay đổi)",
+        "superseded": "Đã thay bằng bản xem trước mới",
         "nothingWritten": "Chưa ghi gì",
         "applied": "Đã ghi {count} thay đổi",
         "unchanged": "Không đổi gì",
@@ -3354,7 +3355,16 @@
       "upload": {
         "title": "Tải file SRS (.docx)",
         "again": "Tải file đã sửa",
-        "cancel": "Giữ file hiện tại"
+        "cancel": "Giữ file hiện tại",
+        "firstTitle": "Tải file SRS của dự án",
+        "firstBody": "Dự án này làm việc trên tài liệu SRS có sẵn của bạn. Tải file lên, FlintFlow đọc khung tài liệu và báo số credit trước khi đọc nội dung.",
+        "stepsAria": "Các bước bắt đầu",
+        "steps": {
+          "upload": "Tải file",
+          "structure": "Xem khung và credit",
+          "read": "Đọc nội dung"
+        },
+        "dropTitle": "Kéo thả hoặc chọn file .docx"
       },
       "preview": {
         "pickAnother": "Chọn file khác",
@@ -3692,6 +3702,30 @@
       "download": "Tải về",
       "downloading": "Đang tải…",
       "downloadFailed": "Không tải được file. Thử lại sau."
+    },
+    "liveWrite": {
+      "cr": "{name} vừa ghi {cr} vào {where}",
+      "edit": "{name} vừa sửa {where}",
+      "step": "{name} vừa cho AI soạn {where}",
+      "undo": "{name} vừa hoàn tác ở {where}",
+      "someone": "Một thành viên",
+      "whereOne": "mục {section}",
+      "whereMany": "{count} mục",
+      "staleBanner": "{name} vừa ghi vào mục bạn đang sửa. Bản bạn đang xem đã cũ.",
+      "update": "Cập nhật",
+      "dismiss": "Đóng"
+    },
+    "bell": {
+      "label": "Thông báo",
+      "aria": "Thông báo ({count} mới)",
+      "tabProject": "Dự án này",
+      "tabAll": "Tất cả",
+      "projectEmpty": "Chưa có ai ghi vào tài liệu từ lúc bạn mở dự án.",
+      "projectHint": "Chỉ hiện trong lần mở này. Bấm một dòng để tới mục đó."
+    },
+    "noticeTray": {
+      "show": "Thông báo khác đang chờ",
+      "hide": "Ẩn thông báo khác"
     }
   },
   "aiFollow": {
@@ -4703,7 +4737,23 @@
       "aria": "Thay hình gốc",
       "replace": "🖼 Thay hình gốc bằng sơ đồ FlintFlow vẽ lại từ dữ liệu mới",
       "caption": " (“{caption}”)",
-      "decline": "Không đồng ý ⇒ giữ hình gốc của bạn; tài liệu có cờ vàng “Hình gốc lệch dữ liệu”."
+      "decline": "Không đồng ý ⇒ giữ hình gốc của bạn; tài liệu có cờ vàng “Hình gốc lệch dữ liệu”.",
+      "group": {
+        "aria": "Hình gốc sẽ đổi",
+        "title": "Hình gốc sẽ đổi ({count})",
+        "hint": "So ảnh gốc của tài liệu với sơ đồ FlintFlow vẽ từ dữ liệu sau change request. Giữ hình gốc thì tài liệu giữ ảnh của bạn và không hỏi lại cho tới khi dữ liệu đổi tiếp.",
+        "before": "Ảnh gốc",
+        "after": "Sau change request",
+        "beforeAlt": "Ảnh gốc: {name}",
+        "afterAlt": "{name} sau change request",
+        "loading": "Đang vẽ…",
+        "imageFailed": "Chưa hiện được hình - vẫn quyết được, tài liệu vẽ lại khi ghi.",
+        "replace": "Thay hình",
+        "keep": "Giữ hình gốc",
+        "replaced": "Sẽ thay hình",
+        "replaceAll": "Thay tất cả ({count})",
+        "keepAll": "Giữ tất cả hình gốc"
+      }
     },
     "verifyResult": {
       "aria": "Kết quả kiểm {id}",
@@ -5459,7 +5509,6 @@
       "confirmUnknown": "AI đọc cả tài liệu một lần và tốn credit. Chạy chứ?",
       "cancel": "Huỷ",
       "run": "Chạy",
-      "view": "Xem",
       "noText": "Không đọc được chữ trong file",
       "legacyDoc": "Chưa đọc được file .doc, hãy lưu lại thành .docx",
       "imagesSkipped": "Hình / sơ đồ trong file không được đọc",

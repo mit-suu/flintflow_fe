@@ -64,6 +64,9 @@ export default function ReferenceDocumentViewer({ projectId, target, onClose }: 
   if (!target) return null;
   const title = ready?.name ?? target.name ?? "";
 
+  // Mở từ danh sách tài liệu (không có đoạn cần nhảy tới) ⇒ đọc liền như một trang; mã đoạn chỉ có nghĩa khi mở từ chip "Nguồn"
+  const reading = !focusParaId;
+
   return (
     <Modal open onClose={onClose} title={title} size="lg">
       <div className="flex flex-col gap-3">
@@ -81,6 +84,14 @@ export default function ReferenceDocumentViewer({ projectId, target, onClose }: 
             {focusParaId && !focusFound && <p className="rounded-inner bg-surface-container-low px-3 py-2 text-body text-on-surface-variant">{t("paragraphMissing")}</p>}
             {ready.paragraphs.length === 0 ? (
               <p className="text-body text-on-surface-variant">{t("empty")}</p>
+            ) : reading ? (
+              <article className="ff-scroll max-h-[60vh] overflow-y-auto flex flex-col gap-3 pr-1" aria-label={title}>
+                {ready.paragraphs.map((p) => (
+                  <p key={p.para_id} data-para-id={p.para_id} className="text-body text-on-surface leading-relaxed whitespace-pre-line">
+                    {p.text}
+                  </p>
+                ))}
+              </article>
             ) : (
               <ol className="ff-scroll max-h-[60vh] overflow-y-auto flex flex-col gap-2 pr-1">
                 {ready.paragraphs.map((p) => {

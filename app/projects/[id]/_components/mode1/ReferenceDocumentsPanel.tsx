@@ -8,7 +8,6 @@ import { estimateExtraction, extractRequirements, getExtraction } from "@/lib/ap
 import type { ProjectDocument } from "@/types/document";
 import type { Extraction } from "@/types/extraction";
 import ExtractionList from "./ExtractionList";
-import { useReferenceViewer } from "../reference-viewer/ReferenceViewerProvider";
 import ReferenceDownloadButton from "../reference-viewer/ReferenceDownloadButton";
 import { useMode1Labels } from "./i18n";
 
@@ -36,7 +35,6 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
   const t = useTranslations("mode1.referenceDocs");
   const L = useMode1Labels();
   // FLF-443: xem chữ / tải file gốc (mọi chế độ). Ngoài provider của workspace thì không có nút "Xem"
-  const viewer = useReferenceViewer();
   const [extractions, setExtractions] = useState<Record<string, Extraction | null>>({});
   const [openDoc, setOpenDoc] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<{ documentId: string; cost: number | null; batches: number } | null>(null);
@@ -153,7 +151,8 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
               : t("unreadable");
           return (
             <li key={d._id} className="flex flex-wrap items-center gap-2 text-body rounded-inner px-2 py-1.5 odd:bg-surface-container-low">
-              <span className="font-bold text-on-surface truncate min-w-0 max-w-[200px]" title={d.originalName}>
+              {/* Tên giãn theo chỗ trống của dòng, chỉ cắt khi hết chỗ; tên đầy đủ ở tooltip */}
+              <span className="font-bold text-on-surface truncate min-w-0 flex-1 basis-[120px]" title={d.originalName}>
                 {d.originalName}
               </span>
               {unreadable && <span className="text-caption text-accent-gold-text">{unreadableLabel}</span>}
@@ -165,15 +164,8 @@ export default function ReferenceDocumentsPanel({ projectId, docs, onRemove, onC
                 </span>
               )}
               <span className="ml-auto flex items-center gap-1.5">
-                {viewer && !unreadable && (
-                  <button
-                    type="button"
-                    onClick={() => viewer.openDocument({ documentId: d._id, name: d.originalName })}
-                    className="px-2.5 py-1 rounded-full text-caption font-bold bg-surface-container-high text-on-surface-variant hover:bg-surface-container-highest cursor-pointer"
-                  >
-                    {t("view")}
-                  </button>
-                )}
+                {/* Không có "Xem": web không xem được file gốc (business-flow chỉ có xem chữ + tải file gốc); chữ của
+                    tài liệu mở từ chip "Nguồn" tới đúng đoạn được trích */}
                 <ReferenceDownloadButton projectId={projectId} documentId={d._id} fallbackName={d.originalName} />
                 {pendingSummary && !readOnly && (
                   <button type="button" disabled={summarizing !== null} onClick={() => void askSummarize(d._id)} className="px-2.5 py-1 rounded-full text-caption font-bold btn-gradient-primary text-white cursor-pointer disabled:opacity-50">

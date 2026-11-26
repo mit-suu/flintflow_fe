@@ -78,6 +78,19 @@ describe("ImportWorkspace - upload SRS trong layout workspace", () => {
     expect(screen.queryByRole("button", { name: "Lưu làm mẫu của tổ chức" })).not.toBeInTheDocument();
   });
 
+  it("chưa có file ⇒ nói rõ bước đang ở (tải file → xem khung và credit → đọc), ô thả file; không có Xem & comment / Export", () => {
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.getByRole("heading", { name: "Tải file SRS của dự án" })).toBeInTheDocument();
+    expect(screen.getByText(/báo số credit trước khi đọc nội dung/)).toBeInTheDocument();
+    const steps = screen.getByRole("list", { name: "Các bước bắt đầu" });
+    expect(steps).toHaveTextContent("Tải file");
+    expect(steps).toHaveTextContent("Xem khung và credit");
+    expect(steps).toHaveTextContent("Đọc nội dung");
+    expect(screen.getByRole("button", { name: "Kéo thả hoặc chọn file .docx" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Export" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Xem & comment" })).not.toBeInTheDocument();
+  });
+
   it("file bị từ chối ⇒ lý do + ô chọn file khác ngay tại màn", () => {
     const d = doc({ status: "preflight_rejected", preflight: { status: "rejected", issues: [{ code: "EMPTY_DOCUMENT", message: "Tài liệu không có nội dung chữ", location: null }], document_kind: null } });
     setImport({ doc: d, data: data({ import: d }) });

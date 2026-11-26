@@ -20,4 +20,7 @@ export const isGoogleAuthEnabled = GOOGLE_CLIENT_ID.length > 0;
  * (business-flow §4), nên có hai ô chat sửa hai bản khác nhau. BE cũng chặn bằng `GOOGLE_DOCS_AGENT_ENABLED`; bật cả hai
  * phía mới dùng được. Nhập / xuất Google Docs không phụ thuộc cờ này.
  */
-export const isDocsAssistantEnabled = isGoogleAuthEnabled && process.env.NEXT_PUBLIC_GOOGLE_DOCS_AGENT_ENABLED === "true";
+// Tạm ẩn hẳn (26/11): env FE bật mà BE tắt thì nút vẫn hiện rồi mở ra panel "chưa được bật" — chỉ giữ xuất Google Docs.
+// Bật lại: bỏ `false` và mở dòng dưới.
+// export const isDocsAssistantEnabled = isGoogleAuthEnabled && process.env.NEXT_PUBLIC_GOOGLE_DOCS_AGENT_ENABLED === "true";
+export const isDocsAssistantEnabled = false;
