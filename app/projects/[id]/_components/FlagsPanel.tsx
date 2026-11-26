@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { parseReviewProposal } from "./review-proposal";
 import Tabs from "@/components/ui/Tabs";
 import { workspaceStepLabel } from "./phase-labels";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
@@ -123,6 +124,11 @@ interface FlagsPanelProps {
    * từ câu này để model sửa đúng field và báo lại nếu cờ chưa đóng).
    */
   onEditSection?: (sectionLabel: string, issue?: string) => void;
+  /**
+   * FLF-453: "Chấp nhận" / "Chọn phương án" trên phát hiện của vòng rà soát — gửi đúng đề xuất vào đường sửa qua chat
+   * (thẻ xem trước rồi xác nhận), không ghi thẳng tài liệu.
+   */
+  onAcceptProposal?: (sectionLabel: string, issue: string, proposal: string, option?: "A" | "B") => void;
   /** FLF-278: "Nhờ AI soạn" trên cờ mục của mẫu còn trống — điền sẵn lệnh soạn nháp vào ô chat. */
   onDraftSection?: (sectionLabel: string) => void;
   /** Bước đã chốt: cờ "rỗng" của bước đã chốt là vấn đề cần xử lý, không phải "sẽ điền ở bước sau" (FLF-248). */
@@ -175,6 +181,7 @@ export default function FlagsPanel({
   onRewriteOutdated,
   rewriting = false,
   onEditSection,
+  onAcceptProposal,
   onDraftSection,
   acceptedSteps,
 }: FlagsPanelProps) {
@@ -436,6 +443,24 @@ export default function FlagsPanel({
               <span className="text-body text-on-surface leading-relaxed">{message}</span>
               <span className="text-caption text-on-surface-muted flex flex-wrap items-center gap-x-2.5" onClick={(e) => e.stopPropagation()}>
                 {sectionLink(flag)}
+                {onAcceptProposal &&
+                  (() => {
+                    const found = parseReviewProposal(flag.rule_id, flag.message);
+                    if (!found) return null;
+                    const label = sectionName(flag.section_id);
+                    const pill = `${pillButton} h-6 px-2 bg-primary text-on-primary hover:opacity-90`;
+                    return found.kind === "fix" ? (
+                      <button type="button" disabled={busy} onClick={() => onAcceptProposal(label, flag.message, found.proposal)} className={pill} title={t("acceptTitle")}>
+                        {t("accept")}
+                      </button>
+                    ) : (
+                      found.options.map((o) => (
+                        <button key={o.key} type="button" disabled={busy} onClick={() => onAcceptProposal(label, flag.message, o.text, o.key)} className={pill} title={t("pickOptionTitle", { key: o.key })}>
+                          {t("pickOption", { key: o.key })}
+                        </button>
+                      ))
+                    );
+                  })()}
                 {onEditSection && (
                   <button
                     type="button"

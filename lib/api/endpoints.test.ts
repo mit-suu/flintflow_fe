@@ -327,6 +327,8 @@ const cases: EndpointCase[] = [
   ],
   ["finalizeImport", () => importApi.finalizeImport("p1", "i1", 7), "/projects/p1/import/finalize", post({ import_id: "i1", base_version: 7 })],
   ["resumeImport", () => importApi.resumeImport("p1", "i1"), "/projects/p1/import/resume", post({ import_id: "i1" })],
+  ["getLayoutPreview (2.9a)", () => importApi.getLayoutPreview("p1"), "/projects/p1/import/layout-preview"],
+  ["confirmLayoutPreview (2.9a)", () => importApi.confirmLayoutPreview("p1"), "/projects/p1/import/layout-preview/confirm", { method: "POST" }],
   ["getGapReport", () => importApi.getGapReport("p1"), "/projects/p1/gap-report"],
   // ─── mode 1 v2: step-plan (#32–#33, FLF-182) ───
   ["getStepPlan", () => importApi.getStepPlan("p1"), "/projects/p1/step-plan"],

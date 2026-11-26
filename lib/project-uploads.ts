@@ -2,7 +2,7 @@
 
 import { useSyncExternalStore } from "react";
 import { ApiClientError } from "@/lib/api/client";
-import { uploadImport } from "@/lib/api/import";
+import { importFromGoogleDocs, uploadImport } from "@/lib/api/import";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
 import { uploadReferenceDocument } from "@/lib/reference-upload";
 import type { DocumentUploadChoice, DocumentVersionCandidate } from "@/types/document";
@@ -41,6 +41,8 @@ export interface ProjectFiles {
   projectName?: string;
   srs?: File | null;
   orgTemplate?: { id: string; name: string; /** Bản đã chọn; trống ⇒ bản đã đăng mới nhất. */ version?: number } | null;
+  /** FLF-464: SRS chọn từ Google Drive (một chiều, BE lấy về .docx rồi đi như file tải lên). */
+  srsGoogle?: { id: string; name: string } | null;
   references: File[];
 }
 
@@ -51,10 +53,14 @@ interface UploadsStore {
   listeners: Set<() => void>;
   /** FLF-398: file đang chờ người dùng chọn (`choosing`) ⇒ hàm trả lựa chọn cho lượt tải đang treo. */
   choices?: Map<string, (choice: DocumentUploadChoice | null) => void>;
+  /** FLF-464: key dòng SRS ⇒ id file Google Drive đã chọn; cùng store để nút Thử lại không mất khi module nạp lại. */
+  googleSources?: Map<string, string>;
 }
 const store: UploadsStore = ((globalThis as { __ffProjectUploads?: UploadsStore }).__ffProjectUploads ??= { state: new Map(), files: new Map(), listeners: new Set() });
 const choices = (store.choices ??= new Map());
 const { state, files, listeners } = store;
+/** FLF-464: key dòng SRS ⇒ id file Google Drive đã chọn (thay cho file trong `files`). */
+const googleSources = (store.googleSources ??= new Map<string, string>());
 const emit = () => listeners.forEach((l) => l());
 
 const patchItem = (projectId: string, key: string, patch: Partial<UploadItem>) => {
@@ -68,7 +74,12 @@ const run = async (projectId: string, item: UploadItem, orgTemplate?: { id: stri
   patchItem(projectId, item.key, { status: "uploading", candidates: undefined, note: undefined });
   try {
     if (item.kind === "srs") {
-      await (orgTemplate ? importFromOrgTemplate(projectId, orgTemplate.id, orgTemplate.version) : uploadImport(projectId, files.get(item.key)!));
+      const googleId = googleSources.get(item.key);
+      await (googleId
+        ? importFromGoogleDocs(projectId, googleId)
+        : orgTemplate
+          ? importFromOrgTemplate(projectId, orgTemplate.id, orgTemplate.version)
+          : uploadImport(projectId, files.get(item.key)!));
       patchItem(projectId, item.key, { status: "done" });
       return;
     }
@@ -94,10 +105,11 @@ let seq = 0;
 export const startProjectUploads = (projectId: string, input: ProjectFiles): void => {
   const items: UploadItem[] = [];
   const orgTemplate = input.orgTemplate ? { id: input.orgTemplate.id, version: input.orgTemplate.version } : undefined;
-  if (input.srs || input.orgTemplate) {
+  if (input.srs || input.srsGoogle || input.orgTemplate) {
     const key = `srs-${++seq}`;
     if (input.srs) files.set(key, input.srs);
-    items.push({ key, kind: "srs", name: input.srs?.name ?? input.orgTemplate!.name, size: input.srs?.size ?? null, status: "uploading" });
+    else if (input.srsGoogle) googleSources.set(key, input.srsGoogle.id);
+    items.push({ key, kind: "srs", name: input.srs?.name ?? input.srsGoogle?.name ?? input.orgTemplate!.name, size: input.srs?.size ?? null, status: "uploading" });
   }
   for (const ref of input.references) {
     const key = `ref-${++seq}`;
@@ -108,7 +120,7 @@ export const startProjectUploads = (projectId: string, input: ProjectFiles): voi
   state.set(projectId, { items, startedAt: Date.now(), projectName: input.projectName });
   emit();
   // SRS song song với tài liệu tham khảo; tài liệu tham khảo lần lượt (FLF-398: file sau so được với file trước)
-  for (const item of items) if (item.kind === "srs") void run(projectId, item, orgTemplate);
+  for (const item of items) if (item.kind === "srs") void run(projectId, item, input.srs || input.srsGoogle ? undefined : orgTemplate);
   void (async () => {
     for (const item of items) if (item.kind === "reference") await run(projectId, item);
   })();
@@ -128,6 +140,7 @@ export const dismissProjectUpload = (projectId: string, key: string): void => {
   const current = state.get(projectId);
   if (!current) return;
   files.delete(key);
+  googleSources.delete(key);
   const items = current.items.filter((i) => i.key !== key);
   if (items.length) state.set(projectId, { ...current, items });
   else state.delete(projectId);
@@ -137,7 +150,7 @@ export const dismissProjectUpload = (projectId: string, key: string): void => {
 /** Thử lại một file lỗi (file vẫn còn trong bộ nhớ của tab). */
 export const retryProjectUpload = (projectId: string, key: string): void => {
   const item = state.get(projectId)?.items.find((i) => i.key === key);
-  if (item && files.has(key)) void run(projectId, item);
+  if (item && (files.has(key) || googleSources.has(key))) void run(projectId, item);
 };
 
 /** Bỏ theo dõi khi mọi file đã xong và trang không cần hiện nữa. */
@@ -145,6 +158,7 @@ export const clearProjectUploads = (projectId: string): void => {
   const current = state.get(projectId);
   current?.items.forEach((i) => {
     files.delete(i.key);
+    googleSources.delete(i.key);
     // File đang chờ chọn ⇒ coi như Bỏ qua, lượt tải đang treo kết thúc
     choices.get(i.key)?.(null);
     choices.delete(i.key);

@@ -33,6 +33,7 @@ const setImport = (over: Record<string, unknown>) => {
     confirmReview: vi.fn(),
     continueFlow2: vi.fn(async () => ({ project_mode: "fpt" })),
     runReview: vi.fn(async () => ({ project_mode: "fpt" })),
+    runSectionReview: vi.fn(async () => ({ reviewed: true })),
     stopReview: vi.fn(async () => ({ import: { status: "reviewing", paused: { reason: "user" } } })),
     ...over,
   };
@@ -41,6 +42,22 @@ const setImport = (over: Record<string, unknown>) => {
 beforeEach(() => setImport({}));
 
 describe("ImportWorkspace - upload SRS trong layout workspace", () => {
+  // FLF-456: ô ngôn ngữ tài liệu chỉ hiện khi BE báo file chỉ còn khung; chọn ngôn ngữ ⇒ gọi lưu lựa chọn
+  it("file chỉ còn khung ⇒ hiện ô ngôn ngữ, chọn Tiếng Việt gọi setSkeletonLanguage; còn mục giữ nội dung ⇒ không có ô", () => {
+    const d = doc({});
+    const preview = { summary: { present: 0, missing: 3, out_of_scope: 0, kind: "template" as const }, sections: [{ section_id: "fixed:1", title: "1 Overview", status: "missing" as const, order: 0 }], resolved_mode: 3 as const, intent: "fixed" as const, computed_at: "2026-11-08T00:00:00.000Z" };
+    const setSkeletonLanguage = vi.fn();
+    setImport({ awaitingStart: true, doc: d, setSkeletonLanguage, data: data({ import: d, structure_preview: preview, skeleton_language: { visible: true, file: "en", selected: "en" } }) });
+    const first = renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.getByRole("heading", { name: "Ngôn ngữ tài liệu" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Tiếng Việt" }));
+    expect(setSkeletonLanguage).toHaveBeenCalledWith("vi");
+    first.unmount();
+    setImport({ awaitingStart: true, doc: d, data: data({ import: d, structure_preview: preview, skeleton_language: { visible: false, file: "en", selected: "en" } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.queryByRole("heading", { name: "Ngôn ngữ tài liệu" })).not.toBeInTheDocument();
+  });
+
   it("chờ Bắt đầu ⇒ màn đọc khung; Bắt đầu gửi kèm xác nhận bản mới nhất (không hỏi thêm câu nào)", () => {
     const d = doc({});
     setImport({
@@ -117,6 +134,37 @@ describe("ImportWorkspace - upload SRS trong layout workspace", () => {
     await vi.waitFor(() => expect(onProjectChanged).toHaveBeenCalled());
   });
 
+  it("FLF-453 nút Rà soát bằng AI cho mục chỉ được Code kiểm: hiện credit riêng, xác nhận mới gọi, không sang Luồng 2", async () => {
+    const onProjectChanged = vi.fn();
+    const d = doc({ status: "reviewing" });
+    const review = { section_ids: ["fixed:1"], calls: 1, credits: 3, optional_sections: [{ section_id: "fixed:2.1", title: "2.1 Product Perspective", calls: 2, credits: 6 }] };
+    setImport({ doc: d, data: data({ import: d, review }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={onProjectChanged} />);
+    expect(screen.getByText("2.1 Product Perspective")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Rà soát bằng AI" }));
+    // Báo credit riêng của mục, chưa gọi gì
+    expect(screen.getByText(/~6 credit/)).toBeInTheDocument();
+    expect(imp.current.runSectionReview).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận rà soát" }));
+    expect(imp.current.runSectionReview).toHaveBeenCalledWith("fixed:2.1");
+    await vi.waitFor(() => expect(screen.queryByText(/~6 credit/)).not.toBeInTheDocument());
+    expect(onProjectChanged).not.toHaveBeenCalled();
+  });
+
+  it("FLF-453 Huỷ ở thẻ credit của mục ⇒ không gọi rà soát; không có mục nào chỉ-Code ⇒ không hiện khối", () => {
+    const d = doc({ status: "reviewing" });
+    const review = { section_ids: ["fixed:1"], calls: 1, credits: 3, optional_sections: [{ section_id: "fixed:2.1", title: "2.1 Product Perspective", calls: 2, credits: 6 }] };
+    setImport({ doc: d, data: data({ import: d, review }) });
+    const { unmount } = renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Rà soát bằng AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+    expect(imp.current.runSectionReview).not.toHaveBeenCalled();
+    unmount();
+    setImport({ doc: d, data: data({ import: d, review: { section_ids: ["fixed:1"], calls: 1, credits: 3 } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.queryByTestId("review-optional")).not.toBeInTheDocument();
+  });
+
   it("FLF-453 bấm Dừng khi đang rà soát ⇒ gọi stopReview, không sang Luồng 2, không gọi AI thêm", () => {
     const onProjectChanged = vi.fn();
     const d = doc({ status: "reviewing" });
@@ -182,6 +230,33 @@ describe("ImportWorkspace - upload SRS trong layout workspace", () => {
     expect(imp.current.confirmReview).toHaveBeenCalledWith({ guidance: [{ section_id: "fixed:3.4", block_id: "B0042", is_guidance: true }] });
     fireEvent.click(screen.getByRole("button", { name: "Đã xem" }));
     expect(imp.current.confirmReview).toHaveBeenCalledWith({ content_mismatch: [{ section_id: "fixed:2.2.2" }] });
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả theo gợi ý của FlintFlow" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ confirm_all: true });
+  });
+
+  it("FLF-462 bước 1.6: chỉ còn phần tử I-4 độ tin thấp ⇒ liệt kê tên / giá trị gợi ý, Giữ / Bỏ gọi đúng confirmReview với fields[]", () => {
+    const d = doc({ status: "fields_review" });
+    setImport({
+      doc: d,
+      data: data({
+        import: d,
+        extraction: {
+          sections: [],
+          review_fields: [
+            { section_id: "fixed:2.2.1", path: "use_cases[id=UC-02].name", value: "Đăng nhập hệ thống", confidence: 0.5, source_block_ids: ["B0010"], origin: "ai", confirmed: false },
+          ],
+          review_guidance: [],
+          review_content_mismatch: [],
+        },
+      }),
+    });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.getByText("Đăng nhập hệ thống")).toBeInTheDocument();
+    expect(screen.queryByText(/Còn vài chỗ FlintFlow đọc được/)).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Giữ giá trị này" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ fields: [{ section_id: "fixed:2.2.1", path: "use_cases[id=UC-02].name", confirmed: true }] });
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ fields: [{ section_id: "fixed:2.2.1", path: "use_cases[id=UC-02].name", confirmed: false }] });
     fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả theo gợi ý của FlintFlow" }));
     expect(imp.current.confirmReview).toHaveBeenCalledWith({ confirm_all: true });
   });

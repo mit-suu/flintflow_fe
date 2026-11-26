@@ -33,6 +33,17 @@ export const deleteProjectDocument = (projectId: string, documentId: string) =>
     method: "DELETE",
   });
 
+/**
+ * FLF-458 (business-flow §3.6 "Đọc một lần dùng lại nhiều lần"): AI đọc các tài liệu tham khảo đang chờ
+ * (`summaryStatus: "pending"`) sau khi người dùng xác nhận credit — upload chỉ trích chữ, không gọi AI. `documentIds`
+ * rỗng / bỏ trống ⇒ đọc hết tài liệu đang chờ của dự án.
+ */
+export const summarizeProjectDocuments = (projectId: string, documentIds: string[] = []) =>
+  apiCall<ProjectDocument[]>(`/projects/${projectId}/documents/summarize`, {
+    method: "POST",
+    body: JSON.stringify({ document_ids: documentIds }),
+  });
+
 /** Chữ của tài liệu tham khảo, chia đoạn theo `para_id` (Lead / Analyst). `404 DOCUMENT_NOT_FOUND` khi tài liệu không thuộc dự án. */
 export const getReferenceDocumentText = (projectId: string, documentId: string) =>
   apiCall<ReferenceDocumentText>(`/projects/${projectId}/documents/${documentId}/text`);

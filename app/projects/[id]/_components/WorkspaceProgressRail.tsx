@@ -5,7 +5,7 @@ import { useTranslations } from "next-intl";
 import Logo from "@/components/Logo";
 import IconButton from "@/components/ui/IconButton";
 import type { PhaseId } from "@/lib/constants/step-registry";
-import type { StepProgress, StepSummary } from "@/types/pipeline";
+import type { SectionTodo, StepProgress, StepSummary } from "@/types/pipeline";
 import PhaseNavBar, { visiblePhases } from "./PhaseNavBar";
 import { SINGLE_ITEM_PHASES } from "./phase-labels";
 import StepProgressBar from "./StepProgressBar";
@@ -22,6 +22,8 @@ interface WorkspaceProgressRailProps {
   reopenableStepIds?: ReadonlySet<string>;
   /** Điểm sẵn sàng (% section accepted) — hiển thị, không phải điều kiện chốt. */
   readinessPercent?: number;
+  /** FLF-461: chế độ 3/4 ⇒ đáy rail đếm mục còn cần xử lý, không hiện % theo 12 giai đoạn. */
+  sectionTodo?: SectionTodo | null;
 }
 
 /**
@@ -41,6 +43,7 @@ export default function WorkspaceProgressRail({
   onSelectStep,
   reopenableStepIds,
   readinessPercent,
+  sectionTodo,
 }: WorkspaceProgressRailProps) {
   const t = useTranslations("workspace.progressRail");
   // Giai đoạn đang mở danh sách bước (nhiều cái cùng lúc). `null` = chưa đụng tới ⇒ mở sẵn giai đoạn đang làm.
@@ -97,7 +100,7 @@ export default function WorkspaceProgressRail({
             <StepProgressBar
               phase={phase}
               steps={steps}
-              progress={progress}
+              progress={sectionTodo && progress ? { ...progress, show_percent: false } : progress}
               selectedStepId={selectedStepId}
               onSelectStep={onSelectStep}
               reopenableStepIds={reopenableStepIds}
@@ -108,7 +111,30 @@ export default function WorkspaceProgressRail({
 
       {/* Đáy rail: số phần trăm cộng một thanh mảnh màu thương hiệu — rãnh lavender, phần đã chốt tím đặc */}
       <div className="ff-fade-above [--ff-fade:var(--color-surface-container-lowest)] shrink-0 bg-surface-container-lowest px-5 pt-3 pb-4">
-        {readinessPercent !== undefined && (
+        {sectionTodo && (
+          <div className="flex flex-col gap-2" title={t("sectionsLeftHint")} data-testid="section-todo">
+            <div className="flex items-baseline justify-between gap-2">
+              <span className="text-body font-medium text-on-surface-variant">{t("sectionsLeft")}</span>
+              <span className="text-body font-bold text-on-surface-dark tabular-nums">
+                {t("sectionsLeftValue", { remaining: sectionTodo.remaining, total: sectionTodo.total })}
+              </span>
+            </div>
+            <div
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={sectionTodo.total}
+              aria-valuenow={sectionTodo.total - sectionTodo.remaining}
+              className="h-1.5 rounded-full bg-primary-fixed overflow-hidden"
+            >
+              <span
+                aria-hidden
+                className="block h-full rounded-full bg-primary transition-[width] duration-300 motion-reduce:transition-none"
+                style={{ width: `${sectionTodo.total > 0 ? Math.round(((sectionTodo.total - sectionTodo.remaining) * 100) / sectionTodo.total) : 100}%` }}
+              />
+            </div>
+          </div>
+        )}
+        {!sectionTodo && readinessPercent !== undefined && (
           <div className="flex flex-col gap-2" title={t("readinessHint")}>
             <div className="flex items-baseline justify-between gap-2">
               <span className="text-body font-medium text-on-surface-variant">{t("readiness")}</span>

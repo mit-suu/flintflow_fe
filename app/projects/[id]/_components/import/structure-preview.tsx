@@ -6,6 +6,10 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import type { CreditEstimate, StructurePreview as Preview } from "@/types/import";
 import StructureAbsorb, { StructureAbsorbLoading } from "./structure-absorb";
+import OutOfScopeNote from "./out-of-scope-note";
+import ForeignProjectNotice from "./foreign-project-notice";
+import SectionLabels from "./section-labels";
+import type { MappingHeadingPatch } from "@/types/import";
 
 /**
  * Màn đọc khung khi file còn đang tải / BE đang đọc khung — cùng khung với `StructurePreview` (tên file, tiêu đề, trang tài liệu
@@ -50,6 +54,8 @@ interface StructurePreviewProps {
   onPickAnother: () => void;
   /** FLF-412: khối Giữ nội dung / Bỏ chữ theo mục (đặt trên bản đồ mục). */
   textSections?: React.ReactNode;
+  /** FLF-456: ô ngôn ngữ tài liệu (chỉ hiện khi file chỉ còn khung) — đặt dưới khối Giữ / Bỏ chữ. */
+  skeletonLanguage?: React.ReactNode;
   /** FLF-412: đang lưu lựa chọn Bỏ chữ ⇒ chưa cho Bắt đầu (BE phải nhận lựa chọn trước khi viết lại file). */
   startBlocked?: boolean;
   /** Thẻ "Lưu làm mẫu tổ chức" (file giữ khung). */
@@ -58,6 +64,10 @@ interface StructurePreviewProps {
   unsureKind?: boolean;
   /** Khoá "đã xem hiệu ứng hợp nhất" — theo lần import. */
   playKey?: string;
+  /** FLF-458: file vừa tải lên lấy từ một project FlintFlow khác (I-1); `undefined` = không. */
+  foreignProject?: { project_id: string; name: string | null } | null;
+  /** FLF-460: đổi nhãn mục (mục khớp, vào / ra Ngoài phạm vi); không truyền ⇒ không hiện khối đổi nhãn. */
+  onRelabel?: (patch: MappingHeadingPatch) => void;
 }
 
 /**
@@ -65,7 +75,7 @@ interface StructurePreviewProps {
  * tự trong file (Có / Còn trống / Ngoài phạm vi), báo cáo thiếu sót sơ bộ, một dòng credit + nút Bắt đầu. Không hỏi thêm gì:
  * cấu trúc đích đã chốt ở hộp Tạo dự án.
  */
-export default function StructurePreview({ fileName, preview, estimate, credits, busy = false, downloading = false, onStart, onDownloadGapReport, onPickAnother, footer, textSections, startBlocked = false, unsureKind = false, playKey = "preview" }: StructurePreviewProps) {
+export default function StructurePreview({ fileName, preview, estimate, credits, busy = false, downloading = false, onStart, onDownloadGapReport, onPickAnother, footer, textSections, skeletonLanguage, startBlocked = false, unsureKind = false, playKey = "preview", foreignProject = null, onRelabel }: StructurePreviewProps) {
   const t = useTranslations("workspace.import.preview");
   const summary = preview?.summary ?? null;
   const counted = summary ? summary.present + summary.missing : 0;
@@ -135,6 +145,8 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
         )}
       </header>
 
+      {foreignProject && <ForeignProjectNotice name={foreignProject.name} />}
+
       {unsureKind && (
         <p role="status" className="flex items-start gap-2 rounded-card bg-accent-gold-soft px-4 py-3 text-body text-accent-gold-text">
           <Icon name="warning" size={16} className="mt-0.5 shrink-0" />
@@ -144,7 +156,13 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
 
       {textSections}
 
+      {skeletonLanguage}
+
       {preview && <StructureAbsorb sections={preview.sections} playKey={playKey} />}
+
+      {preview && <OutOfScopeNote sections={preview.sections} />}
+
+      {preview && onRelabel && <SectionLabels sections={preview.sections} busy={busy || startBlocked} onRelabel={onRelabel} />}
 
       {/* Thanh hành động dính đáy vùng cuộn: credit + Bắt đầu luôn trong tầm mắt, không phải cuộn xuống tìm */}
       <div className="sticky bottom-4 z-20 flex flex-wrap items-center gap-3 rounded-card bg-surface-container-lowest/95 backdrop-blur px-4 py-3 shadow-[0_10px_32px_-10px_rgba(30,25,60,0.28)]">
@@ -157,6 +175,9 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
               ? t("credit.none")
               : t.rich("credit.estimate", { credits: estimate.credits, strong: (c) => <strong>{c}</strong> })
             : t("credit.unknown")}
+          {!!estimate?.reference_documents && (
+            <span className="text-on-surface-muted"> · {t("credit.referenceNote", { count: estimate.reference_documents, credits: estimate.reference_credits ?? 0 })}</span>
+          )}
           {balance !== null && <span className="text-on-surface-muted"> · {t("credit.balance", { balance })}</span>}
           {short && (
             <>
