@@ -13,6 +13,8 @@ import type {
   ImportStateResponse,
   MappingPatchRequest,
   ReuploadDiff,
+  ReviewRunResponse,
+  ReviewStopResponse,
   StepPlanPatchRequest,
   StepPlanResponse,
 } from "@/types/import";
@@ -111,6 +113,24 @@ export const resumeImport = (projectId: string, importId: string) =>
 /** Dừng lượt đọc nội dung đang chạy (#10b): BE dừng trước lượt AI kế tiếp, không trừ thêm credit. Tiếp tục bằng `resumeImport`. */
 export const pauseImport = (projectId: string, importId: string) =>
   apiCall<ExtractResponse>(`${base(projectId)}/import/pause`, {
+    method: "POST",
+    body: JSON.stringify({ import_id: importId }),
+  });
+
+/**
+ * FLF-453 (business-flow §3.1.2 "Rà soát phần có sẵn"): người dùng xác nhận credit ở `reviewing` ⇒ chạy AI rà các mục
+ * Code đã chọn rồi sang Luồng 2. Lượt AI lỗi / hết credit ⇒ trả `{ import }` đang `paused`, vẫn `reviewing` — gọi lại để
+ * tiếp tục (lượt đã trừ credit không chạy lại).
+ */
+export const runImportReview = (projectId: string, importId: string) =>
+  apiCall<ReviewRunResponse>(`${base(projectId)}/import/review/run`, {
+    method: "POST",
+    body: JSON.stringify({ import_id: importId }),
+  });
+
+/** Bấm Dừng khi vòng rà soát đang chạy — giữ tiến độ, lượt chưa trừ credit không chạy. */
+export const stopImportReview = (projectId: string, importId: string) =>
+  apiCall<ReviewStopResponse>(`${base(projectId)}/import/review/stop`, {
     method: "POST",
     body: JSON.stringify({ import_id: importId }),
   });
