@@ -793,7 +793,19 @@ function SectionView({
             <span className="text-caption font-extrabold px-2 py-0.5 rounded-full bg-accent-gold-soft text-accent-gold-text">{t("awaitingReaccept")}</span>
           )}
           {badge && section.status && (
-            <span className={`text-caption font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{t(`status.${section.status}`)}</span>
+            // Nhãn "Cũ" bấm được: mở Kiểm & chốt, nơi có nút "Viết lại cho khớp" (FLF-493 #29)
+            section.status === "stale" && onOpenIssues ? (
+              <button
+                type="button"
+                onClick={onOpenIssues}
+                title={t("openIssuesTitle")}
+                className={`text-caption font-extrabold px-2 py-0.5 rounded-full cursor-pointer ${badge.style}`}
+              >
+                {t(`status.${section.status}`)}
+              </button>
+            ) : (
+              <span className={`text-caption font-extrabold px-2 py-0.5 rounded-full ${badge.style}`}>{t(`status.${section.status}`)}</span>
+            )
           )}
           {issues && issues.count > 0 && (
             // Chỉ một chấm + số: nội dung vấn đề nằm trong panel, tài liệu giữ để đọc
