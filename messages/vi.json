@@ -2938,7 +2938,8 @@
       "scope": {
         "after_brief": "Soạn phần còn lại của SRS sau khi chốt Brief",
         "screens_locked": "Soạn chi tiết các màn đã chốt",
-        "screens_added": "Soạn chi tiết các màn mới thêm"
+        "screens_added": "Soạn chi tiết các màn mới thêm",
+        "reference_documents": "Đọc tài liệu tham khảo trước khi hỏi ý tưởng"
       },
       "screenRange": "Phần màn là ước tính: khoảng {min} đến {max} màn, ~{creditsMin} đến ~{creditsMax} credit. Số chính xác sẽ báo khi chốt danh sách màn.",
       "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
@@ -2946,6 +2947,7 @@
       "pdfNote": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx.",
       "creditsRange": "~{min}–{max} credit",
       "totalRange": "Tổng ước tính: ~{min}–{max} credit",
+      "referenceLine": "Đọc {count, plural, =1 {1 tài liệu tham khảo} other {# tài liệu tham khảo}}",
       "screenRangeLine": "Chi tiết màn hình · khoảng {min}–{max} màn",
       "screenRangeNote": "Số màn hình là ước tính theo Brief. Con số chính xác có sau bước Danh sách màn hình.",
       "shortRange": "Số dư đủ nếu dự án ít màn, có thể thiếu nếu nhiều màn. AI sẽ dừng khi hết credit, phần đã xong không tính lại.",

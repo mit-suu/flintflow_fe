@@ -803,11 +803,14 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     const hasRange = est.units.some((u) => u.screens);
     const ok = await confirmCredits({
       title: t(`creditGate.scope.${ack.scope}`),
-      lines: est.units.map((u) =>
-        u.screens
-          ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
-          : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
-      ),
+      lines:
+        ack.scope === "reference_documents"
+          ? [{ label: t("creditGate.referenceLine", { count: ack.documents ?? 0 }), credits: ack.credits }]
+          : est.units.map((u) =>
+              u.screens
+                ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
+                : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
+            ),
       total: min,
       totalMax: max,
       available: est.available_credits,

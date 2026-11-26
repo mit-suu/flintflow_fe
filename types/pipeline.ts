@@ -399,13 +399,15 @@ export interface RunEstimate {
 }
 
 /** FLF-466: các lần báo credit theo số màn — sau Approve Brief, sau chốt danh sách màn (S-4.1), sau thêm màn. */
-export type CreditAckScope = "after_brief" | "screens_locked" | "screens_added";
+export type CreditAckScope = "after_brief" | "screens_locked" | "screens_added" | "reference_documents";
 
 export interface CreditAckRequired {
   scope: CreditAckScope;
   credits: number;
   created_at: string;
   screens?: string[];
+  /** FLF-458: `reference_documents` - số tài liệu tham khảo chờ đọc. */
+  documents?: number;
 }
 
 export interface ScreenRange {
