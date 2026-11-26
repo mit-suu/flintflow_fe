@@ -1,6 +1,6 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import { useLeaveGuard } from "@/lib/hooks/use-leave-guard";
 import Button from "@/components/ui/Button";
@@ -9,7 +9,6 @@ import { createProjectFrom } from "@/lib/api/projects";
 import { precheckDocx } from "@/lib/api/documents";
 import { markImportPending } from "@/lib/import-pending";
 import { startProjectUploads } from "@/lib/project-uploads";
-import { DEFAULT_LOCALE, isLocale } from "@/lib/i18n";
 import type { DocumentLanguage, Project } from "@/types/project";
 import type { OrgTemplateSummary } from "@/types/org-library";
 import DocumentLanguagePicker from "./DocumentLanguagePicker";
@@ -49,7 +48,6 @@ let refSeq = 0;
 export default function CreateProjectForm({ variant, onCreated, onCancel, folderId, onPendingFilesChange }: CreateProjectFormProps) {
   const t = useTranslations("app.createProject");
   const tc = useTranslations("app.common");
-  const locale = useLocale();
   const defaultName = t("defaultName");
   const [name, setName] = useState(defaultName);
   const [srsFile, setSrsFile] = useState<File | null>(null);
@@ -60,8 +58,8 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
   const [orgTemplateVersion, setOrgTemplateVersion] = useState<number | null>(null);
   const [completeToStandard, setCompleteToStandard] = useState(false);
   const [references, setReferences] = useState<ReferenceFile[]>([]);
-  // FLF-265 (D2): mặc định theo ngôn ngữ giao diện — user đang đọc tiếng gì thì tài liệu viết tiếng đó
-  const [documentLanguage, setDocumentLanguage] = useState<DocumentLanguage>(isLocale(locale) ? locale : DEFAULT_LOCALE);
+  // FLF-456 (business-flow §1, đảo FLF-265): tạo mới không có file ⇒ mặc định tiếng Anh, không theo ngôn ngữ giao diện
+  const [documentLanguage, setDocumentLanguage] = useState<DocumentLanguage>("en");
   const [stage, setStage] = useState<Stage | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [srsError, setSrsError] = useState<string | null>(null);

@@ -41,6 +41,22 @@ const setImport = (over: Record<string, unknown>) => {
 beforeEach(() => setImport({}));
 
 describe("ImportWorkspace - upload SRS trong layout workspace", () => {
+  // FLF-456: ô ngôn ngữ tài liệu chỉ hiện khi BE báo file chỉ còn khung; chọn ngôn ngữ ⇒ gọi lưu lựa chọn
+  it("file chỉ còn khung ⇒ hiện ô ngôn ngữ, chọn Tiếng Việt gọi setSkeletonLanguage; còn mục giữ nội dung ⇒ không có ô", () => {
+    const d = doc({});
+    const preview = { summary: { present: 0, missing: 3, out_of_scope: 0, kind: "template" as const }, sections: [{ section_id: "fixed:1", title: "1 Overview", status: "missing" as const, order: 0 }], resolved_mode: 3 as const, intent: "fixed" as const, computed_at: "2026-11-08T00:00:00.000Z" };
+    const setSkeletonLanguage = vi.fn();
+    setImport({ awaitingStart: true, doc: d, setSkeletonLanguage, data: data({ import: d, structure_preview: preview, skeleton_language: { visible: true, file: "en", selected: "en" } }) });
+    const first = renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.getByRole("heading", { name: "Ngôn ngữ tài liệu" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("radio", { name: "Tiếng Việt" }));
+    expect(setSkeletonLanguage).toHaveBeenCalledWith("vi");
+    first.unmount();
+    setImport({ awaitingStart: true, doc: d, data: data({ import: d, structure_preview: preview, skeleton_language: { visible: false, file: "en", selected: "en" } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.queryByRole("heading", { name: "Ngôn ngữ tài liệu" })).not.toBeInTheDocument();
+  });
+
   it("chờ Bắt đầu ⇒ màn đọc khung; Bắt đầu gửi kèm xác nhận bản mới nhất (không hỏi thêm câu nào)", () => {
     const d = doc({});
     setImport({

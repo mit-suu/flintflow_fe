@@ -3553,6 +3553,12 @@
         "hint": "{count, plural, one {This section is} other {These sections are}} not part of a software requirements specification under ISO/IEC/IEEE 29148 (for example a cost estimate). FlintFlow keeps the text as is: it does not draft it, check it or count it toward readiness. To change the text in a section, ask in the chat.",
         "listLabel": "Out-of-scope sections"
       },
+      "skeletonLanguage": {
+        "title": "Document language",
+        "hint": "No section keeps its content, only the outline. Choose the language of your document. If it differs from the file, the headings, table column headers and guidance text are translated once when you press Start; the translation is included in the credits below.",
+        "fileLanguage": "The file is in {language}",
+        "translating": "The outline will be translated to {language} when you press Start."
+      },
       "absorb": {
         "documentLabel": "Your document",
         "storeLabel": "What FlintFlow understands",

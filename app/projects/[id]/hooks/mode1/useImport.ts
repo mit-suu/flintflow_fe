@@ -12,6 +12,7 @@ import {
   runImportReview,
   patchMapping,
   setDropText,
+  setSkeletonLanguage,
   startExtraction,
   stopImportReview,
   uploadImport,
@@ -25,7 +26,7 @@ import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 /** Nhịp poll `GET /import` khi lượt import chạy nền (#6/#10 trả ngay). */
 export const EXTRACT_POLL_MS = 2000;
 
-export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "relabel" | "confirm" | "review" | "reviewStop";
+export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "relabel" | "language" | "confirm" | "review" | "reviewStop";
 
 /** Bước chạy nền của lượt một mạch (FLF-343): trích ⇒ tạo bản gốc 0.1 ⇒ kiểm tra. */
 const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
@@ -157,6 +158,8 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
     setDropText: (keys: string[]) => run("drop", () => setDropText(projectId, importId, keys)),
     /** FLF-460: đổi nhãn mục ở màn đọc khung (không tốn credit) ⇒ bản sơ bộ + credit tính lại. */
     relabel: (heading: MappingHeadingPatch) => run("relabel", () => patchMapping(projectId, { import_id: importId, headings: [heading] })),
+    /** FLF-456: lưu ngôn ngữ tài liệu khi file chỉ còn khung ⇒ credit mới (có phần dịch nếu khác ngôn ngữ file). */
+    setSkeletonLanguage: (language: "en" | "vi") => run("language", () => setSkeletonLanguage(projectId, importId, language)),
     /** Nút Bắt đầu: một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu trả lời "đây là bản mới nhất". */
     start: (confirmLatest: boolean) =>
       run("start", async () => {

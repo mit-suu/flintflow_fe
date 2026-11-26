@@ -3553,6 +3553,12 @@
         "hint": "{count, plural, one {Mục này không thuộc} other {Các mục này không thuộc}} tài liệu đặc tả yêu cầu phần mềm theo ISO/IEC/IEEE 29148 (ví dụ dự toán chi phí). FlintFlow giữ nguyên chữ, không soạn, không kiểm tra và không tính vào mức sẵn sàng. Muốn sửa chữ trong mục, bạn nhắn yêu cầu trong chat.",
         "listLabel": "Các mục ngoài phạm vi"
       },
+      "skeletonLanguage": {
+        "title": "Ngôn ngữ tài liệu",
+        "hint": "Không mục nào giữ nội dung, file chỉ còn khung. Chọn ngôn ngữ cho tài liệu của bạn. Nếu khác ngôn ngữ của file, tiêu đề mục, tiêu đề cột bảng và chữ hướng dẫn được dịch một lần khi bạn bấm Bắt đầu; phần dịch đã nằm trong số credit bên dưới.",
+        "fileLanguage": "File đang viết bằng {language}",
+        "translating": "Khung sẽ được dịch sang {language} khi bạn bấm Bắt đầu."
+      },
       "absorb": {
         "documentLabel": "Tài liệu của bạn",
         "storeLabel": "FlintFlow nắm được",

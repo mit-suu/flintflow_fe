@@ -23,6 +23,7 @@ import ImportProgress from "./import-progress";
 import ReviewConfirm from "./review-confirm";
 import StructurePreview, { StructureReading } from "./structure-preview";
 import TextSections from "./text-sections";
+import SkeletonLanguage from "./skeleton-language";
 import StructureChangeNotice from "../mode1/structure-change-notice";
 import CreationProgress from "./creation-progress";
 import ImportSkeleton from "./import-skeleton";
@@ -197,9 +198,10 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
           unsureKind={doc.preflight.document_kind?.kind === "unknown"}
           foreignProject={doc.foreign_project ?? null}
           playKey={doc.id}
-          startBlocked={imp.busy === "drop" || imp.busy === "relabel"}
+          startBlocked={imp.busy === "drop" || imp.busy === "relabel" || imp.busy === "language"}
           onRelabel={(patch) => void imp.relabel(patch)}
           textSections={<TextSections sections={imp.data?.text_sections ?? []} busy={imp.busy === "drop" || imp.busy === "start"} onChange={(keys) => void imp.setDropText(keys)} />}
+          skeletonLanguage={<SkeletonLanguage state={imp.data?.skeleton_language ?? null} busy={imp.busy === "drop" || imp.busy === "language" || imp.busy === "start"} onChange={(language) => void imp.setSkeletonLanguage(language)} />}
         />
       );
     }
