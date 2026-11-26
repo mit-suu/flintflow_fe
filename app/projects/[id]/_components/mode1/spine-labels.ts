@@ -193,7 +193,7 @@ const NAME_FIELDS = ["name", "term", "title", "heading"] as const;
 const DESCRIPTION_FIELDS = ["description", "statement", "definition", "text"] as const;
 const DOC_CODE_COLLECTIONS: ReadonlySet<string> = new Set(["use_cases", "business_rules", "messages", "nfrs"]);
 /** Field enum có nhãn (`mode1.spine.values.<nhóm>.<giá trị>`). `type` của actor cũ dùng chung nhãn với `kind`. */
-const ENUM_FIELDS: Readonly<Record<string, string>> = { kind: "kind", type: "kind", priority: "priority", category: "category", tier: "tier", status: "status" };
+const ENUM_FIELDS: Readonly<Record<string, string>> = { kind: "kind", type: "kind", priority: "priority", category: "category", tier: "tier", status: "status", platforms: "platform" };
 
 /** Tên mọi phần tử có tên trong Spine, theo bộ sưu tập: `{ actors: { A04: "Patron" } }`. */
 export type ElementNames = Readonly<Record<string, Readonly<Record<string, string>>>>;

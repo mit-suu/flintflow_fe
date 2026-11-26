@@ -56,6 +56,17 @@ describe("spine-labels - tiếng Anh", () => {
   });
 });
 
+describe("FLF-493: nhãn giá trị nền tảng của tác nhân", () => {
+  const en = labelsFor("en");
+  it("platforms hiện tên dễ đọc, không lộ mã web / mobile", () => {
+    expect(labelsFor().humanValue(["mobile"], "platforms")).toBe("Ứng dụng di động");
+    expect(labelsFor().humanValue(["web", "mobile"], "platforms")).toBe("Ứng dụng web, Ứng dụng di động");
+    expect(en.humanValue(["mobile"], "platforms")).toBe("Mobile app");
+    expect(en.humanValue(["web"], "platforms")).toBe("Web app");
+    expect(labelsFor().humanValue(["desktop"], "platforms")).toBe("desktop");
+  });
+});
+
 describe("FLF-480: nhãn trường liên kết tính năng", () => {
   it("feature_ids có nhãn tiếng Việt, không lộ tên trường thô", () => {
     expect(fieldLabel("feature_ids")).not.toBe("feature_ids");

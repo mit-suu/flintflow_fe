@@ -5002,6 +5002,10 @@
           "high": "High level",
           "detail": "Detail"
         },
+        "platform": {
+          "web": "Web app",
+          "mobile": "Mobile app"
+        },
         "status": {
           "unconfirmed": "Unconfirmed",
           "confirmed": "Confirmed",
