@@ -112,6 +112,7 @@ import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
 import StructureChangeNotice from "./_components/mode1/structure-change-notice";
+import LayoutPreviewCard from "./_components/mode1/layout-preview-card";
 import ImportWorkspace from "./_components/import/import-workspace";
 import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
 import { clearImportPending } from "@/lib/import-pending";
@@ -2214,6 +2215,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onSelectStep={setSelectedStepId}
           reopenableStepIds={reopenableStepIds}
           readinessPercent={progress?.readiness.accepted_pct}
+          sectionTodo={progress?.section_progress ?? null}
         />
         </div>
         <ResizeHandle active={rail.resizing} onStart={rail.startResize} onReset={rail.reset} label={t("page.resizeRail")} />
@@ -2382,6 +2384,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               <ReferenceUploadsNote projectId={projectId} className="mx-3 mb-2" />
               {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
               {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
+              {/* Chế độ 4, bước 2.9a: xem trước bố cục mới, xác nhận rồi mới áp vào tài liệu */}
+              {ws.project?.import_state === "drafting" && <LayoutPreviewCard projectId={projectId} canEdit={canEdit} className="mx-3 mb-2" />}
               {/* FLF-395: mẫu tổ chức của dự án có bản mới (Lead / Analyst) — "Để sau" chỉ ẩn trong phiên */}
               {canChangeTemplate && (
                 <TemplateUpdateBanner

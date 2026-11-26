@@ -101,3 +101,26 @@ describe("WorkspaceProgressRail", () => {
     expect(onHide).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("WorkspaceProgressRail - chế độ 3/4 (FLF-461)", () => {
+  it("có sectionTodo ⇒ đáy rail đếm mục còn cần xử lý, không hiện % tài liệu đã chốt", () => {
+    renderWithIntl(
+      <WorkspaceProgressRail
+        onHide={vi.fn()}
+        currentPhase="S-3"
+        steps={STEPS}
+        progress={{ ...PROGRESS, show_percent: true }}
+        selectedStepId={null}
+        onSelectStep={vi.fn()}
+        readinessPercent={24}
+        sectionTodo={{ remaining: 3, total: 5 }}
+      />
+    );
+    const todo = screen.getByTestId("section-todo");
+    expect(todo).toHaveTextContent("Mục còn cần xử lý");
+    expect(todo).toHaveTextContent("3 / 5");
+    expect(screen.queryByText("24%")).not.toBeInTheDocument();
+    expect(screen.queryByTestId("step-percent")).not.toBeInTheDocument();
+    expect(screen.getByRole("progressbar")).toHaveAttribute("aria-valuenow", "2");
+  });
+});

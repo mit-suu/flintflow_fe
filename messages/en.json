@@ -2754,7 +2754,20 @@
       "collapseAll": "Collapse all steps",
       "expandAll": "Expand all steps",
       "readinessHint": "Share of required SRS sections you have approved",
-      "readiness": "Document approved"
+      "readiness": "Document approved",
+      "sectionsLeft": "Sections left to do",
+      "sectionsLeftValue": "{remaining} of {total}",
+      "sectionsLeftHint": "Sections the file is still missing that FlintFlow has not finished yet"
+    },
+    "layoutPreview": {
+      "title": "Preview the new layout",
+      "intro": "Added sections go in their standard position and out of scope sections move to the end with their text unchanged. Nothing is applied to your document until you confirm.",
+      "originAdded": "Added",
+      "originOutOfScope": "Out of scope, moved to the end",
+      "confirm": "Confirm layout",
+      "confirming": "Confirming...",
+      "confirmed": "Layout confirmed. The document now follows it.",
+      "failed": "Could not confirm the layout. Try again."
     },
     "runProgress": {
       "aria": "Step progress",

@@ -458,6 +458,20 @@ export interface ContinueFlow2Response {
   spine_version: number;
 }
 
+/** FLF-461 bước 2.9a `GET /import/layout-preview` và `POST /import/layout-preview/confirm` (chế độ 4). */
+export interface LayoutPreviewItem {
+  section_id: string;
+  title: string;
+  level: number;
+  origin: "file" | "added" | "out_of_scope";
+}
+
+export interface LayoutPreview {
+  applicable: boolean;
+  confirmed_at: IsoDateTime | null;
+  sections: LayoutPreviewItem[];
+}
+
 /**
  * FLF-453 `POST /import/review/run` — xong vòng rà soát thì giống `ContinueFlow2Response` (sang Luồng 2); lượt AI lỗi /
  * hết credit thì trả `import` đang `paused`, vẫn `reviewing` (gọi lại endpoint này để tiếp tục).

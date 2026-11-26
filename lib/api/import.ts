@@ -13,6 +13,7 @@ import type {
   ImportStateResponse,
   MappingPatchRequest,
   ReuploadDiff,
+  LayoutPreview,
   ReviewRunResponse,
   ReviewStopResponse,
   StepPlanPatchRequest,
@@ -134,6 +135,13 @@ export const stopImportReview = (projectId: string, importId: string) =>
     method: "POST",
     body: JSON.stringify({ import_id: importId }),
   });
+
+/** FLF-461 bước 2.9a: bố cục mới của chế độ 4 trước khi áp vào bản in. */
+export const getLayoutPreview = (projectId: string) => apiCall<LayoutPreview>(`${base(projectId)}/import/layout-preview`);
+
+/** FLF-461 bước 2.9a: xác nhận bố cục mới ⇒ bản in từ giờ áp bố cục đó. */
+export const confirmLayoutPreview = (projectId: string) =>
+  apiCall<LayoutPreview>(`${base(projectId)}/import/layout-preview/confirm`, { method: "POST" });
 
 export const getGapReport = (projectId: string) => apiCall<GapReport>(`${base(projectId)}/gap-report`);
 

@@ -2754,7 +2754,20 @@
       "collapseAll": "Thu gọn tất cả bước",
       "expandAll": "Mở rộng tất cả bước",
       "readinessHint": "Phần mục bắt buộc của SRS đã được bạn duyệt xong",
-      "readiness": "Tài liệu đã chốt"
+      "readiness": "Tài liệu đã chốt",
+      "sectionsLeft": "Mục còn cần xử lý",
+      "sectionsLeftValue": "{remaining} / {total}",
+      "sectionsLeftHint": "Các mục file còn thiếu mà FlintFlow chưa soạn xong"
+    },
+    "layoutPreview": {
+      "title": "Xem trước bố cục mới",
+      "intro": "Mục soạn thêm được chèn đúng vị trí chuẩn, mục Ngoài phạm vi chuyển xuống cuối và giữ nguyên chữ. Tài liệu chưa đổi gì cho tới khi bạn xác nhận.",
+      "originAdded": "Soạn thêm",
+      "originOutOfScope": "Ngoài phạm vi, chuyển xuống cuối",
+      "confirm": "Xác nhận bố cục",
+      "confirming": "Đang xác nhận...",
+      "confirmed": "Đã xác nhận bố cục. Tài liệu từ giờ theo bố cục này.",
+      "failed": "Chưa xác nhận được bố cục. Bạn thử lại nhé."
     },
     "runProgress": {
       "aria": "Tiến trình bước",
