@@ -3431,8 +3431,23 @@
         }
       },
       "legacy": {
-        "fieldsReview": "This file reading stopped halfway in an earlier version. Press Continue to let FlintFlow finish it.",
+        "fieldsReview": "A few places FlintFlow read with low confidence. Press Continue to confirm them as FlintFlow read them.",
         "continue": "Continue"
+      },
+      "review": {
+        "title": "Confirm before continuing",
+        "intro": "FlintFlow is not fully sure about a few things below - please confirm them before FlintFlow creates the baseline.",
+        "guidance": {
+          "title": "Passage unclear whether it is template guidance text",
+          "isGuidance": "Guidance text",
+          "isContent": "Real content"
+        },
+        "mismatch": {
+          "title": "Section whose name does not match its content",
+          "body": "This section is named \"{heading}\" but the content read from it is actually a different kind.",
+          "ack": "Seen"
+        },
+        "confirmAll": "Confirm everything as FlintFlow suggests"
       },
       "outcome": {
         "mode3": {
