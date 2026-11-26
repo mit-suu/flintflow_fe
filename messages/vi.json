@@ -3525,6 +3525,26 @@
         "fileDuplicate": "{name}: {message}",
         "dismiss": "Đóng"
       },
+      "relabel": {
+        "title": "Nhãn từng mục",
+        "hint": "FlintFlow khớp mỗi mục của file với mẫu chuẩn. Mục khớp chưa chắc được đánh dấu để bạn xem lại; bạn có thể đổi mục khớp hoặc đưa mục vào / ra Ngoài phạm vi. Đổi ở đây không tốn credit và không gọi AI.",
+        "featuredLabel": "Các mục cần xem hoặc đã đổi nhãn",
+        "uncertain": "Chưa chắc",
+        "needsReview": "Cần xem",
+        "guess": "Có thể là {title}?",
+        "scope": {
+          "out_of_scope": "Bạn đặt là Ngoài phạm vi",
+          "in_scope": "Bạn đặt là Trong phạm vi"
+        },
+        "matchLabel": "Khớp với",
+        "matchAria": "Đổi mục khớp của {title}",
+        "matchKeep": "Giữ nguyên",
+        "ownSection": "Mục riêng của file",
+        "moveOut": "Đưa ra Ngoài phạm vi",
+        "moveIn": "Đưa vào phạm vi",
+        "resetScope": "Để hệ thống tự phân loại",
+        "others": "Đổi nhãn các mục khác ({count})"
+      },
       "outOfScope": {
         "title": "Ngoài phạm vi",
         "hint": "{count, plural, one {Mục này không thuộc} other {Các mục này không thuộc}} tài liệu đặc tả yêu cầu phần mềm theo ISO/IEC/IEEE 29148 (ví dụ dự toán chi phí). FlintFlow giữ nguyên chữ, không soạn, không kiểm tra và không tính vào mức sẵn sàng. Muốn sửa chữ trong mục, bạn nhắn yêu cầu trong chat.",

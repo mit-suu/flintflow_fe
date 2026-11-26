@@ -8,6 +8,8 @@ import type { CreditEstimate, StructurePreview as Preview } from "@/types/import
 import StructureAbsorb, { StructureAbsorbLoading } from "./structure-absorb";
 import OutOfScopeNote from "./out-of-scope-note";
 import ForeignProjectNotice from "./foreign-project-notice";
+import SectionLabels from "./section-labels";
+import type { MappingHeadingPatch } from "@/types/import";
 
 /**
  * Màn đọc khung khi file còn đang tải / BE đang đọc khung — cùng khung với `StructurePreview` (tên file, tiêu đề, trang tài liệu
@@ -62,6 +64,8 @@ interface StructurePreviewProps {
   playKey?: string;
   /** FLF-458: file vừa tải lên lấy từ một project FlintFlow khác (I-1); `undefined` = không. */
   foreignProject?: { project_id: string; name: string | null } | null;
+  /** FLF-460: đổi nhãn mục (mục khớp, vào / ra Ngoài phạm vi); không truyền ⇒ không hiện khối đổi nhãn. */
+  onRelabel?: (patch: MappingHeadingPatch) => void;
 }
 
 /**
@@ -69,7 +73,7 @@ interface StructurePreviewProps {
  * tự trong file (Có / Còn trống / Ngoài phạm vi), báo cáo thiếu sót sơ bộ, một dòng credit + nút Bắt đầu. Không hỏi thêm gì:
  * cấu trúc đích đã chốt ở hộp Tạo dự án.
  */
-export default function StructurePreview({ fileName, preview, estimate, credits, busy = false, downloading = false, onStart, onDownloadGapReport, onPickAnother, footer, textSections, startBlocked = false, unsureKind = false, playKey = "preview", foreignProject = null }: StructurePreviewProps) {
+export default function StructurePreview({ fileName, preview, estimate, credits, busy = false, downloading = false, onStart, onDownloadGapReport, onPickAnother, footer, textSections, startBlocked = false, unsureKind = false, playKey = "preview", foreignProject = null, onRelabel }: StructurePreviewProps) {
   const t = useTranslations("workspace.import.preview");
   const summary = preview?.summary ?? null;
   const counted = summary ? summary.present + summary.missing : 0;
@@ -153,6 +157,8 @@ export default function StructurePreview({ fileName, preview, estimate, credits,
       {preview && <StructureAbsorb sections={preview.sections} playKey={playKey} />}
 
       {preview && <OutOfScopeNote sections={preview.sections} />}
+
+      {preview && onRelabel && <SectionLabels sections={preview.sections} busy={busy || startBlocked} onRelabel={onRelabel} />}
 
       {/* Thanh hành động dính đáy vùng cuộn: credit + Bắt đầu luôn trong tầm mắt, không phải cuộn xuống tìm */}
       <div className="sticky bottom-4 z-20 flex flex-wrap items-center gap-3 rounded-card bg-surface-container-lowest/95 backdrop-blur px-4 py-3 shadow-[0_10px_32px_-10px_rgba(30,25,60,0.28)]">
