@@ -15,6 +15,7 @@ import type {
   ReuploadDiff,
   LayoutPreview,
   ReviewRunResponse,
+  ReviewSectionResponse,
   ReviewStopResponse,
   StepPlanPatchRequest,
   StepPlanResponse,
@@ -131,6 +132,13 @@ export const runImportReview = (projectId: string, importId: string) =>
   apiCall<ReviewRunResponse>(`${base(projectId)}/import/review/run`, {
     method: "POST",
     body: JSON.stringify({ import_id: importId }),
+  });
+
+/** FLF-453: người dùng đã xác nhận credit riêng của một mục chỉ được Code kiểm ⇒ AI rà đúng mục đó (vẫn `reviewing`). */
+export const runImportSectionReview = (projectId: string, importId: string, sectionId: string) =>
+  apiCall<ReviewSectionResponse>(`${base(projectId)}/import/review/section`, {
+    method: "POST",
+    body: JSON.stringify({ import_id: importId, section_id: sectionId, confirm: true }),
   });
 
 /** Bấm Dừng khi vòng rà soát đang chạy — giữ tiến độ, lượt chưa trừ credit không chạy. */

@@ -10,6 +10,7 @@ import {
   pauseImport,
   resumeImport,
   runImportReview,
+  runImportSectionReview,
   patchMapping,
   setDropText,
   setSkeletonLanguage,
@@ -26,7 +27,7 @@ import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 /** Nhịp poll `GET /import` khi lượt import chạy nền (#6/#10 trả ngay). */
 export const EXTRACT_POLL_MS = 2000;
 
-export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "relabel" | "language" | "confirm" | "review" | "reviewStop";
+export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "relabel" | "language" | "confirm" | "review" | "reviewStop" | "reviewSection";
 
 /** Bước chạy nền của lượt một mạch (FLF-343): trích ⇒ tạo bản gốc 0.1 ⇒ kiểm tra. */
 const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
@@ -203,6 +204,8 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
      * credit ⇒ `doc` đọc lại vẫn `reviewing` kèm `paused` — bấm lại nút này để tiếp tục.
      */
     runReview: () => run("review", async () => (await runImportReview(projectId, importId)).data),
+    /** FLF-453: rà riêng một mục chỉ được Code kiểm sau khi người dùng xác nhận credit của mục đó; không sang Luồng 2. */
+    runSectionReview: (sectionId: string) => run("reviewSection", async () => (await runImportSectionReview(projectId, importId, sectionId)).data),
     /** Bấm Dừng khi vòng rà soát đang chạy — giữ tiến độ. */
     stopReview: () => run("reviewStop", async () => (await stopImportReview(projectId, importId)).data),
   };

@@ -64,6 +64,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
   const [pickAnother, setPickAnother] = useState(false);
   const [downloading, setDownloading] = useState<"gap" | "draft" | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [confirmSection, setConfirmSection] = useState<string | null>(null);
   const doc = imp.doc;
   const status = doc?.status ?? null;
   // Chữ gốc của file cho khung tài liệu ở màn đọc: tải một lần khi lượt đọc chạy / đang dừng, không theo poll
@@ -260,6 +261,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       // workspace khi sang Luồng 2 (không có màn riêng ở đây).
       const review = imp.data?.review ?? null;
       const paused = doc?.paused;
+      const optional = review?.optional_sections ?? [];
       return (
         <div className="flex flex-col gap-3">
           <h2 className="text-heading font-bold text-on-surface">{t("reviewExisting.title", { count: review?.section_ids.length ?? 0 })}</h2>
@@ -277,6 +279,38 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
               {t("reviewExisting.stop")}
             </Button>
           </div>
+          {optional.length > 0 && (
+            <div className="flex flex-col gap-2 pt-2" data-testid="review-optional">
+              <h3 className="text-body font-semibold text-on-surface">{t("reviewExisting.optionalTitle")}</h3>
+              <p className="text-caption text-on-surface-variant">{t("reviewExisting.optionalBody")}</p>
+              <ul className="flex flex-col gap-1">
+                {optional.map((o) => (
+                  <li key={o.section_id} className="flex items-center justify-between gap-3">
+                    <span className="text-body text-on-surface min-w-0 truncate">{o.title}</span>
+                    {confirmSection === o.section_id ? (
+                      <span className="flex items-center gap-2 shrink-0">
+                        <span className="text-caption text-on-surface-variant">{t("reviewExisting.sectionCredit", { credits: o.credits })}</span>
+                        <Button
+                          variant="secondary"
+                          loading={imp.busy === "reviewSection"}
+                          onClick={() => void imp.runSectionReview(o.section_id).then(() => setConfirmSection(null))}
+                        >
+                          {t("reviewExisting.sectionConfirm")}
+                        </Button>
+                        <Button variant="ghost" disabled={imp.busy === "reviewSection"} onClick={() => setConfirmSection(null)}>
+                          {t("reviewExisting.sectionCancel")}
+                        </Button>
+                      </span>
+                    ) : (
+                      <Button variant="secondary" disabled={!!imp.busy} onClick={() => setConfirmSection(o.section_id)}>
+                        {t("reviewExisting.sectionRun")}
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       );
     }

@@ -398,6 +398,22 @@ export interface ReviewEstimate {
   section_ids: string[];
   calls: number;
   credits: number;
+  /** Mục chỉ được Code kiểm có chữ để AI rà, kèm credit riêng (nút "Rà soát bằng AI" từng mục). Thiếu (BE cũ) ⇒ rỗng. */
+  optional_sections?: OptionalReviewSection[];
+}
+
+export interface OptionalReviewSection {
+  section_id: string;
+  title: string;
+  calls: number;
+  credits: number;
+}
+
+/** FLF-453 `POST /import/review/section` với `confirm: true` — `reviewed: false` khi hết credit / lỗi (import đang `paused`). */
+export interface ReviewSectionResponse {
+  import: ImportedDocument;
+  section_id: string;
+  reviewed: boolean;
 }
 
 /** FLF-456: trạng thái ô EN / VI của màn đọc khung (`file` = ngôn ngữ của file, `selected` = đang chọn). */

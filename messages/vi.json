@@ -3533,7 +3533,13 @@
         "resume": "Tiếp tục rà soát",
         "stop": "Dừng",
         "pausedCredits": "Vòng rà soát tạm dừng vì hết credit. Phần đã xong được giữ nguyên - nạp thêm credit rồi bấm Tiếp tục rà soát.",
-        "pausedError": "Vòng rà soát bị gián đoạn. Phần đã xong được giữ nguyên - bấm Tiếp tục rà soát để chạy lại."
+        "pausedError": "Vòng rà soát bị gián đoạn. Phần đã xong được giữ nguyên - bấm Tiếp tục rà soát để chạy lại.",
+        "optionalTitle": "Rà thêm bằng AI cho từng mục",
+        "optionalBody": "Các mục dưới đây chỉ được kiểm theo luật, không tốn credit. Muốn AI rà thêm mục nào thì bấm cho mục đó; phát hiện (nếu có) hiện trong danh sách cờ.",
+        "sectionRun": "Rà soát bằng AI",
+        "sectionCredit": "Dự kiến ~{credits} credit",
+        "sectionConfirm": "Xác nhận rà soát",
+        "sectionCancel": "Huỷ"
       },
       "creating": {
         "title": "Đang chuẩn bị dự án",
