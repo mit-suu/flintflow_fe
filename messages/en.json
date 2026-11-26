@@ -4780,6 +4780,7 @@
         "aliases": "Aliases",
         "actor_id": "Actor",
         "actor_ids": "Actors",
+        "platforms": "Platforms",
         "function_ids": "Related functions",
         "includes": "Include",
         "extends": "Extend",
