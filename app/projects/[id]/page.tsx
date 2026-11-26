@@ -879,6 +879,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   /** FLF-489: vừa duyệt xong bước chạy lại, quy trình dừng ở bước tới lượt — thẻ "Tiếp tục: <bước>" */
   const [afterRerun, setAfterRerun] = useState<{ done: string; next: string } | null>(null);
 
+  // FLF-482: `submitEditInstruction` khai báo sau runner ⇒ đi qua ref
+  const routeToChangeRef = useRef<(instruction: string) => void>(() => {});
+
   const runner = useStepRunner({
     projectId,
     // FLF-244: quy trình chạy ở phiên chính dù user đang xem phiên phụ (dữ liệu cũ thiếu cờ ⇒ phiên đang mở)
@@ -892,6 +895,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     onRevisionMessage: (message, stepId) => {
       if (ws.isPipelineActive) ws.appendLocalMessage(message, stepId, "ai");
     },
+    // FLF-482: BE báo lời sửa nằm ngoài mục của bước ⇒ mở Sửa tài liệu với đúng câu user (bản xem trước + Áp dụng)
+    onRouteToChange: (instruction) => routeToChangeRef.current(instruction),
     // FLF-393: lượt chạy ở nền (không còn SSE) — lời AI chỉ có trong transcript ⇒ tải lại phiên đang mở để nó hiện ngay
     onTranscriptChanged: () => {
       if (ws.activeSession?._id) void ws.reloadActiveSession(ws.activeSession._id);
@@ -1520,6 +1525,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     [requestPreview, cancelPreview, activeSessionId, lastMessageStep, appendLocalMessage, dropLocalMessage, reloadActiveSession]
   );
+  routeToChangeRef.current = submitEditInstruction;
   const closeEditCard = () => {
     // Bỏ bản xem trước ⇒ kết thúc vòng hỏi đáp thêm / xoá use case (lệnh sau mở lại từ đầu)
     useCaseTurnsRef.current = null;
