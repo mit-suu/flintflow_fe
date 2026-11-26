@@ -63,7 +63,7 @@ import TemplateProposalCard from "@/components/org-template/template-proposal-ca
 import SaveStructureEntry from "@/components/org-template/save-structure-entry";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import ProjectActionDialogs from "@/components/project/ProjectActionDialogs";
-import { resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
+import { isDocumentLanguageLocked, resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
 import { ackRunEstimate, getRunEstimate, submitGate } from "@/lib/api/pipeline";
@@ -112,6 +112,7 @@ import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
 import StructureChangeNotice from "./_components/mode1/structure-change-notice";
+import { isFlow2OpeningStep, startsFromFile } from "./_components/flow2-start";
 import LayoutPreviewCard from "./_components/mode1/layout-preview-card";
 import ImportWorkspace from "./_components/import/import-workspace";
 import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
@@ -1779,7 +1780,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     stepNotStarted &&
     currentStep === "B-0.1" &&
     (ws.activeSession?.messages.length ?? 0) === 0 &&
-    (spine?.addendum.length ?? 0) === 0;
+    (spine?.addendum.length ?? 0) === 0 &&
+    // FLF-461: đã có đầu vào từ file ⇒ AI tự mở lời (flow2AutoStart), không bắt kể lại ý tưởng
+    !startsFromFile({ hasImportState: !!ws.project?.import_state, hasSystemNameFromFile: !!spine?.project.system_name?.trim() });
 
   /** FLF-432: thẻ "Tiếp tục" — bước tới lượt chưa chạy, không lượt nào đang chạy, phiên đã có hội thoại (`continue-card.ts`). */
   const showContinueCard = canShowContinueCard({
@@ -1808,8 +1811,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     // Đợi phiên pipeline + Spine tải xong — chạy sớm hơn thì runner báo "phiên chỉ để hỏi đáp" (NOT_PIPELINE_SESSION)
     !!(ws.pipelineSession?._id ?? (ws.isPipelineActive ? ws.activeSession?._id : null)) &&
     getBaseVersion() !== null &&
-    currentStep !== null &&
-    currentStep.startsWith("B-1.") &&
+    isFlow2OpeningStep(currentStep) &&
     (ws.activeSession?.messages.length ?? 0) === 0 &&
     !!spine?.project.system_name?.trim();
 
@@ -1881,7 +1883,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const interceptLanguageCommand = (text: string, via: LanguageCommandState["via"], intent?: RunIntent): boolean => {
     const target = parseLanguageCommand(text);
     // FLF-318: dự án tạo SRS đã chốt baseline chạy ở mode 1 nhưng không phải dự án tải file lên ⇒ vẫn đổi được ngôn ngữ
-    const languageLocked = mode1 && ws.project?.converted_from !== "fpt";
+    const languageLocked = isDocumentLanguageLocked(ws.project, mode1);
     const kind = languageCommandOutcome({ target, canEdit, mode1: languageLocked, current: documentLanguage });
     if (target === null || kind === "send") return false;
     const id = ++languageCommandSeq.current;
@@ -2385,7 +2387,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
               {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
               {/* Chế độ 4, bước 2.9a: xem trước bố cục mới, xác nhận rồi mới áp vào tài liệu */}
-              {ws.project?.import_state === "drafting" && <LayoutPreviewCard projectId={projectId} canEdit={canEdit} className="mx-3 mb-2" />}
+              {ws.project?.import_state === "drafting" && <LayoutPreviewCard projectId={projectId} canEdit={canEdit} refreshKey={progress?.section_progress?.remaining ?? null} className="mx-3 mb-2" />}
               {/* FLF-395: mẫu tổ chức của dự án có bản mới (Lead / Analyst) — "Để sau" chỉ ẩn trong phiên */}
               {canChangeTemplate && (
                 <TemplateUpdateBanner

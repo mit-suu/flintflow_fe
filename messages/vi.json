@@ -3388,6 +3388,7 @@
         },
         "credit": {
           "estimate": "Dự kiến ~<strong>{credits} credit</strong>",
+          "referenceNote": "Đã gồm {count} tài liệu tham khảo đọc cùng lượt này ({credits} credit)",
           "none": "Đọc file này không tốn credit",
           "unknown": "Chưa tính được credit dự kiến",
           "balance": "bạn còn {balance}",

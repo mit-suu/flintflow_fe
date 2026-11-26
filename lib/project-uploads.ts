@@ -53,12 +53,14 @@ interface UploadsStore {
   listeners: Set<() => void>;
   /** FLF-398: file đang chờ người dùng chọn (`choosing`) ⇒ hàm trả lựa chọn cho lượt tải đang treo. */
   choices?: Map<string, (choice: DocumentUploadChoice | null) => void>;
+  /** FLF-464: key dòng SRS ⇒ id file Google Drive đã chọn; cùng store để nút Thử lại không mất khi module nạp lại. */
+  googleSources?: Map<string, string>;
 }
 const store: UploadsStore = ((globalThis as { __ffProjectUploads?: UploadsStore }).__ffProjectUploads ??= { state: new Map(), files: new Map(), listeners: new Set() });
 const choices = (store.choices ??= new Map());
 const { state, files, listeners } = store;
 /** FLF-464: key dòng SRS ⇒ id file Google Drive đã chọn (thay cho file trong `files`). */
-const googleSources = new Map<string, string>();
+const googleSources = (store.googleSources ??= new Map<string, string>());
 const emit = () => listeners.forEach((l) => l());
 
 const patchItem = (projectId: string, key: string, patch: Partial<UploadItem>) => {

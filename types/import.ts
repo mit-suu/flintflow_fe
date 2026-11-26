@@ -367,6 +367,9 @@ export interface CreditEstimate {
   check_calls?: number;
   /** FLF-456: lô dịch khung (chọn ngôn ngữ khác file khi file chỉ còn khung) — đã gộp vào `ai_calls` / `credits`. */
   translate_batches?: number;
+  /** FLF-458: tài liệu tham khảo đang chờ đọc, đọc cùng lượt Bắt đầu — đã gộp vào `ai_calls` / `credits`. */
+  reference_documents?: number;
+  reference_credits?: number;
   ai_calls: number;
   credits: number;
   available_credits: number | null;
@@ -498,6 +501,9 @@ export interface LayoutPreviewItem {
 export interface LayoutPreview {
   applicable: boolean;
   confirmed_at: IsoDateTime | null;
+  /** BF 2.9a sau 2.8-2.9: chỉ `true` khi mọi mục còn thiếu đã soạn xong; chưa `ready` thì không hiện thẻ. */
+  ready?: boolean;
+  remaining?: number;
   sections: LayoutPreviewItem[];
 }
 
