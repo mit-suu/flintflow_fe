@@ -66,7 +66,8 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
   const doc = imp.doc;
   const status = doc?.status ?? null;
   // Chữ gốc của file cho khung tài liệu ở màn đọc: tải một lần khi lượt đọc chạy / đang dừng, không theo poll
-  const showingProgress = !!doc && !!status && (RUN_STATUSES.includes(status) || !!doc.paused);
+  // FLF-453: `reviewing` paused (hết credit / lỗi AI) có màn riêng (nút Tiếp tục rà soát / Dừng) — không rơi vào đây.
+  const showingProgress = !!doc && !!status && (RUN_STATUSES.includes(status) || (!!doc.paused && status !== "reviewing"));
   const source = useImportSource(projectId, doc?.id ?? null, showingProgress);
   // File từ hộp Tạo dự án đang tải nền ⇒ hiện các bước tích dần; SRS tải xong ⇒ đọc lại lần import để mở màn đọc khung
   const uploads = useProjectUploads(projectId);
@@ -145,7 +146,9 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
         ? { label: t("badge.ready"), tone: "info" }
         : status === "incomplete"
           ? { label: t("badge.incomplete"), tone: "warning" }
-          : { label: t("badge.reading"), tone: "info" };
+          : status === "reviewing"
+            ? { label: t("badge.reviewing"), tone: "warning" }
+            : { label: t("badge.reading"), tone: "info" };
 
   const body = (() => {
     if (uploads && srsUpload && srsFailed) {
@@ -199,7 +202,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
         />
       );
     }
-    if (doc && status && (RUN_STATUSES.includes(status) || doc.paused)) {
+    if (doc && status && (RUN_STATUSES.includes(status) || (doc.paused && status !== "reviewing"))) {
       return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview ? (preview.summary.present === 0 ? "template" : "written") : null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} source={source.sections} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
@@ -245,6 +248,32 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
         </div>
       );
     }
+    if (status === "reviewing") {
+      // FLF-453 (business-flow §3.1.2): Code đã rà mọi mục theo luật, không tốn credit — còn mục cần AI rà (đầu vào của
+      // phần thiếu, hoặc cờ đỏ). Báo credit trước, người dùng xác nhận mới chạy; phát hiện vào cùng danh sách cờ của
+      // workspace khi sang Luồng 2 (không có màn riêng ở đây).
+      const review = imp.data?.review ?? null;
+      const paused = doc?.paused;
+      return (
+        <div className="flex flex-col gap-3">
+          <h2 className="text-heading font-bold text-on-surface">{t("reviewExisting.title", { count: review?.section_ids.length ?? 0 })}</h2>
+          <p className="text-body text-on-surface-variant">{t("reviewExisting.body")}</p>
+          {paused?.reason === "credits" && <p className="text-body text-error">{t("reviewExisting.pausedCredits")}</p>}
+          {paused?.reason === "resume_later" && <p className="text-body text-error">{t("reviewExisting.pausedError")}</p>}
+          <p className="text-body text-on-surface-variant">
+            {review && review.credits > 0 ? t("reviewExisting.credit", { credits: review.credits }) : t("reviewExisting.creditNone")}
+          </p>
+          <div className="flex items-center gap-3">
+            <Button iconRight="arrow-right" loading={imp.busy === "review"} onClick={() => void imp.runReview().then((res) => res && "project_mode" in res && onChanged())}>
+              {paused ? t("reviewExisting.resume") : t("reviewExisting.confirm")}
+            </Button>
+            <Button variant="ghost" loading={imp.busy === "reviewStop"} disabled={imp.busy === "review"} onClick={() => void imp.stopReview()}>
+              {t("reviewExisting.stop")}
+            </Button>
+          </div>
+        </div>
+      );
+    }
     // Xong (bản gốc 0.1 / sang soạn phần thiếu): trang đang đọc lại project để chuyển workspace
     return <ImportSkeleton withHeader={false} label={t("opening")} />;
   })();
@@ -254,7 +283,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       <WorkspaceHeader project={project} user={user} fallbackName={uploads?.projectName} baselineStatus={badge} onLogout={() => void logoutAndRedirect()} />
       <main className="flex-1 min-h-0 overflow-y-auto ff-scroll">
         {/* Đang tải lần import / đang đọc khung / màn đọc khung: cột rộng như skeleton của trang (không bóp hẹp rồi nới ra) */}
-        <div className={`${imp.awaitingStart || reading || imp.loading || (!!doc && !!status && (RUN_STATUSES.includes(status) || !!doc.paused)) ? "max-w-[1180px]" : "max-w-[760px]"} mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-4`}>
+        <div className={`${imp.awaitingStart || reading || imp.loading || showingProgress ? "max-w-[1180px]" : "max-w-[760px]"} mx-auto w-full px-4 sm:px-6 py-8 flex flex-col gap-4`}>
           {(imp.error || downloadError) && (
             <div role="alert" className="flex items-center gap-3 rounded-control bg-error-container text-on-error-container px-4 py-3 text-body">
               <span className="flex-1">{imp.error ?? downloadError}</span>

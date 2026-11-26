@@ -18,6 +18,8 @@ export const IMPORT_STATUSES = [
   "baselining",
   /** FLF-336 I-5: file thiếu mục của cấu trúc đích ⇒ dừng ở "Kết quả đọc file", không có v0. */
   "incomplete",
+  /** FLF-453 (business-flow §3.1.2 "Rà soát phần có sẵn"): còn mục cần AI rà trước Luồng 2 — chờ xác nhận credit. */
+  "reviewing",
   /** FLF-278 trên FLF-336: chế độ 3 đi tiếp Luồng 2 — dự án sang pipeline tạo mới viết phần còn thiếu. */
   "drafting",
   "checking",
@@ -373,6 +375,15 @@ export interface GetImportResponse {
   structure_preview?: StructurePreview | null;
   /** FLF-412: mục có chữ của file + lựa chọn Bỏ chữ — chỉ có trước Bắt đầu; khác ⇒ null. */
   text_sections?: TextSection[] | null;
+  /** FLF-453 (business-flow §3.1.2): chỉ có khi import ở `reviewing` — mục Code chọn cho AI rà + credit vòng rà soát. */
+  review?: ReviewEstimate | null;
+}
+
+/** FLF-453: mục cần AI rà trước Luồng 2 + credit ước tính, báo trước khi người dùng xác nhận chạy. */
+export interface ReviewEstimate {
+  section_ids: string[];
+  calls: number;
+  credits: number;
 }
 
 /** FLF-412: vùng heading có chữ ở màn đọc khung (khoá = `block_id` của heading). */
@@ -445,6 +456,17 @@ export interface ContinueFlow2Response {
   import_state: "drafting";
   current_step: string | null;
   spine_version: number;
+}
+
+/**
+ * FLF-453 `POST /import/review/run` — xong vòng rà soát thì giống `ContinueFlow2Response` (sang Luồng 2); lượt AI lỗi /
+ * hết credit thì trả `import` đang `paused`, vẫn `reviewing` (gọi lại endpoint này để tiếp tục).
+ */
+export type ReviewRunResponse = ContinueFlow2Response | { import: ImportedDocument };
+
+/** FLF-453 `POST /import/review/stop` — bấm Dừng khi vòng rà soát đang chạy. */
+export interface ReviewStopResponse {
+  import: ImportedDocument;
 }
 
 export interface GapLayoutRow {

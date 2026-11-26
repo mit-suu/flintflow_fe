@@ -3324,6 +3324,7 @@
         "ready": "Ready to start",
         "reading": "Reading the file",
         "incomplete": "Sections missing",
+        "reviewing": "Reviewing existing content",
         "rejected": "File not accepted"
       },
       "upload": {
@@ -3499,6 +3500,17 @@
           "body": "FlintFlow keeps the sections you wrote, drafts the missing ones with you in the workspace and rearranges the layout to the FlintFlow standard template.",
           "draft": "Draft the missing sections"
         }
+      },
+      "reviewExisting": {
+        "title": "Review {count} sections before drafting the rest",
+        "body": "These sections already passed FlintFlow's rule checks, at no credit cost. They either feed into the parts about to be drafted or still carry a red flag that needs a second look, so FlintFlow reviews them with AI before moving on - any finding will show up in the flag list of the drafting step.",
+        "credit": "About {credits} credits for this review round",
+        "creditNone": "Reviewing these sections costs no credits",
+        "confirm": "Review and continue",
+        "resume": "Resume the review",
+        "stop": "Stop",
+        "pausedCredits": "The review round paused because credits ran out. What's done is kept - top up credits, then resume the review.",
+        "pausedError": "The review round was interrupted. What's done is kept - resume the review to run it again."
       },
       "creating": {
         "title": "Preparing your project",
@@ -4675,6 +4687,7 @@
         "delivered": "Ready for change requests",
         "change_requested": "Editing via change request",
         "incomplete": "Sections missing",
+        "reviewing": "Reviewing existing content",
         "drafting": "Writing the missing parts"
       },
       "crStatus": {

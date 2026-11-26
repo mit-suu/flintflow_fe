@@ -9,8 +9,10 @@ import {
   patchFields,
   pauseImport,
   resumeImport,
+  runImportReview,
   setDropText,
   startExtraction,
+  stopImportReview,
   uploadImport,
 } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
@@ -22,7 +24,7 @@ import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 /** Nhịp poll `GET /import` khi lượt import chạy nền (#6/#10 trả ngay). */
 export const EXTRACT_POLL_MS = 2000;
 
-export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "confirm";
+export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "confirm" | "review" | "reviewStop";
 
 /** Bước chạy nền của lượt một mạch (FLF-343): trích ⇒ tạo bản gốc 0.1 ⇒ kiểm tra. */
 const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
@@ -190,5 +192,12 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
         const spine = await getSpine(projectId);
         return (await continueImportFlow2(projectId, importId, spine.data?.spine_version ?? 0)).data;
       }),
+    /**
+     * FLF-453: xác nhận credit ở `reviewing` ⇒ chạy AI rà các mục Code đã chọn rồi sang Luồng 2. Lượt AI lỗi / hết
+     * credit ⇒ `doc` đọc lại vẫn `reviewing` kèm `paused` — bấm lại nút này để tiếp tục.
+     */
+    runReview: () => run("review", async () => (await runImportReview(projectId, importId)).data),
+    /** Bấm Dừng khi vòng rà soát đang chạy — giữ tiến độ. */
+    stopReview: () => run("reviewStop", async () => (await stopImportReview(projectId, importId)).data),
   };
 }
