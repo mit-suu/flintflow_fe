@@ -982,6 +982,9 @@
         "drop": "Drag a file here or click to choose",
         "addMore": "Add files"
       },
+      "google": {
+        "chosen": "Google Docs: {name}"
+      },
       "orgTemplates": {
         "uploadNew": "Upload a template to the library",
         "toggle": "Or pick an organization template ({count})",
@@ -2025,6 +2028,10 @@
       "redrawCheckFailed": "Redrawn, but the flags could not be rechecked. Press “Re-check the whole document” to try again.",
       "editInChatTitle": "Type an edit command for this section in chat",
       "editInChat": "Edit in chat",
+      "acceptTitle": "Apply the AI proposal: you will see a preview of the change before confirming",
+      "accept": "Accept",
+      "pickOptionTitle": "Apply option {key}: you will see a preview of the change before confirming",
+      "pickOption": "Choose option {key}",
       "sectionsSteps": "{sections, plural, one {# section} other {# sections}} · {steps, plural, one {# step} other {# steps}}",
       "showMore": "Show {count} more",
       "listAria": "Issue list",
@@ -2752,7 +2759,20 @@
       "collapseAll": "Collapse all steps",
       "expandAll": "Expand all steps",
       "readinessHint": "Share of required SRS sections you have approved",
-      "readiness": "Document approved"
+      "readiness": "Document approved",
+      "sectionsLeft": "Sections left to do",
+      "sectionsLeftValue": "{remaining} of {total}",
+      "sectionsLeftHint": "Sections the file is still missing that FlintFlow has not finished yet"
+    },
+    "layoutPreview": {
+      "title": "Preview the new layout",
+      "intro": "Added sections go in their standard position and out of scope sections move to the end with their text unchanged. Nothing is applied to your document until you confirm.",
+      "originAdded": "Added",
+      "originOutOfScope": "Out of scope, moved to the end",
+      "confirm": "Confirm layout",
+      "confirming": "Confirming...",
+      "confirmed": "Layout confirmed. The document now follows it.",
+      "failed": "Could not confirm the layout. Try again."
     },
     "runProgress": {
       "aria": "Step progress",
@@ -2881,6 +2901,8 @@
       "fixFlag": "Please fix this issue as suggested: {message}",
       "editSection": "In {label}: ",
       "editFlag": "In {label}: fix the issue \"{issue}\" ",
+      "acceptProposal": "In {label}: fix the issue \"{issue}\" as proposed: {proposal}",
+      "pickReviewOption": "In {label}: fix the issue \"{issue}\" with option {key}: {proposal}",
       "fixComment": "In {label}, fix per this comment: {text}",
       "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. "
     },
@@ -2923,7 +2945,8 @@
       "scope": {
         "after_brief": "Draft the rest of the SRS after the brief is approved",
         "screens_locked": "Draft the details of the confirmed screens",
-        "screens_added": "Draft the details of the newly added screens"
+        "screens_added": "Draft the details of the newly added screens",
+        "reference_documents": "Read the reference documents before the first questions"
       },
       "screenRange": "The screens part is an estimate: about {min} to {max} screens, ~{creditsMin} to ~{creditsMax} credits. The exact number is shown once the screen list is confirmed.",
       "unitLine": "Phase {unit} · {steps, plural, =1 {1 step} other {# steps}}",
@@ -2931,6 +2954,7 @@
       "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead.",
       "creditsRange": "~{min}–{max} credits",
       "totalRange": "Estimated total: ~{min}–{max} credits",
+      "referenceLine": "Read {count, plural, =1 {1 reference document} other {# reference documents}}",
       "screenRangeLine": "Screen details · about {min}–{max} screens",
       "screenRangeNote": "The screen count is estimated from the Brief. The exact figure is known after the Screen List step.",
       "shortRange": "The balance is enough if the project has few screens, and may fall short if it has many. The AI stops when credits run out, finished parts are not charged again.",
@@ -3382,6 +3406,7 @@
         },
         "credit": {
           "estimate": "About <strong>{credits} credits</strong>",
+          "referenceNote": "Includes {count, plural, =1 {1 reference document} other {# reference documents}} read in the same run ({credits, plural, =1 {1 credit} other {# credits}})",
           "none": "Reading this file costs no credits",
           "unknown": "The credit estimate is not available yet",
           "balance": "you have {balance}",
@@ -3390,7 +3415,11 @@
         },
         "start": "Start",
         "starting": "Starting…",
-        "unsureKind": "FlintFlow is not sure this is an SRS document. You can still start - check the sections below carefully, or choose another file."
+        "unsureKind": "FlintFlow is not sure this is an SRS document. You can still start - check the sections below carefully, or choose another file.",
+        "foreignProject": {
+          "named": "This file comes from project \"{name}\" - FlintFlow treats it as a new file, so every section defaults to Drop text; pick the ones you want to keep content for.",
+          "unnamed": "This file comes from another FlintFlow project - FlintFlow treats it as a new file, so every section defaults to Drop text; pick the ones you want to keep content for."
+        }
       },
       "progress": {
         "title": "FlintFlow is reading the file",
@@ -3488,6 +3517,12 @@
           "isGuidance": "Guidance text",
           "isContent": "Real content"
         },
+        "fields": {
+          "title": "Places FlintFlow is not sure about",
+          "confidence": "Confidence {percent}%",
+          "keep": "Keep this value",
+          "drop": "Drop"
+        },
         "mismatch": {
           "title": "Section whose name does not match its content",
           "body": "This section is named \"{heading}\" but the content read from it is actually a different kind.",
@@ -3516,7 +3551,13 @@
         "resume": "Resume the review",
         "stop": "Stop",
         "pausedCredits": "The review round paused because credits ran out. What's done is kept - top up credits, then resume the review.",
-        "pausedError": "The review round was interrupted. What's done is kept - resume the review to run it again."
+        "pausedError": "The review round was interrupted. What's done is kept - resume the review to run it again.",
+        "optionalTitle": "Review more sections with AI",
+        "optionalBody": "The sections below were checked by rules only, at no credit cost. Run the AI review on any of them; findings show up in the flag list.",
+        "sectionRun": "Review with AI",
+        "sectionCredit": "About {credits} credits",
+        "sectionConfirm": "Confirm review",
+        "sectionCancel": "Cancel"
       },
       "creating": {
         "title": "Preparing your project",
@@ -3530,6 +3571,37 @@
         "fileFailed": "Could not upload {name}",
         "fileDuplicate": "{name}: {message}",
         "dismiss": "Dismiss"
+      },
+      "relabel": {
+        "title": "Section labels",
+        "hint": "FlintFlow matches each section of your file to the standard template. Uncertain matches are marked so you can check them; you can change the match or move a section in or out of Out of scope. Changes here cost no credit and call no AI.",
+        "featuredLabel": "Sections to review or relabelled",
+        "uncertain": "Not sure",
+        "needsReview": "Needs review",
+        "guess": "Could it be {title}?",
+        "scope": {
+          "out_of_scope": "You set it to Out of scope",
+          "in_scope": "You set it to In scope"
+        },
+        "matchLabel": "Matches",
+        "matchAria": "Change the match of {title}",
+        "matchKeep": "Keep as is",
+        "ownSection": "Own section of the file",
+        "moveOut": "Move to Out of scope",
+        "moveIn": "Move into scope",
+        "resetScope": "Let the system decide",
+        "others": "Relabel other sections ({count})"
+      },
+      "outOfScope": {
+        "title": "Out of scope",
+        "hint": "{count, plural, one {This section is} other {These sections are}} not part of a software requirements specification under ISO/IEC/IEEE 29148 (for example a cost estimate). FlintFlow keeps the text as is: it does not draft it, check it or count it toward readiness. To change the text in a section, ask in the chat.",
+        "listLabel": "Out-of-scope sections"
+      },
+      "skeletonLanguage": {
+        "title": "Document language",
+        "hint": "No section keeps its content, only the outline. Choose the language of your document. If it differs from the file, the headings, table column headers and guidance text are translated once when you press Start; the translation is included in the credits below.",
+        "fileLanguage": "The file is in {language}",
+        "translating": "The outline will be translated to {language} when you press Start."
       },
       "absorb": {
         "documentLabel": "Your document",
@@ -3576,6 +3648,7 @@
     "structureChanges": {
       "nowEmpty": "After reading in detail, {count, plural, one {section {names} is actually empty} other {sections {names} are actually empty}} - added to the sections to draft / complete.",
       "nowFilled": "After reading in detail, {count, plural, one {section {names} already has content} other {sections {names} already have content}} - nothing to draft there.",
+      "nowOutOfScope": "The final result differs from the structure preview: {count, plural, one {section {names} is} other {sections {names} are}} out of scope - the text is kept as is, not drafted and not checked.",
       "other": "After reading in detail, {count, plural, one {section {names} differs} other {sections {names} differ}} from the structure preview.",
       "dismiss": "Dismiss"
     },
@@ -5439,7 +5512,13 @@
       "noText": "No readable text in the file",
       "legacyDoc": "Cannot read .doc files, save it as .docx",
       "imagesSkipped": "Images / diagrams in the file are not read",
-      "confirmBatches": "The document is long: the AI reads it in {batches} passes for ~{credits} credits. Run?"
+      "confirmBatches": "The document is long: the AI reads it in {batches} passes for ~{credits} credits. Run?",
+      "summaryPending": "not read by AI yet",
+      "summarize": "Read with AI",
+      "summarizing": "Reading…",
+      "summarizeFailed": "Could not read the document",
+      "confirmSummarizeAria": "Confirm credits before the AI reads the document",
+      "confirmSummarize": "The AI reads and summarizes this document for ~{credits} credits. Run?"
     },
     "extraction": {
       "aria": "Requirements extracted from {name}",

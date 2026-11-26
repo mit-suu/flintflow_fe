@@ -176,6 +176,11 @@ interface SrsSlotProps {
   file: File | null;
   /** Mẫu đã lưu của tổ chức chọn thay cho file. */
   orgTemplateName: string | null;
+  /** FLF-464: tên file Google Drive chọn thay cho file trên máy. */
+  googleFileName?: string | null;
+  onClearGoogleFile?: () => void;
+  /** Lối "Chọn từ Google Drive" (tự ẩn khi thiếu cấu hình). */
+  googlePicker?: React.ReactNode;
   completeToStandard: boolean;
   disabled?: boolean;
   onFile: (file: File | null) => void;
@@ -187,12 +192,13 @@ interface SrsSlotProps {
 }
 
 /** Ô SRS: 0–1 file .docx (kể cả mẫu khách còn trống) + ô chọn "Bổ sung các mục còn thiếu theo mẫu chuẩn FlintFlow". */
-export function SrsSlot({ file, orgTemplateName, completeToStandard, disabled, onFile, onClearOrgTemplate, onCompleteToStandardChange, orgTemplatePicker, error }: SrsSlotProps) {
+export function SrsSlot({ file, orgTemplateName, googleFileName = null, onClearGoogleFile, googlePicker, completeToStandard, disabled, onFile, onClearOrgTemplate, onCompleteToStandardChange, orgTemplatePicker, error }: SrsSlotProps) {
   const t = useTranslations("app.createProject.srs");
+  const tg = useTranslations("app.createProject.google");
   const tooltipId = useId();
   const checkboxId = useId();
   const changeRef = useRef<HTMLInputElement>(null);
-  const hasSource = !!file || !!orgTemplateName;
+  const hasSource = !!file || !!orgTemplateName || !!googleFileName;
 
   return (
     <section aria-labelledby={`${checkboxId}-title`} className="flex flex-col gap-3 rounded-card bg-primary-soft p-4">
@@ -233,6 +239,20 @@ export function SrsSlot({ file, orgTemplateName, completeToStandard, disabled, o
             }
           />
         </ul>
+      ) : googleFileName ? (
+        <div className="flex items-center gap-2.5 rounded-inner bg-surface-container-lowest px-3 py-2.5">
+          <Icon name="file" size={16} className="shrink-0 text-primary" />
+          <span className="flex-1 min-w-0 truncate text-body font-semibold text-on-surface">{tg("chosen", { name: googleFileName })}</span>
+          <button
+            type="button"
+            onClick={onClearGoogleFile}
+            disabled={disabled}
+            aria-label={t("remove", { name: googleFileName })}
+            className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-on-surface-muted hover:bg-surface-container-high hover:text-on-surface cursor-pointer disabled:opacity-50"
+          >
+            <Icon name="close" size={14} />
+          </button>
+        </div>
       ) : orgTemplateName ? (
         <div className="flex items-center gap-2.5 rounded-inner bg-surface-container-lowest px-3 py-2.5">
           <Icon name="file-template" size={16} className="shrink-0 text-primary" />
@@ -255,6 +275,8 @@ export function SrsSlot({ file, orgTemplateName, completeToStandard, disabled, o
           {error}
         </p>
       )}
+
+      {googlePicker && <div hidden={hasSource} className="empty:hidden">{googlePicker}</div>}
 
       {/* Ẩn chứ không gỡ: gỡ ra thì bỏ mẫu (X) sẽ mount lại, nút phải chờ BE đếm số mẫu mới hiện — trễ hơn ô thả file */}
       {orgTemplatePicker && <div hidden={hasSource} className="empty:hidden">{orgTemplatePicker}</div>}

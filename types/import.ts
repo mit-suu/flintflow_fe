@@ -83,6 +83,11 @@ export interface ImportedDocument {
   status: ImportStatus;
   preflight: { status: "accepted" | "rejected"; issues: PreflightIssue[]; document_kind?: DocumentKind | null };
   stamp: DocStamp | null;
+  /**
+   * FLF-458: file nhận lúc tạo dự án mang dấu của một project FlintFlow khác (dấu đã bị bỏ, xem `stamp`) — màn đọc khung
+   * báo "File này lấy từ dự án <tên>". `name: null` khi project gốc khác tổ chức hoặc không còn.
+   */
+  foreign_project?: { project_id: string; name: string | null } | null;
   confirmed_latest_at: IsoDateTime | null;
   paused: Paused | null;
   /** Section đang/sắp trích (I-4); resume chạy tiếp từ đây. */
@@ -307,9 +312,16 @@ export interface ConfirmLatestRequest {
   import_id: string;
 }
 
+/** FLF-460: đổi nhãn một heading - `section_id` đổi mục khớp; `scope` đưa vào / ra Ngoài phạm vi ("auto" = bỏ nhãn tay). */
+export interface MappingHeadingPatch {
+  block_id: string;
+  section_id?: string;
+  scope?: "out_of_scope" | "in_scope" | "auto";
+}
+
 export interface MappingPatchRequest {
   import_id: string;
-  headings?: { block_id: string; section_id: string }[];
+  headings?: MappingHeadingPatch[];
   tables?: { block_id: string; column_index: number; field_path: string | null }[];
   confirm_all?: boolean;
 }
@@ -353,6 +365,11 @@ export interface CreditEstimate {
   diagram_images: number;
   /** FLF-343: lượt AI của bước kiểm tra — đã gộp vào `ai_calls` / `credits`. */
   check_calls?: number;
+  /** FLF-456: lô dịch khung (chọn ngôn ngữ khác file khi file chỉ còn khung) — đã gộp vào `ai_calls` / `credits`. */
+  translate_batches?: number;
+  /** FLF-458: tài liệu tham khảo đang chờ đọc, đọc cùng lượt Bắt đầu — đã gộp vào `ai_calls` / `credits`. */
+  reference_documents?: number;
+  reference_credits?: number;
   ai_calls: number;
   credits: number;
   available_credits: number | null;
@@ -370,6 +387,8 @@ export interface GetImportResponse {
   structure_preview?: StructurePreview | null;
   /** FLF-412: mục có chữ của file + lựa chọn Bỏ chữ — chỉ có trước Bắt đầu; khác ⇒ null. */
   text_sections?: TextSection[] | null;
+  /** FLF-456: ô ngôn ngữ tài liệu — `visible` chỉ khi mọi mục có chữ đã Bỏ chữ; chỉ có trước Bắt đầu. */
+  skeleton_language?: SkeletonLanguage | null;
   /** FLF-453 (business-flow §3.1.2): chỉ có khi import ở `reviewing` — mục Code chọn cho AI rà + credit vòng rà soát. */
   review?: ReviewEstimate | null;
 }
@@ -379,6 +398,29 @@ export interface ReviewEstimate {
   section_ids: string[];
   calls: number;
   credits: number;
+  /** Mục chỉ được Code kiểm có chữ để AI rà, kèm credit riêng (nút "Rà soát bằng AI" từng mục). Thiếu (BE cũ) ⇒ rỗng. */
+  optional_sections?: OptionalReviewSection[];
+}
+
+export interface OptionalReviewSection {
+  section_id: string;
+  title: string;
+  calls: number;
+  credits: number;
+}
+
+/** FLF-453 `POST /import/review/section` với `confirm: true` — `reviewed: false` khi hết credit / lỗi (import đang `paused`). */
+export interface ReviewSectionResponse {
+  import: ImportedDocument;
+  section_id: string;
+  reviewed: boolean;
+}
+
+/** FLF-456: trạng thái ô EN / VI của màn đọc khung (`file` = ngôn ngữ của file, `selected` = đang chọn). */
+export interface SkeletonLanguage {
+  visible: boolean;
+  file: "en" | "vi";
+  selected: "en" | "vi";
 }
 
 /** FLF-412: vùng heading có chữ ở màn đọc khung (khoá = `block_id` của heading). */
@@ -396,7 +438,18 @@ export interface TextSection {
 export interface StructurePreview {
   summary: { present: number; missing: number; out_of_scope: number; kind: "written" | "template" };
   /** `excerpt` (P09 #15): trích đoạn chữ khách viết dưới mục (≤ 200 ký tự) — mục còn trống / import cũ ⇒ không có. */
-  sections: { section_id: string; title: string; status: TargetSectionStatus; order: number; excerpt?: string }[];
+  sections: {
+    section_id: string;
+    title: string;
+    status: TargetSectionStatus;
+    order: number;
+    excerpt?: string;
+    /** FLF-460: heading của file (khoá đổi nhãn); `uncertain` = I-3 khớp độ tin thấp (kèm `matched_title`); `scope_label` = nhãn Ngoài phạm vi người dùng đổi. */
+    block_id?: string;
+    uncertain?: boolean;
+    matched_title?: string;
+    scope_label?: "out_of_scope" | "in_scope";
+  }[];
   resolved_mode: 1 | 3 | 4;
   intent: "fixed" | "free";
   computed_at: string;
@@ -451,6 +504,23 @@ export interface ContinueFlow2Response {
   import_state: "drafting";
   current_step: string | null;
   spine_version: number;
+}
+
+/** FLF-461 bước 2.9a `GET /import/layout-preview` và `POST /import/layout-preview/confirm` (chế độ 4). */
+export interface LayoutPreviewItem {
+  section_id: string;
+  title: string;
+  level: number;
+  origin: "file" | "added" | "out_of_scope";
+}
+
+export interface LayoutPreview {
+  applicable: boolean;
+  confirmed_at: IsoDateTime | null;
+  /** BF 2.9a sau 2.8-2.9: chỉ `true` khi mọi mục còn thiếu đã soạn xong; chưa `ready` thì không hiện thẻ. */
+  ready?: boolean;
+  remaining?: number;
+  sections: LayoutPreviewItem[];
 }
 
 /**

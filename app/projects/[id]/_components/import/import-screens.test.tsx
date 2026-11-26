@@ -44,6 +44,25 @@ describe("StructurePreview - màn đọc khung (business-flow §3.1.2)", () => {
     expect(h.onPickAnother).toHaveBeenCalled();
   });
 
+  it("FLF-455: có mục Ngoài phạm vi ⇒ khối riêng nêu tên mục và nói rõ giữ nguyên; không có mục nào ⇒ không hiện khối", () => {
+    const { container, unmount } = renderWithIntl(<StructurePreview fileName="SRS.docx" preview={preview} estimate={null} credits={10} {...handlers()} />);
+    const note = screen.getByRole("region", { name: "Ngoài phạm vi" });
+    expect(note).toHaveTextContent("ISO/IEC/IEEE 29148");
+    expect(note).toHaveTextContent("giữ nguyên chữ, không soạn, không kiểm tra");
+    expect(screen.getByRole("list", { name: "Các mục ngoài phạm vi" })).toHaveTextContent("Budget");
+    expect(container.textContent).not.toMatch(/FPT|—/);
+    unmount();
+    const none: Preview = { ...preview, summary: { ...preview.summary, out_of_scope: 0 }, sections: preview.sections.filter((s) => s.status !== "out_of_scope") };
+    renderWithIntl(<StructurePreview fileName="SRS.docx" preview={none} estimate={null} credits={10} {...handlers()} />);
+    expect(screen.queryByRole("region", { name: "Ngoài phạm vi" })).not.toBeInTheDocument();
+  });
+
+  it("FLF-455: khối Ngoài phạm vi bản tiếng Anh không lẫn chữ Việt", () => {
+    const en = renderWithIntl(<StructurePreview fileName="SRS.docx" preview={preview} estimate={null} credits={10} {...handlers()} />, "en");
+    expect(screen.getByRole("region", { name: "Out of scope" })).toHaveTextContent("ISO/IEC/IEEE 29148");
+    expect(vietnameseLeftovers(en.container)).toEqual([]);
+  });
+
   it("P09 (#15): mục có trích đoạn ⇒ hiện chữ FlintFlow đọc được (không phải thanh xám); mục còn trống không có chữ", () => {
     const withExcerpt: Preview = {
       ...preview,
@@ -85,7 +104,8 @@ describe("StructurePreview - màn đọc khung (business-flow §3.1.2)", () => {
     expect(screen.getByText(/File là khung mẫu, chưa có nội dung để đọc/)).toBeInTheDocument();
     expect(container.textContent).not.toMatch(/đọc phần đã có|bản gốc 0\.1/);
     expect(container.textContent).not.toContain("custom:CS02");
-    expect(screen.getByText("Mục riêng")).toBeInTheDocument();
+    // Tên chung "Mục riêng" ở bản đồ mục và ở khối Ngoài phạm vi (FLF-455), không in mã nội bộ
+    expect(screen.getAllByText("Mục riêng")).toHaveLength(2);
   });
 
   it("FLF-463: nhãn Khung mẫu mà còn mục đã viết ⇒ vẫn nói đọc phần đã có rồi soạn mục còn thiếu, không nói \"chưa có nội dung để đọc\"", () => {

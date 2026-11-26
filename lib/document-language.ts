@@ -45,6 +45,15 @@ export const resolvedDocumentLanguage = (
 };
 
 /**
+ * FLF-456: dự án khoá ngôn ngữ tài liệu? Theo cờ BE trả (`document_language_locked`) để không mời đổi rồi nhận 409; BE cũ chưa
+ * trả cờ ⇒ suy như trước (mode 1 không phải dự án chuyển từ tạo SRS).
+ */
+export const isDocumentLanguageLocked = (
+  project: Pick<Project, "document_language_locked" | "converted_from"> | null | undefined,
+  mode1: boolean
+): boolean => (typeof project?.document_language_locked === "boolean" ? project.document_language_locked : mode1 && project?.converted_from !== "fpt");
+
+/**
  * `meta.translation` của `GET /document` — chỉ có khi ngôn ngữ tài liệu khác ngôn ngữ gốc của Spine. Envelope sai khuôn
  * ⇒ `null` (coi như tài liệu đang ở ngôn ngữ gốc) thay vì để chip / cảnh báo đọc phải giá trị lạ.
  */

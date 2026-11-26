@@ -123,6 +123,8 @@ export interface Project {
    * thiếu). Đọc qua `resolvedDocumentLanguage` (`lib/document-language.ts`), đừng đọc thẳng.
    */
   document_language?: DocumentLanguage | null;
+  /** FLF-456: BE báo dự án có file nền khoá ngôn ngữ (cùng điều kiện `PATCH /document-language` trả 409). Thiếu ⇒ BE cũ. */
+  document_language_locked?: boolean;
   /** FLF-324 / FLF-418: thiếu = chưa chọn (S-4.5 hỏi trong khung chat) ⇒ hiển thị và vẽ là `chen`. */
   erdNotation?: ErdNotation;
   /** FLF-418: thiếu = chưa chọn (S-5.4 hỏi trong khung chat) ⇒ vẽ là `system`. */

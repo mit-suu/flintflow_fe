@@ -23,6 +23,7 @@ import ImportProgress from "./import-progress";
 import ReviewConfirm from "./review-confirm";
 import StructurePreview, { StructureReading } from "./structure-preview";
 import TextSections from "./text-sections";
+import SkeletonLanguage from "./skeleton-language";
 import StructureChangeNotice from "../mode1/structure-change-notice";
 import CreationProgress from "./creation-progress";
 import ImportSkeleton from "./import-skeleton";
@@ -63,6 +64,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
   const [pickAnother, setPickAnother] = useState(false);
   const [downloading, setDownloading] = useState<"gap" | "draft" | null>(null);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [confirmSection, setConfirmSection] = useState<string | null>(null);
   const doc = imp.doc;
   const status = doc?.status ?? null;
   // Chữ gốc của file cho khung tài liệu ở màn đọc: tải một lần khi lượt đọc chạy / đang dừng, không theo poll
@@ -223,9 +225,12 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
           onDownloadGapReport={() => void download("gap")}
           onPickAnother={() => setPickAnother(true)}
           unsureKind={doc.preflight.document_kind?.kind === "unknown"}
+          foreignProject={doc.foreign_project ?? null}
           playKey={doc.id}
-          startBlocked={imp.busy === "drop"}
+          startBlocked={imp.busy === "drop" || imp.busy === "relabel" || imp.busy === "language"}
+          onRelabel={(patch) => void imp.relabel(patch)}
           textSections={<TextSections sections={imp.data?.text_sections ?? []} busy={imp.busy === "drop" || imp.busy === "start"} onChange={(keys) => void imp.setDropText(keys)} />}
+          skeletonLanguage={<SkeletonLanguage state={imp.data?.skeleton_language ?? null} busy={imp.busy === "drop" || imp.busy === "language" || imp.busy === "start"} onChange={(language) => void imp.setSkeletonLanguage(language)} />}
         />
       );
     }
@@ -233,22 +238,25 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview ? (preview.summary.present === 0 ? "template" : "written") : null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} source={source.sections} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
-      // FLF-462 (bước 1.6): đoạn lớp 4 chữ hướng dẫn / mục tên đúng nội dung sai chờ xác nhận
+      // FLF-462 (bước 1.6): phần tử I-4 độ tin thấp / đoạn lớp 4 chữ hướng dẫn / mục tên đúng nội dung sai chờ xác nhận
+      const reviewFields = imp.data?.extraction.review_fields ?? [];
       const reviewGuidance = imp.data?.extraction.review_guidance ?? [];
       const reviewMismatch = imp.data?.extraction.review_content_mismatch ?? [];
-      if (reviewGuidance.length || reviewMismatch.length) {
+      if (reviewFields.length || reviewGuidance.length || reviewMismatch.length) {
         return (
           <ReviewConfirm
+            fields={reviewFields}
             guidance={reviewGuidance}
             contentMismatch={reviewMismatch}
             busy={imp.busy === "confirm" || imp.busy === "resume"}
+            onField={(f, confirmed) => void imp.confirmReview({ fields: [{ section_id: f.section_id, path: f.path, confirmed }] })}
             onGuidance={(g, isGuidance) => void imp.confirmReview({ guidance: [{ section_id: g.section_id, block_id: g.block_id, is_guidance: isGuidance }] })}
             onMismatch={(m) => void imp.confirmReview({ content_mismatch: [{ section_id: m.section_id }] })}
             onConfirmAll={() => void imp.confirmReview({ confirm_all: true })}
           />
         );
       }
-      // Chỉ còn phần tử I-4 độ tin thấp (không có đoạn lớp 4 / mục tên lệch cụ thể) ⇒ Tiếp tục = xác nhận tất cả theo gợi ý
+      // Không có gì cụ thể để liệt kê (bản ghi cũ) ⇒ Tiếp tục = xác nhận tất cả theo gợi ý
       return (
         <div className="flex flex-wrap items-center gap-3 rounded-card bg-surface-container px-4 py-3">
           <p className="flex-1 text-body text-on-surface">{t("legacy.fieldsReview")}</p>
@@ -281,6 +289,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       // workspace khi sang Luồng 2 (không có màn riêng ở đây).
       const review = imp.data?.review ?? null;
       const paused = doc?.paused;
+      const optional = review?.optional_sections ?? [];
       return (
         <div className="flex flex-col gap-3">
           <h2 className="text-heading font-bold text-on-surface">{t("reviewExisting.title", { count: review?.section_ids.length ?? 0 })}</h2>
@@ -298,6 +307,38 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
               {t("reviewExisting.stop")}
             </Button>
           </div>
+          {optional.length > 0 && (
+            <div className="flex flex-col gap-2 pt-2" data-testid="review-optional">
+              <h3 className="text-body font-semibold text-on-surface">{t("reviewExisting.optionalTitle")}</h3>
+              <p className="text-caption text-on-surface-variant">{t("reviewExisting.optionalBody")}</p>
+              <ul className="flex flex-col gap-1">
+                {optional.map((o) => (
+                  <li key={o.section_id} className="flex items-center justify-between gap-3">
+                    <span className="text-body text-on-surface min-w-0 truncate">{o.title}</span>
+                    {confirmSection === o.section_id ? (
+                      <span className="flex items-center gap-2 shrink-0">
+                        <span className="text-caption text-on-surface-variant">{t("reviewExisting.sectionCredit", { credits: o.credits })}</span>
+                        <Button
+                          variant="secondary"
+                          loading={imp.busy === "reviewSection"}
+                          onClick={() => void imp.runSectionReview(o.section_id).then(() => setConfirmSection(null))}
+                        >
+                          {t("reviewExisting.sectionConfirm")}
+                        </Button>
+                        <Button variant="ghost" disabled={imp.busy === "reviewSection"} onClick={() => setConfirmSection(null)}>
+                          {t("reviewExisting.sectionCancel")}
+                        </Button>
+                      </span>
+                    ) : (
+                      <Button variant="secondary" disabled={!!imp.busy} onClick={() => setConfirmSection(o.section_id)}>
+                        {t("reviewExisting.sectionRun")}
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       );
     }
