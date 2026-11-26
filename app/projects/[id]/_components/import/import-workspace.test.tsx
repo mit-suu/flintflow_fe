@@ -33,6 +33,7 @@ const setImport = (over: Record<string, unknown>) => {
     confirmReview: vi.fn(),
     continueFlow2: vi.fn(async () => ({ project_mode: "fpt" })),
     runReview: vi.fn(async () => ({ project_mode: "fpt" })),
+    runSectionReview: vi.fn(async () => ({ reviewed: true })),
     stopReview: vi.fn(async () => ({ import: { status: "reviewing", paused: { reason: "user" } } })),
     ...over,
   };
@@ -118,6 +119,37 @@ describe("ImportWorkspace - upload SRS trong layout workspace", () => {
     fireEvent.click(screen.getByRole("button", { name: "Rà soát và tiếp tục" }));
     expect(imp.current.runReview).toHaveBeenCalled();
     await vi.waitFor(() => expect(onProjectChanged).toHaveBeenCalled());
+  });
+
+  it("FLF-453 nút Rà soát bằng AI cho mục chỉ được Code kiểm: hiện credit riêng, xác nhận mới gọi, không sang Luồng 2", async () => {
+    const onProjectChanged = vi.fn();
+    const d = doc({ status: "reviewing" });
+    const review = { section_ids: ["fixed:1"], calls: 1, credits: 3, optional_sections: [{ section_id: "fixed:2.1", title: "2.1 Product Perspective", calls: 2, credits: 6 }] };
+    setImport({ doc: d, data: data({ import: d, review }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={onProjectChanged} />);
+    expect(screen.getByText("2.1 Product Perspective")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Rà soát bằng AI" }));
+    // Báo credit riêng của mục, chưa gọi gì
+    expect(screen.getByText(/~6 credit/)).toBeInTheDocument();
+    expect(imp.current.runSectionReview).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận rà soát" }));
+    expect(imp.current.runSectionReview).toHaveBeenCalledWith("fixed:2.1");
+    await vi.waitFor(() => expect(screen.queryByText(/~6 credit/)).not.toBeInTheDocument());
+    expect(onProjectChanged).not.toHaveBeenCalled();
+  });
+
+  it("FLF-453 Huỷ ở thẻ credit của mục ⇒ không gọi rà soát; không có mục nào chỉ-Code ⇒ không hiện khối", () => {
+    const d = doc({ status: "reviewing" });
+    const review = { section_ids: ["fixed:1"], calls: 1, credits: 3, optional_sections: [{ section_id: "fixed:2.1", title: "2.1 Product Perspective", calls: 2, credits: 6 }] };
+    setImport({ doc: d, data: data({ import: d, review }) });
+    const { unmount } = renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Rà soát bằng AI" }));
+    fireEvent.click(screen.getByRole("button", { name: "Huỷ" }));
+    expect(imp.current.runSectionReview).not.toHaveBeenCalled();
+    unmount();
+    setImport({ doc: d, data: data({ import: d, review: { section_ids: ["fixed:1"], calls: 1, credits: 3 } }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.queryByTestId("review-optional")).not.toBeInTheDocument();
   });
 
   it("FLF-453 bấm Dừng khi đang rà soát ⇒ gọi stopReview, không sang Luồng 2, không gọi AI thêm", () => {

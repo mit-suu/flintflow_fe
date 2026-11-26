@@ -3535,7 +3535,13 @@
         "resume": "Resume the review",
         "stop": "Stop",
         "pausedCredits": "The review round paused because credits ran out. What's done is kept - top up credits, then resume the review.",
-        "pausedError": "The review round was interrupted. What's done is kept - resume the review to run it again."
+        "pausedError": "The review round was interrupted. What's done is kept - resume the review to run it again.",
+        "optionalTitle": "Review more sections with AI",
+        "optionalBody": "The sections below were checked by rules only, at no credit cost. Run the AI review on any of them; findings show up in the flag list.",
+        "sectionRun": "Review with AI",
+        "sectionCredit": "About {credits} credits",
+        "sectionConfirm": "Confirm review",
+        "sectionCancel": "Cancel"
       },
       "creating": {
         "title": "Preparing your project",
