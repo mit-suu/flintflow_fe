@@ -106,13 +106,18 @@ function OutlineRow({ entry, indent }: { entry: OutlineEntry; indent: number }) 
   const t = useTranslations("mode1.templateMigration.apply");
   const style = STATUS_STYLE[entry.status];
   const more = (entry.dropped_total ?? 0) - (entry.dropped_items?.length ?? 0);
+  // Phần nhận thêm ngoài cặp chính (gộp vào / chia theo yêu cầu); BE cũ không có `parts` ⇒ theo `from_heading`
+  const received = entry.parts
+    ? entry.parts.filter((p) => p.kind !== "pair").map((p) => (p.kind === "distributed" ? t("partDistributed", { heading: p.heading_text }) : p.heading_text))
+    : (entry.from_heading ?? []);
   return (
     <li data-status={entry.status} className="px-3 py-1" style={{ paddingLeft: `${12 + indent * 16}px` }}>
       <div className="flex flex-wrap items-center gap-2">
         <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${style.dot}`} />
         <span className={`text-body break-words ${style.text}`}>{entry.heading_text}</span>
         {entry.status !== "kept" && <span className="sr-only">{t(`legend.${entry.status}`)}</span>}
-        {entry.status === "receives" && entry.from_heading?.length ? <span className="text-caption text-on-surface-muted">{t("from", { from: entry.from_heading.join(", ") })}</span> : null}
+        {entry.status === "receives" && received.length > 0 && <span className="text-caption text-on-surface-muted">{t("from", { from: received.join(", ") })}</span>}
+        {entry.from_spine && entry.status !== "dropped" && <Badge tone="neutral">{t("fromSpine")}</Badge>}
         {entry.table_change && entry.status !== "dropped" && (
           <span title={t(`tableChange.${entry.table_change}`)}>
             <Badge tone="neutral">{t("table")}</Badge>

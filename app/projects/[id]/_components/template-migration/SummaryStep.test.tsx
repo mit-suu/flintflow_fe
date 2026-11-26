@@ -36,6 +36,38 @@ describe("SummaryStep (Áp dụng)", () => {
     expect(screen.getByText("Không tốn credit")).toBeInTheDocument();
   });
 
+  it("mục đã có cặp nhận phần gộp: liệt kê phần theo parts, đếm vào Nhận nội dung; mục in từ dữ liệu có nhãn riêng", () => {
+    const m = migrationFixture({
+      undecided: [],
+      outline: [
+        { heading_text: "1.1 Mục đích", level: 2, status: "kept", from_spine: true },
+        {
+          heading_text: "3.2 Chức năng",
+          level: 2,
+          status: "receives",
+          from_heading: ["Đặc tả use case", "Quy tắc nghiệp vụ"],
+          parts: [
+            { heading_text: "3.2 Nhóm chức năng", kind: "pair" },
+            { heading_text: "Đặc tả use case", kind: "merged" },
+            { heading_text: "Quy tắc nghiệp vụ", kind: "merged" },
+          ],
+        },
+        { heading_text: "Đặc tả use case", level: 3, status: "kept", from_heading: ["Đặc tả use case"] },
+        { heading_text: "3.3.4 Tính sẵn sàng", level: 3, status: "receives", parts: [{ heading_text: "Độ tin cậy", kind: "distributed" }] },
+        { heading_text: "2.5 Giả định", level: 2, status: "receives", from_heading: ["Yêu cầu khác"] },
+      ],
+    });
+    renderWithIntl(<SummaryStep migration={m} applying={false} busy={false} brokenLinks={[]} onApply={() => {}} onCancel={() => {}} />);
+    const rows = screen.getAllByRole("listitem").filter((li) => li.hasAttribute("data-status"));
+    expect(rows[0]).toHaveTextContent("In từ dữ liệu");
+    expect(rows[1]).toHaveTextContent("từ “Đặc tả use case, Quy tắc nghiệp vụ”");
+    expect(rows[1]).not.toHaveTextContent("3.2 Nhóm chức năng");
+    expect(rows[3]).toHaveTextContent("từ “Độ tin cậy (một phần)”");
+    // Bản BE cũ chưa có parts ⇒ theo from_heading
+    expect(rows[4]).toHaveTextContent("từ “Yêu cầu khác”");
+    expect(screen.getByText(/Nhận nội dung \(3\)/)).toBeInTheDocument();
+  });
+
   it("chi phí khi có dịch + cảnh báo đổi ngôn ngữ; Áp dụng / Quay lại / Huỷ", () => {
     const onApply = vi.fn();
     const onBack = vi.fn();

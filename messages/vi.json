@@ -5536,8 +5536,12 @@
         "keep_old_table": "Giữ bảng cũ",
         "ai_resolve": "Để AI sắp xếp",
         "move_to": "Chuyển vào “{target}”",
+        "move_to_filled": "Gộp vào “{target}” (sau nội dung đang có)",
+        "move_to_group": "Thêm thành mục con cuối của “{target}”",
         "to": "Đặt vào “{target}”",
-        "drop_from_print": "Không in ra"
+        "drop_from_print": "Không in ra",
+        "keep_pair": "Giữ cặp hiện tại",
+        "distribute": "Chia theo từng yêu cầu"
       },
       "missing": {
         "aria": "Mục thiếu sau khi đổi mẫu",
@@ -5599,7 +5603,26 @@
         "undecided": "Còn {count} mục cần xác nhận",
         "continue": "Tiếp tục",
         "split": "Mục bị tách",
-        "unpair": "Không ghép"
+        "unpair": "Không ghép",
+        "placement": "Ghép chưa đúng nghĩa",
+        "chosenDetail": "{count} cần xem",
+        "chosenTables": "{count} bảng đổi cột",
+        "aiNote": "Chỉ bảng đổi cột, mục bị tách, bảng lịch sử và mục chữ tự do chuyển vào mục có cấu trúc mới có lựa chọn dùng AI (tính credit khi áp dụng). Các lựa chọn khác chỉ đổi chỗ in, không dùng AI.",
+        "dropData": "{count} phần tử sẽ không in",
+        "searchTargets": "Tìm mục trong mẫu mới",
+        "searchPlaceholder": "Tìm trong {count} mục của mẫu mới",
+        "targetGroups": {
+          "suggested": "Gợi ý",
+          "empty": "Mọi mục của mẫu mới · mục trống",
+          "filled": "Mọi mục của mẫu mới · đã có nội dung",
+          "group": "Mọi mục của mẫu mới · mục con mới của nhóm"
+        },
+        "why": {
+          "same_section": "cùng loại mục",
+          "guidance": "khớp hướng dẫn",
+          "data_fit": "hợp loại dữ liệu",
+          "title": "tên giống"
+        }
       },
       "reasons": {
         "no_place": "Mẫu mới không có chỗ cho mục này",
@@ -5607,14 +5630,22 @@
         "map_columns": "Bảng của mẫu mới có cột khác",
         "no_table_in_new": "Mục này trong mẫu mới không có bảng",
         "keep_history": "Bảng lịch sử của mẫu mới có cột khác",
-        "first_heading": "Mẫu mới chia mục này làm {count}"
+        "first_heading": "Mẫu mới chia mục này làm {count}",
+        "best_fit": "Hợp nghĩa nhất với “{target}” (tên, hướng dẫn, loại dữ liệu)",
+        "best_fit_distribute": "Các yêu cầu của mục này hợp với nhiều mục khác nhau của mẫu mới",
+        "same_data": "“{target}” đã in đúng dữ liệu này, gộp vào để không in hai lần",
+        "kept_for_data": "Không mục nào của mẫu mới hợp mà mục này có dữ liệu, nên giữ thành mục riêng"
       },
       "consequence": {
         "drop_from_print": "Bản xuất không còn mục này. Dữ liệu vẫn lưu, hiện lại khi hoàn tác.",
         "keep_custom": "In thành mục riêng ở cuối phần gần nhất.",
         "delete": "Xoá hẳn nội dung mục này khỏi tài liệu.",
         "move_to": "Nội dung in dưới “{target}”.",
+        "move_to_filled": "Nội dung in sau phần đang có của “{target}”.",
+        "move_to_group": "In thành mục con cuối của “{target}”.",
         "to": "Nội dung in dưới “{target}”.",
+        "keep_pair": "Giữ ghép với “{target}”.",
+        "distribute": "Mỗi yêu cầu in dưới mục hợp nghĩa nhất của mẫu mới.",
         "map_by_header": "Xếp lại theo cột của mẫu mới, cột chưa có dữ liệu để trống.",
         "keep_old_table": "Giữ nguyên bảng cũ.",
         "ai_resolve": "AI sắp xếp, tính credit khi áp dụng.",
@@ -5635,6 +5666,8 @@
           "drop": "Không in bảng"
         },
         "from": "từ “{from}”",
+        "partDistributed": "{heading} (một phần)",
+        "fromSpine": "In từ dữ liệu",
         "droppedMore": "và {count} mục khác",
         "credit": "Chi phí",
         "creditTranslation": "Dịch ({batches} lô)",
