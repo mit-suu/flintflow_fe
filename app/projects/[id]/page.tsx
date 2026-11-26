@@ -112,6 +112,7 @@ import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
 import StructureChangeNotice from "./_components/mode1/structure-change-notice";
+import { isFlow2OpeningStep, startsFromFile } from "./_components/flow2-start";
 import LayoutPreviewCard from "./_components/mode1/layout-preview-card";
 import ImportWorkspace from "./_components/import/import-workspace";
 import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
@@ -1779,7 +1780,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     stepNotStarted &&
     currentStep === "B-0.1" &&
     (ws.activeSession?.messages.length ?? 0) === 0 &&
-    (spine?.addendum.length ?? 0) === 0;
+    (spine?.addendum.length ?? 0) === 0 &&
+    // FLF-461: đã có đầu vào từ file ⇒ AI tự mở lời (flow2AutoStart), không bắt kể lại ý tưởng
+    !startsFromFile({ hasImportState: !!ws.project?.import_state, hasSystemNameFromFile: !!spine?.project.system_name?.trim() });
 
   /** FLF-432: thẻ "Tiếp tục" — bước tới lượt chưa chạy, không lượt nào đang chạy, phiên đã có hội thoại (`continue-card.ts`). */
   const showContinueCard = canShowContinueCard({
@@ -1808,8 +1811,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     // Đợi phiên pipeline + Spine tải xong — chạy sớm hơn thì runner báo "phiên chỉ để hỏi đáp" (NOT_PIPELINE_SESSION)
     !!(ws.pipelineSession?._id ?? (ws.isPipelineActive ? ws.activeSession?._id : null)) &&
     getBaseVersion() !== null &&
-    currentStep !== null &&
-    currentStep.startsWith("B-1.") &&
+    isFlow2OpeningStep(currentStep) &&
     (ws.activeSession?.messages.length ?? 0) === 0 &&
     !!spine?.project.system_name?.trim();
 
