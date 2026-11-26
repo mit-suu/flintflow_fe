@@ -54,7 +54,7 @@ describe("CreateProjectForm - hộp Tạo dự án hai ô (business-flow §1)", 
     expect(screen.queryByLabelText(/Bổ sung các mục còn thiếu/)).not.toBeInTheDocument();
     fireEvent.change(screen.getByLabelText("Tên dự án"), { target: { value: "  Lumen  " } });
     fireEvent.click(submit());
-    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: "Lumen", has_srs_file: false, documentLanguage: "vi" }));
+    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: "Lumen", has_srs_file: false, documentLanguage: "en" }));
     expect(uploadImport).not.toHaveBeenCalled();
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith({ _id: "p1", mode: "import" }));
   });
@@ -184,15 +184,16 @@ describe("CreateProjectForm - hộp Tạo dự án hai ô (business-flow §1)", 
   it("có folderId ⇒ tạo thẳng trong thư mục", async () => {
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} folderId="f1" />);
     fireEvent.click(submit());
-    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: false, folderId: "f1", documentLanguage: "vi" }));
+    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: false, folderId: "f1", documentLanguage: "en" }));
   });
 });
 
 describe("CreateProjectForm - ngôn ngữ tài liệu (FLF-265)", () => {
-  it("mặc định theo ngôn ngữ giao diện", () => {
+  // FLF-456 (đảo FLF-265): tạo mới không file mặc định tiếng Anh, giao diện tiếng Việt cũng vậy
+  it("giao diện tiếng Việt ⇒ vẫn mặc định tiếng Anh", () => {
     renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
-    expect(screen.getByRole("radio", { name: "Tiếng Việt" })).toHaveAttribute("aria-checked", "true");
-    expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "false");
+    expect(screen.getByRole("radio", { name: "Tiếng Anh" })).toHaveAttribute("aria-checked", "true");
+    expect(screen.getByRole("radio", { name: "Tiếng Việt" })).toHaveAttribute("aria-checked", "false");
   });
 
   it("giao diện tiếng Anh ⇒ mặc định English", () => {

@@ -76,6 +76,10 @@ export const patchMapping = (projectId: string, body: MappingPatchRequest) =>
 export const setDropText = (projectId: string, importId: string, keys: string[]) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/drop-text`, { method: "PATCH", body: JSON.stringify({ import_id: importId, keys }) });
 
+/** FLF-456: chọn ngôn ngữ tài liệu khi file chỉ còn khung (trước Bắt đầu) — BE tính lại credit, đọc lại `GET /import`. */
+export const setSkeletonLanguage = (projectId: string, importId: string, language: "en" | "vi") =>
+  apiCall<ImportStateResponse>(`${base(projectId)}/import/document-language`, { method: "PATCH", body: JSON.stringify({ import_id: importId, language }) });
+
 /**
  * Nút "Bắt đầu" (FLF-343): BE chạy một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu "đây là bản mới nhất"
  * (bắt buộc khi file chưa xác nhận — thiếu ⇒ 409 `IMPORT_NEEDS_LATEST_CONFIRM`).

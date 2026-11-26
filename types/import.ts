@@ -358,6 +358,8 @@ export interface CreditEstimate {
   diagram_images: number;
   /** FLF-343: lượt AI của bước kiểm tra — đã gộp vào `ai_calls` / `credits`. */
   check_calls?: number;
+  /** FLF-456: lô dịch khung (chọn ngôn ngữ khác file khi file chỉ còn khung) — đã gộp vào `ai_calls` / `credits`. */
+  translate_batches?: number;
   ai_calls: number;
   credits: number;
   available_credits: number | null;
@@ -375,6 +377,8 @@ export interface GetImportResponse {
   structure_preview?: StructurePreview | null;
   /** FLF-412: mục có chữ của file + lựa chọn Bỏ chữ — chỉ có trước Bắt đầu; khác ⇒ null. */
   text_sections?: TextSection[] | null;
+  /** FLF-456: ô ngôn ngữ tài liệu — `visible` chỉ khi mọi mục có chữ đã Bỏ chữ; chỉ có trước Bắt đầu. */
+  skeleton_language?: SkeletonLanguage | null;
   /** FLF-453 (business-flow §3.1.2): chỉ có khi import ở `reviewing` — mục Code chọn cho AI rà + credit vòng rà soát. */
   review?: ReviewEstimate | null;
 }
@@ -384,6 +388,13 @@ export interface ReviewEstimate {
   section_ids: string[];
   calls: number;
   credits: number;
+}
+
+/** FLF-456: trạng thái ô EN / VI của màn đọc khung (`file` = ngôn ngữ của file, `selected` = đang chọn). */
+export interface SkeletonLanguage {
+  visible: boolean;
+  file: "en" | "vi";
+  selected: "en" | "vi";
 }
 
 /** FLF-412: vùng heading có chữ ở màn đọc khung (khoá = `block_id` của heading). */
