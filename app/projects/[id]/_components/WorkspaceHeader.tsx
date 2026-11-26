@@ -63,6 +63,8 @@ interface WorkspaceHeaderProps {
   verifyActive?: boolean;
   /** Số vấn đề đang chặn chốt bản — badge đỏ, 0 thì không hiện. */
   verifyCount?: number;
+  /** Chuông thông báo (FLF-487), đứng trước nút đổi ngôn ngữ; không truyền ⇒ không có. */
+  notificationBell?: ReactNode;
   onLogout: () => void;
   /** Tên hiện khi `project` chưa tải xong (vd tên vừa nhập ở hộp Tạo dự án). */
   fallbackName?: string;
@@ -98,6 +100,7 @@ export default function WorkspaceHeader({
   onVerifyClick,
   verifyActive = false,
   verifyCount = 0,
+  notificationBell,
   onLogout,
 }: WorkspaceHeaderProps) {
   const t = useTranslations("workspace.header");
@@ -225,6 +228,7 @@ export default function WorkspaceHeader({
             />
           )}
         </div>
+        {notificationBell}
         {/* Màn hẹp header đã chật: đổi ngôn ngữ vẫn có ở trang chủ / hồ sơ */}
         <LocaleSwitcher className="hidden sm:inline-flex shrink-0" />
         <DropdownMenu
