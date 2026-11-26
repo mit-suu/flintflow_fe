@@ -11,7 +11,7 @@ import type { LayoutPreview } from "@/types/import";
  * Business-flow bước 2.9a (chế độ 4): xem trước bố cục mới của tài liệu, người dùng xác nhận rồi bản in mới áp. Chỉ hiện khi dự án
  * là chế độ 4 đang soạn và chưa xác nhận; chế độ khác / đã xác nhận / không đọc được ⇒ không hiện gì.
  */
-export default function LayoutPreviewCard({ projectId, canEdit = true, className = "" }: { projectId: string; canEdit?: boolean; className?: string }) {
+export default function LayoutPreviewCard({ projectId, canEdit = true, className = "", refreshKey }: { projectId: string; canEdit?: boolean; className?: string; refreshKey?: number | string | null }) {
   const t = useTranslations("workspace.layoutPreview");
   const [preview, setPreview] = useState<LayoutPreview | null>(null);
   const [busy, setBusy] = useState(false);
@@ -21,12 +21,17 @@ export default function LayoutPreviewCard({ projectId, canEdit = true, className
   useEffect(() => {
     let cancelled = false;
     getLayoutPreview(projectId)
-      .then((res) => !cancelled && setPreview(res.data ?? null))
+      .then((res) => {
+        if (cancelled) return;
+        setPreview(res.data ?? null);
+        // Bố cục đổi sau khi đã xác nhận ⇒ `confirmed_at` về null, hiện lại thẻ để xác nhận lại
+        if (!res.data?.confirmed_at) setDone(false);
+      })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-  }, [projectId]);
+  }, [projectId, refreshKey]);
 
   if (done) {
     return (
@@ -36,7 +41,8 @@ export default function LayoutPreviewCard({ projectId, canEdit = true, className
       </div>
     );
   }
-  if (!preview?.applicable || preview.confirmed_at) return null;
+  // BF 2.9a nằm sau khi soạn xong (2.8-2.9): chưa soạn xong thì chưa hiện
+  if (!preview?.applicable || preview.confirmed_at || preview.ready === false) return null;
 
   const confirm = async () => {
     setBusy(true);

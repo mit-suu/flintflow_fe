@@ -30,6 +30,16 @@ describe("LayoutPreviewCard (bước 2.9a)", () => {
     expect(confirmLayoutPreview).not.toHaveBeenCalled();
   });
 
+  it("BF 2.9a: chưa soạn xong (ready = false) ⇒ không hiện thẻ; soạn xong và số mục còn lại đổi ⇒ tải lại rồi hiện", async () => {
+    vi.mocked(getLayoutPreview).mockResolvedValueOnce(ok({ ...PREVIEW, ready: false, remaining: 2 })).mockResolvedValue(ok({ ...PREVIEW, ready: true, remaining: 0 }));
+    const { rerender } = renderWithIntl(<LayoutPreviewCard projectId="p1" refreshKey={2} />);
+    await waitFor(() => expect(getLayoutPreview).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole("button", { name: "Xác nhận bố cục" })).not.toBeInTheDocument();
+    rerender(<LayoutPreviewCard projectId="p1" refreshKey={0} />);
+    expect(await screen.findByRole("button", { name: "Xác nhận bố cục" })).toBeInTheDocument();
+    expect(getLayoutPreview).toHaveBeenCalledTimes(2);
+  });
+
   it("bấm Xác nhận bố cục ⇒ gọi xác nhận một lần rồi báo đã xác nhận", async () => {
     vi.mocked(getLayoutPreview).mockResolvedValue(ok(PREVIEW));
     vi.mocked(confirmLayoutPreview).mockResolvedValue(ok({ ...PREVIEW, confirmed_at: "2026-11-26T00:00:00.000Z" }));

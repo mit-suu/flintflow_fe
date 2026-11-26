@@ -498,6 +498,9 @@ export interface LayoutPreviewItem {
 export interface LayoutPreview {
   applicable: boolean;
   confirmed_at: IsoDateTime | null;
+  /** BF 2.9a sau 2.8-2.9: chỉ `true` khi mọi mục còn thiếu đã soạn xong; chưa `ready` thì không hiện thẻ. */
+  ready?: boolean;
+  remaining?: number;
   sections: LayoutPreviewItem[];
 }
 
