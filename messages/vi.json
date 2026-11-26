@@ -2954,6 +2954,8 @@
       "loading": "Đang tải không gian làm việc SRS",
       "convertedNotice": "Baseline đã chốt - dự án chuyển sang chế độ quản lý thay đổi, mọi chỉnh sửa đi qua Change Request",
       "redrawNotFound": "Không tìm thấy sơ đồ này - tải lại trang rồi thử lại.",
+      "redrawTimeout": "Đang vẽ lại lâu hơn dự kiến - tải lại tài liệu để xem kết quả.",
+      "redrawSkipped": "Sơ đồ này chưa vẽ lại được - bấm Vẽ lại ở Kiểm & chốt.",
       "redrawFailed": "Không vẽ lại được sơ đồ",
       "turnNeedsInput": "AI đang chờ bạn trả lời",
       "turnGateReady": "Có nội dung mới chờ bạn duyệt",

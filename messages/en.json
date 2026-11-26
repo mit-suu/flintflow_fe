@@ -2954,6 +2954,8 @@
       "loading": "Loading the SRS workspace",
       "convertedNotice": "Baseline signed - the project switched to change management; every edit now goes through a Change Request",
       "redrawNotFound": "This diagram was not found - reload the page and try again.",
+      "redrawTimeout": "Redrawing is taking longer than expected - reload the document to see the result.",
+      "redrawSkipped": "This diagram could not be redrawn yet - use Redraw in Review & finalize.",
       "redrawFailed": "Could not redraw the diagram",
       "turnNeedsInput": "The AI is waiting for your answer",
       "turnGateReady": "New content is waiting for your review",
