@@ -20,6 +20,7 @@ import { useImport } from "../../hooks/mode1/useImport";
 import { useImportSource } from "../../hooks/mode1/useImportSource";
 import { useMode1Project } from "../../hooks/mode1/useMode1Project";
 import ImportProgress from "./import-progress";
+import ReviewConfirm from "./review-confirm";
 import StructurePreview, { StructureReading } from "./structure-preview";
 import TextSections from "./text-sections";
 import StructureChangeNotice from "../mode1/structure-change-notice";
@@ -201,11 +202,26 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview ? (preview.summary.present === 0 ? "template" : "written") : null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} source={source.sections} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
-      // Bản ghi cũ (trước khi đọc chạy một mạch) dừng ở bước xác nhận ⇒ Tiếp tục = đọc nốt một mạch
+      // FLF-462 (bước 1.6): đoạn lớp 4 chữ hướng dẫn / mục tên đúng nội dung sai chờ xác nhận
+      const reviewGuidance = imp.data?.extraction.review_guidance ?? [];
+      const reviewMismatch = imp.data?.extraction.review_content_mismatch ?? [];
+      if (reviewGuidance.length || reviewMismatch.length) {
+        return (
+          <ReviewConfirm
+            guidance={reviewGuidance}
+            contentMismatch={reviewMismatch}
+            busy={imp.busy === "confirm" || imp.busy === "resume"}
+            onGuidance={(g, isGuidance) => void imp.confirmReview({ guidance: [{ section_id: g.section_id, block_id: g.block_id, is_guidance: isGuidance }] })}
+            onMismatch={(m) => void imp.confirmReview({ content_mismatch: [{ section_id: m.section_id }] })}
+            onConfirmAll={() => void imp.confirmReview({ confirm_all: true })}
+          />
+        );
+      }
+      // Chỉ còn phần tử I-4 độ tin thấp (không có đoạn lớp 4 / mục tên lệch cụ thể) ⇒ Tiếp tục = xác nhận tất cả theo gợi ý
       return (
         <div className="flex flex-wrap items-center gap-3 rounded-card bg-surface-container px-4 py-3">
           <p className="flex-1 text-body text-on-surface">{t("legacy.fieldsReview")}</p>
-          <Button onClick={() => void imp.resume()} loading={imp.busy === "resume"}>
+          <Button onClick={() => void imp.confirmReview({ confirm_all: true })} loading={imp.busy === "confirm" || imp.busy === "resume"}>
             {t("legacy.continue")}
           </Button>
         </div>

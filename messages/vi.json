@@ -3446,8 +3446,23 @@
         }
       },
       "legacy": {
-        "fieldsReview": "Lần đọc file này dừng giữa chừng ở phiên bản trước. Bấm Tiếp tục để FlintFlow đọc nốt.",
+        "fieldsReview": "Còn vài chỗ FlintFlow đọc được với độ tin thấp. Bấm Tiếp tục để xác nhận theo đúng những gì FlintFlow đọc được.",
         "continue": "Tiếp tục"
+      },
+      "review": {
+        "title": "Xác nhận trước khi tiếp tục",
+        "intro": "FlintFlow chưa chắc ở vài chỗ dưới đây - bạn xác nhận giúp trước khi FlintFlow tạo bản gốc.",
+        "guidance": {
+          "title": "Đoạn chưa rõ có phải chữ hướng dẫn của mẫu",
+          "isGuidance": "Là chữ hướng dẫn",
+          "isContent": "Là nội dung thật"
+        },
+        "mismatch": {
+          "title": "Mục có tên khác với nội dung bên trong",
+          "body": "Mục này tên là \"{heading}\" nhưng nội dung đọc được lại thuộc loại khác.",
+          "ack": "Đã xem"
+        },
+        "confirmAll": "Xác nhận tất cả theo gợi ý của FlintFlow"
       },
       "outcome": {
         "mode3": {

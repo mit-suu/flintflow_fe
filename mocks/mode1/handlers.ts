@@ -763,7 +763,13 @@ export const mode1Handlers = [
       return ok({
         import: S().importDoc,
         profile: S().profile,
-        extraction: { sections: S().sections, review_fields: S().reviewFields.filter((f) => !f.confirmed) },
+        extraction: {
+          sections: S().sections,
+          review_fields: S().reviewFields.filter((f) => !f.confirmed),
+          // FLF-462 (bước 1.6): mock chưa mô phỏng đoạn lớp 4 / mục tên đúng nội dung sai — luôn rỗng, màn xác nhận test riêng
+          review_guidance: S().reviewGuidance.filter((g) => !g.confirmed),
+          review_content_mismatch: S().reviewContentMismatch.filter((m) => !m.confirmed),
+        },
         blocks_count: S().blocks.get("0.1")?.length ?? 0,
         credit_estimate: creditEstimate(),
       });
@@ -829,13 +835,32 @@ export const mode1Handlers = [
       if (doc.status !== "fields_review") return invalidImportState("baselining");
       const body = await readJson(request);
       const fields = (body.fields as { path: string; confirmed: boolean; edited_value?: unknown }[] | undefined) ?? [];
-      if (!fields.length && !body.confirm_all) return fail(400, "VALIDATION_ERROR", "Cần ít nhất một field hoặc confirm_all");
+      // FLF-462 (bước 1.6): đoạn lớp 4 chữ hướng dẫn + mục tên đúng nội dung sai
+      const guidance = (body.guidance as { block_id: string; is_guidance: boolean }[] | undefined) ?? [];
+      const contentMismatch = (body.content_mismatch as { section_id: string }[] | undefined) ?? [];
+      if (!fields.length && !guidance.length && !contentMismatch.length && !body.confirm_all) {
+        return fail(400, "VALIDATION_ERROR", "Cần ít nhất một mục cần xác nhận hoặc confirm_all");
+      }
       for (const f of fields) {
         const target = S().reviewFields.find((r) => r.path === f.path);
         if (target) Object.assign(target, { confirmed: true, ...(f.edited_value !== undefined ? { edited_value: f.edited_value } : {}) });
       }
-      if (body.confirm_all) for (const r of S().reviewFields) r.confirmed = true;
-      if (S().reviewFields.every((r) => r.confirmed)) setImportStatus("baselining");
+      for (const g of guidance) {
+        const target = S().reviewGuidance.find((r) => r.block_id === g.block_id);
+        if (target) Object.assign(target, { confirmed: true, is_guidance: g.is_guidance });
+      }
+      for (const m of contentMismatch) {
+        const target = S().reviewContentMismatch.find((r) => r.section_id === m.section_id);
+        if (target) target.confirmed = true;
+      }
+      if (body.confirm_all) {
+        for (const r of S().reviewFields) r.confirmed = true;
+        for (const r of S().reviewGuidance) r.confirmed = true;
+        for (const r of S().reviewContentMismatch) r.confirmed = true;
+      }
+      if (S().reviewFields.every((r) => r.confirmed) && S().reviewGuidance.every((r) => r.confirmed) && S().reviewContentMismatch.every((r) => r.confirmed)) {
+        setImportStatus("baselining");
+      }
       return ok({ import: doc });
     }),
   ),

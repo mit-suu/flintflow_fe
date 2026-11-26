@@ -17,7 +17,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn(), replace: 
 const doc = (over: Partial<ImportedDocument>): ImportedDocument =>
   ({ id: "i1", project_id: "p1", original_name: "SRS.docx", status: "extracting", preflight: { status: "accepted", issues: [], document_kind: null }, paused: null, extract_cursor: null, reread: null, ...over }) as ImportedDocument;
 const data = (over: Partial<GetImportResponse>): GetImportResponse =>
-  ({ import: null, profile: null, extraction: { sections: [], review_fields: [] }, blocks_count: 0, ...over }) as GetImportResponse;
+  ({ import: null, profile: null, extraction: { sections: [], review_fields: [], review_guidance: [], review_content_mismatch: [] }, blocks_count: 0, ...over }) as GetImportResponse;
 const setImport = (over: Record<string, unknown>) => {
   imp.current = {
     loading: false,
@@ -30,6 +30,7 @@ const setImport = (over: Record<string, unknown>) => {
     upload: vi.fn(async () => null),
     start: vi.fn(),
     resume: vi.fn(),
+    confirmReview: vi.fn(),
     continueFlow2: vi.fn(async () => ({ project_mode: "fpt" })),
     ...over,
   };
@@ -94,6 +95,38 @@ describe("ImportWorkspace - upload SRS trong layout workspace", () => {
     setImport({ doc: d, data: data({ import: d }) });
     renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
     expect(screen.getByRole("listitem", { current: "step" })).toHaveTextContent("Kiểm tra");
+  });
+
+  it("FLF-462 bước 1.6: đoạn lớp 4 chữ hướng dẫn + mục tên đúng nội dung sai ⇒ màn xác nhận, mỗi nút gọi đúng confirmReview", () => {
+    const d = doc({ status: "fields_review" });
+    setImport({
+      doc: d,
+      data: data({
+        import: d,
+        extraction: {
+          sections: [],
+          review_fields: [],
+          review_guidance: [{ section_id: "fixed:3.4", block_id: "B0042", text: "Mục này mô tả yêu cầu bảo mật.", is_guidance: true, confidence: 0.5, confirmed: false }],
+          review_content_mismatch: [{ section_id: "fixed:2.2.2", by_heading: ["use_cases"], by_content: ["verifications"], note: "test cases", confirmed: false }],
+        },
+      }),
+    });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    expect(screen.getByText("Mục này mô tả yêu cầu bảo mật.")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Là chữ hướng dẫn" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ guidance: [{ section_id: "fixed:3.4", block_id: "B0042", is_guidance: true }] });
+    fireEvent.click(screen.getByRole("button", { name: "Đã xem" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ content_mismatch: [{ section_id: "fixed:2.2.2" }] });
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận tất cả theo gợi ý của FlintFlow" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ confirm_all: true });
+  });
+
+  it("FLF-462 bước 1.6: chỉ còn field độ tin thấp (không có đoạn lớp 4 / mục lệch cụ thể) ⇒ nút Tiếp tục xác nhận tất cả", () => {
+    const d = doc({ status: "fields_review" });
+    setImport({ doc: d, data: data({ import: d }) });
+    renderWithIntl(<ImportWorkspace projectId="p1" onProjectChanged={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(imp.current.confirmReview).toHaveBeenCalledWith({ confirm_all: true });
   });
 
   it("đọc xong mà trang chưa kịp chuyển (project chưa đổi) ⇒ thử đọc lại project tới khi chuyển", () => {
