@@ -487,6 +487,8 @@ export interface GateResponse {
   message_vi?: string;
   /** FLF-489: bước vừa duyệt đã từng được chốt trước lượt này (chạy lại bước đã qua). Client không tự chạy tiếp quy trình. */
   rerun?: boolean;
+  /** FLF-482: sau `revision`, một phần lời sửa nằm ngoài mục bước ghi được ⇒ mở Sửa tài liệu với đúng câu user gõ. */
+  route_to_change?: { instruction: string };
 }
 
 // ─── progress ────────────────────────────────────────────────────
