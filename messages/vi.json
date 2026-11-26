@@ -982,6 +982,9 @@
         "drop": "Kéo thả file vào đây hoặc bấm để chọn",
         "addMore": "Thêm file"
       },
+      "google": {
+        "chosen": "Google Docs: {name}"
+      },
       "orgTemplates": {
         "uploadNew": "Tải mẫu lên thư viện",
         "toggle": "Hoặc chọn từ mẫu của tổ chức ({count})",

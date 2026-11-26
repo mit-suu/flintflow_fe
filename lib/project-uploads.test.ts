@@ -1,10 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
 import { uploadProjectDocument } from "@/lib/api/documents";
+import { importFromGoogleDocs } from "@/lib/api/import";
 import { chooseProjectUploadVersion, clearProjectUploads, dismissProjectUpload, startProjectUploads } from "./project-uploads";
 
 vi.mock("@/lib/api/documents", () => ({ uploadProjectDocument: vi.fn() }));
-vi.mock("@/lib/api/import", () => ({ uploadImport: vi.fn() }));
+vi.mock("@/lib/api/import", () => ({ uploadImport: vi.fn(), importFromGoogleDocs: vi.fn() }));
 vi.mock("@/lib/api/org-library", () => ({ importFromOrgTemplate: vi.fn() }));
 
 const PROJECT = "p-398";
@@ -60,5 +61,19 @@ describe("project-uploads - tài liệu tham khảo (FLF-398)", () => {
     chooseProjectUploadVersion(PROJECT, items()[1].key, null);
     await vi.waitFor(() => expect(statusOf("SRS_v3.docx")).toBe("skipped"));
     expect(items()[1].note).toBeUndefined();
+  });
+});
+
+describe("project-uploads - SRS từ Google Drive (FLF-464)", () => {
+  it("srsGoogle ⇒ gọi import theo fileId, không tải file; lỗi ⇒ failed", async () => {
+    vi.mocked(importFromGoogleDocs).mockReset().mockResolvedValue({ data: {} } as never);
+    startProjectUploads(PROJECT, { srsGoogle: { id: "g-1", name: "SRS Bán Vé" }, references: [] });
+    await vi.waitFor(() => expect(statusOf("SRS Bán Vé")).toBe("done"));
+    expect(importFromGoogleDocs).toHaveBeenCalledWith(PROJECT, "g-1");
+
+    clearProjectUploads(PROJECT);
+    vi.mocked(importFromGoogleDocs).mockRejectedValue(new ApiClientError(403, "GOOGLE_RECONNECT_REQUIRED", "x"));
+    startProjectUploads(PROJECT, { srsGoogle: { id: "g-2", name: "SRS 2" }, references: [] });
+    await vi.waitFor(() => expect(statusOf("SRS 2")).toBe("failed"));
   });
 });

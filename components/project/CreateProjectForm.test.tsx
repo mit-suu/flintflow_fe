@@ -4,7 +4,7 @@ import { createProjectFrom, listProjectsPage } from "@/lib/api/projects";
 import { fetchBalance } from "@/lib/api/billing";
 import { ApiClientError } from "@/lib/api/client";
 import { precheckDocx, uploadProjectDocument } from "@/lib/api/documents";
-import { uploadImport } from "@/lib/api/import";
+import { importFromGoogleDocs, uploadImport } from "@/lib/api/import";
 import { MESSAGES, renderWithIntl } from "@/test/intl";
 import CreateProjectForm from "./CreateProjectForm";
 
@@ -13,7 +13,14 @@ const DEFAULT_PROJECT_NAME = MESSAGES.vi.app.createProject.defaultName;
 vi.mock("@/lib/api/projects", () => ({ createProjectFrom: vi.fn(), listProjectsPage: vi.fn() }));
 vi.mock("@/lib/api/billing", () => ({ fetchBalance: vi.fn() }));
 vi.mock("@/lib/api/documents", () => ({ precheckDocx: vi.fn(), uploadProjectDocument: vi.fn() }));
-vi.mock("@/lib/api/import", () => ({ uploadImport: vi.fn() }));
+vi.mock("@/lib/api/import", () => ({ uploadImport: vi.fn(), importFromGoogleDocs: vi.fn() }));
+vi.mock("@/components/integrations/GoogleDrivePickButton", () => ({
+  default: ({ onPicked }: { onPicked: (f: { id: string; name: string; mimeType: string }) => void }) => (
+    <button type="button" onClick={() => onPicked({ id: "g-1", name: "SRS Bán Vé", mimeType: "application/vnd.google-apps.document" })}>
+      pick-from-drive
+    </button>
+  ),
+}));
 vi.mock("@/lib/api/org-library", () => ({ importFromOrgTemplate: vi.fn(), listOrgTemplates: vi.fn(async () => []) }));
 
 const submit = () => screen.getByRole("button", { name: /Bắt đầu|Đang tạo/ });
@@ -33,6 +40,7 @@ beforeEach(() => {
   vi.mocked(fetchBalance).mockReset().mockRejectedValue(new Error("offline"));
   vi.mocked(listProjectsPage).mockReset().mockResolvedValue({ items: [], meta: { page: 1, limit: 1, total: 0, totalPages: 1 } } as never);
   vi.mocked(createProjectFrom).mockReset().mockResolvedValue(created);
+  vi.mocked(importFromGoogleDocs).mockReset().mockResolvedValue({ data: {}, error: null } as never);
   vi.mocked(uploadImport).mockReset().mockResolvedValue({ data: {}, error: null } as never);
   vi.mocked(uploadProjectDocument).mockReset().mockResolvedValue({ data: {}, error: null } as never);
   vi.mocked(precheckDocx).mockReset().mockResolvedValue({ data: { looks_like_srs: false, stamp: null }, error: null } as never);
@@ -80,6 +88,26 @@ describe("CreateProjectForm - hộp Tạo dự án hai ô (business-flow §1)", 
     fireEvent.click(checkbox);
     fireEvent.click(submit());
     await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: true, complete_to_standard: true }));
+  });
+
+  it("chọn SRS từ Google Drive (FLF-464) ⇒ ẩn ngôn ngữ, has_srs_file true, tạo xong import theo fileId, không tải file lên", async () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.click(screen.getByText("pick-from-drive"));
+    expect(screen.getByText("Google Docs: SRS Bán Vé")).toBeInTheDocument();
+    expect(screen.queryByText("pick-from-drive")).not.toBeVisible();
+    expect(screen.queryByRole("radiogroup", { name: /Ngôn ngữ tài liệu/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByLabelText(/Bổ sung các mục còn thiếu/));
+    fireEvent.click(submit());
+    await waitFor(() => expect(createProjectFrom).toHaveBeenCalledWith({ name: DEFAULT_PROJECT_NAME, has_srs_file: true, complete_to_standard: true }));
+    await waitFor(() => expect(importFromGoogleDocs).toHaveBeenCalledWith("p1", "g-1"));
+    expect(uploadImport).not.toHaveBeenCalled();
+  });
+
+  it("bỏ file Drive ⇒ về ô trống (có lại ngôn ngữ)", async () => {
+    renderWithIntl(<CreateProjectForm variant="dialog" onCreated={() => {}} />);
+    fireEvent.click(screen.getByText("pick-from-drive"));
+    fireEvent.click(screen.getByRole("button", { name: "Bỏ SRS Bán Vé" }));
+    expect(screen.getByRole("radiogroup", { name: /Ngôn ngữ tài liệu/ })).toBeInTheDocument();
   });
 
   it("ô SRS chỉ nhận .docx", () => {

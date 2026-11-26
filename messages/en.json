@@ -982,6 +982,9 @@
         "drop": "Drag a file here or click to choose",
         "addMore": "Add files"
       },
+      "google": {
+        "chosen": "Google Docs: {name}"
+      },
       "orgTemplates": {
         "uploadNew": "Upload a template to the library",
         "toggle": "Or pick an organization template ({count})",

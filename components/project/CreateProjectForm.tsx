@@ -20,6 +20,8 @@ import { userErrorMessage } from "@/lib/api/error-messages";
 import { ApiClientError } from "@/lib/api/client";
 import { useProjectQuota } from "@/lib/hooks/use-project-quota";
 import Link from "next/link";
+import GoogleDrivePickButton from "@/components/integrations/GoogleDrivePickButton";
+import type { PickedGoogleFile } from "@/lib/google-picker";
 
 const NAME_MAX = 100; // khớp CreateProjectSchema ở BE
 
@@ -51,6 +53,8 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
   const defaultName = t("defaultName");
   const [name, setName] = useState(defaultName);
   const [srsFile, setSrsFile] = useState<File | null>(null);
+  /** FLF-464: SRS chọn từ Google Drive (một chiều: BE lấy về .docx lúc tạo, sửa trên Google Docs không quay về). */
+  const [srsGoogle, setSrsGoogle] = useState<PickedGoogleFile | null>(null);
   const [orgTemplate, setOrgTemplate] = useState<OrgTemplateSummary | null>(null);
   /** Bản mẫu đã chọn (mặc định bản đã đăng mới nhất). */
   const [orgTemplateVersion, setOrgTemplateVersion] = useState<number | null>(null);
@@ -67,7 +71,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
   const inputId = `project-name-${variant}`;
   const languageLabelId = `document-language-${variant}`;
   const submitting = stage !== null;
-  const hasSrs = !!srsFile || !!orgTemplate;
+  const hasSrs = !!srsFile || !!orgTemplate || !!srsGoogle;
   // UC-16: báo hạn mức trước khi điền (E2E BarberGo #1) — hết chỗ thì khoá Bắt đầu, câu nêu rõ trần của gói (#2)
   const { quota, reload: reloadQuota } = useProjectQuota();
   // BE vừa từ chối vì hết hạn mức (số đọc lúc mở hộp đã cũ — người khác vừa tạo) ⇒ coi như đầy ngay, không chờ đọc lại
@@ -87,8 +91,11 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
     if (file && !isDocx(file)) return setSrsError(t("srs.notDocx"));
     if (file && file.size > SRS_MAX_BYTES) return setSrsError(t("srs.tooLarge"));
     setSrsFile(file);
-    if (file) setOrgTemplate(null);
-    if (!file) setCompleteToStandard(false);
+    if (file) {
+      setOrgTemplate(null);
+      setSrsGoogle(null);
+    }
+    if (!file && !srsGoogle) setCompleteToStandard(false);
   };
 
   const addReferences = async (files: File[]) => {
@@ -155,7 +162,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
 
     // Không bắt chờ trong hộp thoại: file tải nền, trang dự án hiện các bước tích dần (lỗi tải ⇒ báo + thử lại ở đó)
     if (hasSrs) markImportPending(project._id);
-    startProjectUploads(project._id, { projectName: project.name, srs: srsFile, orgTemplate: orgTemplate ? { id: orgTemplate.id, name: orgTemplate.name, version: orgTemplateVersion ?? undefined } : null, references: references.map((r) => r.file) });
+    startProjectUploads(project._id, { projectName: project.name, srs: srsFile, srsGoogle: srsGoogle ? { id: srsGoogle.id, name: srsGoogle.name } : null, orgTemplate: orgTemplate ? { id: orgTemplate.id, name: orgTemplate.name, version: orgTemplateVersion ?? undefined } : null, references: references.map((r) => r.file) });
     // Giữ trạng thái gửi cho tới khi chuyển trang, tránh bấm tạo hai lần
     await onCreated(project);
   };
@@ -216,6 +223,18 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
       <SrsSlot
         file={srsFile}
         orgTemplateName={orgTemplate ? (orgTemplateVersion ? t("orgTemplates.nameWithVersion", { name: orgTemplate.name, version: orgTemplateVersion }) : orgTemplate.name) : null}
+        googleFileName={srsGoogle?.name ?? null}
+        onClearGoogleFile={() => {
+          setSrsGoogle(null);
+          setCompleteToStandard(false);
+        }}
+        googlePicker={<GoogleDrivePickButton disabled={submitting} onPicked={(file) => {
+          setSrsGoogle(file);
+          setSrsFile(null);
+          setOrgTemplate(null);
+          setOrgTemplateVersion(null);
+          setSrsError(null);
+        }} />}
         completeToStandard={completeToStandard}
         disabled={submitting}
         onFile={pickSrs}
@@ -229,6 +248,7 @@ export default function CreateProjectForm({ variant, onCreated, onCancel, folder
           setOrgTemplate(tpl);
           setOrgTemplateVersion(version);
           setSrsFile(null);
+          setSrsGoogle(null);
           setSrsError(null);
         }} />}
         error={srsError}
