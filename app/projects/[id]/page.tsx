@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExt
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
+import { applyChangesWithRebase, editAssumption, renderDiagram, renderDiagramsBatch } from "@/lib/api/spine";
 import { disableScreenMockups, getProject, getScreenMockupSummary, runScreenMockups, setDocumentLanguage, setScreenTheme } from "@/lib/api/projects";
 import ScreenMockupRunCard from "./_components/ScreenMockupRunCard";
 import { useScreenMockupRun } from "./hooks/useScreenMockupRun";
@@ -228,6 +228,9 @@ type WorkspacePanel = "verification" | "tools" | "comments";
  * (FLF-185): chưa import xong ⇒ màn đọc khung / tiến trình trong layout workspace (`ImportWorkspace`); import xong ⇒ **cùng workspace** (step theo template người dùng,
  * sửa qua chat tới baseline v1) + công cụ mode 1. Không đọc được project ⇒ workspace mode 2 tự xử lý lỗi/đăng nhập.
  */
+/** Trần thời gian cho một lượt vẽ lại cả lô sơ đồ (BE vẽ tuần tự, mỗi hình vài giây). Quá trần ⇒ nhả nút, báo tải lại. */
+const REDRAW_TIMEOUT_MS = 5 * 60 * 1000;
+
 export default function WorkspacePage() {
   const projectId = useParams()?.id as string;
   const router = useRouter();
@@ -617,10 +620,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const { markPending: markDocumentPending, clearPending: clearDocumentPending } = doc;
 
   /**
-   * Vẽ lại các sơ đồ (một lời gọi cho mỗi cặp kind + owner: `screen_flow` nhiều phần vẽ chung một lượt) rồi quét lại cờ và
-   * tải lại tài liệu MỘT lần cho cả lô — ảnh trong tài liệu là PNG BE nhúng lúc trả, phải đọc lại mới thấy hình mới.
-   * Mỗi sơ đồ vẽ trong một transaction riêng nên một sơ đồ lỗi không làm mất phần đã vẽ: vẫn tính lại cờ, đọc lại Spine
-   * (version tăng sau mỗi lần vẽ ⇒ `base_version` phải theo kịp, nếu không lệnh sửa kế tiếp ăn 409) và tải lại tài liệu.
+   * Vẽ lại các sơ đồ bằng MỘT request cho cả lô (FLF-493 #33: trước đây mỗi cặp kind + owner một lời gọi, mà BE vẽ lại cả bộ
+   * mỗi lần nên 8 cờ = 8 lượt vẽ nối tiếp), có trần thời gian, rồi tải lại tài liệu MỘT lần — ảnh trong tài liệu là PNG BE nhúng
+   * lúc trả, phải đọc lại mới thấy hình mới. BE tự tính lại cờ và trả kèm; BE cũ chưa có route (404) ⇒ lùi về cách cũ nhưng gửi
+   * tuần tự, từng loại một. Hết trần thời gian ⇒ nhả nút, báo "tải lại để xem kết quả" và vẫn đọc lại cờ + Spine (version tăng
+   * sau mỗi lần vẽ ⇒ `base_version` phải theo kịp, nếu không lệnh sửa kế tiếp ăn 409).
    * Trả kết quả từng sơ đồ (`error` = câu tiếng người, `null` = vẽ xong) và cờ sau khi tính lại (`null` = tính lại lỗi).
    */
   const runRedraw = useCallback(
@@ -629,29 +633,67 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       // Mục có sơ đồ đang vẽ báo "đang cập nhật" ngay từ lúc bắt đầu ghi, tới khi tài liệu mới về
       markDocumentPending(targets.map((d) => d.section));
       const results = new Map<string, string | null>();
-      for (const d of targets) {
+      const failAll = (message: string) => targets.forEach((d) => results.set(diagramKey(d), message));
+      const errorText = (err: unknown) => {
+        const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
+        return friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message;
+      };
+      // Đo nhẹ để lượt E2E sau biết thời gian vẽ và dựng lại tài liệu (FLF-493 #33, chưa chống treo theo giả thuyết)
+      const mark = (name: string) => {
         try {
-          await renderDiagram(projectId, d.kind, d.owner_id);
-          results.set(diagramKey(d), null);
-        } catch (err) {
-          const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
-          results.set(diagramKey(d), friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message);
+          performance.mark(name);
+        } catch {
+          // môi trường không có Performance API
         }
-      }
-      const drawn = [...results.values()].some((error) => error === null);
+      };
+      mark("ff-redraw-start");
       let flagsAfter: Flag[] | null = null;
+      let flagsFromBatch = false;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REDRAW_TIMEOUT_MS);
+      try {
+        const res = await renderDiagramsBatch(projectId, diagrams.map((d) => d.id), controller.signal);
+        const skipped = new Set(res.data?.skipped ?? []);
+        for (const d of targets) results.set(diagramKey(d), skipped.has(d.id) ? t("page.redrawSkipped") : null);
+        if (Array.isArray(res.data?.flags)) {
+          flagsAfter = res.data.flags;
+          flagsFromBatch = true;
+        }
+      } catch (err) {
+        if (controller.signal.aborted) {
+          failAll(t("page.redrawTimeout"));
+        } else if (err instanceof ApiClientError && err.status === 404) {
+          // BE cũ chưa có route theo danh sách ⇒ từng loại một, tuần tự (không song song để khỏi chồng nhiều lượt vẽ cả bộ)
+          for (const d of targets) {
+            try {
+              await renderDiagram(projectId, d.kind, d.owner_id);
+              results.set(diagramKey(d), null);
+            } catch (inner) {
+              results.set(diagramKey(d), errorText(inner));
+            }
+          }
+        } else {
+          failAll(errorText(err));
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+      mark("ff-redraw-api-done");
+      const timedOut = controller.signal.aborted;
+      const drawn = timedOut || [...results.values()].some((error) => error === null);
       if (drawn) {
-        flagsAfter = await recomputeFlagsFn().catch(() => null);
+        if (!flagsFromBatch) flagsAfter = await recomputeFlagsFn().catch(() => null);
         bumpVersion(await reloadSpine());
         void reloadProgress();
         setDocumentRefreshToken((v) => v + 1);
+        mark("ff-redraw-doc-reload-requested");
       } else {
         // Không sơ đồ nào vẽ được ⇒ không có bản mới nào về để tự xoá vùng chờ
         clearDocumentPending();
       }
       return { results, flagsAfter };
     },
-    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, bumpVersion, locale, markDocumentPending, clearDocumentPending]
+    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, bumpVersion, locale, markDocumentPending, clearDocumentPending, t]
   );
 
   /** Vẽ lại từ nút trên tài liệu (theo mục / khung lỗi). Ném lỗi bằng câu tiếng Việt nếu có sơ đồ không vẽ được. */
@@ -802,26 +844,32 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       .catch(() => null);
     const ack = est?.ack_required;
     if (!est || !ack) return true;
-    const range = est.screen_range;
-    const min = est.credits_min ?? est.credits_total;
-    const max = est.credits_max ?? est.credits_total;
-    const hasRange = est.units.some((u) => u.screens);
+    const range = est.screen_range && est.screen_range.max > 0 ? est.screen_range : null;
+    // BE cũ (không có `basis`): tổng chưa gồm phần vòng màn hình ⇒ cộng thêm ở đây
+    const rangeInTotal = range?.basis !== undefined;
+    const min = (est.credits_min ?? est.credits_total) + (range && !rangeInTotal ? range.credits_min : 0);
+    const max = (est.credits_max ?? est.credits_total) + (range && !rangeInTotal ? range.credits_max : 0);
+    const unitHasRange = est.units.some((u) => u.screens);
+    const lines = est.units.map((u) =>
+      u.screens
+        ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
+        : { label: t("creditGate.unitLine", { name: u.label ?? t("creditGate.unitFallback", { unit: u.unit }), steps: u.steps }), credits: u.credits },
+    );
+    // Dòng phần màn là một dòng như các giai đoạn khác (FLF-485 #9), không chỉ là chú thích
+    if (range && !unitHasRange) lines.push({ label: t("creditGate.screenRangeLine", { min: range.min, max: range.max }), credits: range.credits_min, creditsMax: range.credits_max });
     const ok = await confirmCredits({
       title: t(`creditGate.scope.${ack.scope}`),
-      lines: est.units.map((u) =>
-        u.screens
-          ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
-          : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
-      ),
+      lines,
       total: min,
       totalMax: max,
       available: est.available_credits,
-      notes: hasRange ? [t("creditGate.screenRangeNote")] : undefined,
-      ...(range && range.max > 0 ? { note: t("creditGate.screenRange", { min: range.min, max: range.max, creditsMin: range.credits_min, creditsMax: range.credits_max }) } : {}),
+      notes: range || unitHasRange ? [t(range?.basis === "scale_note" ? "creditGate.screenRangeNoteScale" : "creditGate.screenRangeNote")] : undefined,
     });
     if (!ok) return false;
     try {
-      await ackRunEstimate(projectId);
+      // #19: ack ghi Spine và trả phiên bản mới ⇒ nâng base version trước khi chạy, tránh 409 SPINE_VERSION_CONFLICT
+      const acked = await ackRunEstimate(projectId);
+      if (acked.data?.spine_version !== undefined) onSpineChanged(acked.data.spine_version);
       return true;
     } catch {
       return false;

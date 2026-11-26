@@ -69,7 +69,7 @@ describe("CreditGateCard (FLF-332 - cổng cứng xác nhận credit)", () => {
     it("có totalMax ⇒ hiện khoảng ở dòng và ở tổng", () => {
       renderWithIntl(<CreditGateCard {...ranged} available={500} onRun={vi.fn()} onCancel={vi.fn()} />);
       expect(screen.getByText("~78–195 credit")).toBeInTheDocument();
-      expect(screen.getByText("Tổng ước tính: ~222–339 credit")).toBeInTheDocument();
+      expect(screen.getByText("Tổng ước tính: ~222 – 339 credit")).toBeInTheDocument();
       expect(screen.queryByRole("status")).toBeNull();
     });
 

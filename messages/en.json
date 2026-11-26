@@ -1694,7 +1694,7 @@
       "emptyTitle": "Start the current step",
       "emptyBody": "Type in the chat box to get the AI going: it asks about what’s missing, then drafts. You can attach reference documents.",
       "notPipeline": "This isn't a pipeline session - edit commands typed below go straight to the Change panel for preview and confirmation.",
-      "editPlaceholder": "Describe what to change, e.g. Rename actor A03 to Administrator",
+      "editPlaceholder": "Describe what to change, e.g. Rename the Admin actor to Administrator",
       "stepDivider": "Start of step {step}",
       "knowledgePending": "Searching the knowledge base…",
       "sideSession": "Q&A session - ask the AI about the project, or turn on \"Edit document\" to make changes. The document workflow runs in the main session.",
@@ -2227,7 +2227,7 @@
     "change": {
       "title": "Edit by command",
       "instruction": "Edit command",
-      "placeholder": "e.g. Rename actor A03 to Administrator",
+      "placeholder": "e.g. Rename the Admin actor to Administrator",
       "previewing": "Previewing…",
       "preview": "Preview changes",
       "clarify": "Needs clarification",
@@ -2926,13 +2926,15 @@
         "screens_added": "Draft the details of the newly added screens"
       },
       "screenRange": "The screens part is an estimate: about {min} to {max} screens, ~{creditsMin} to ~{creditsMax} credits. The exact number is shown once the screen list is confirmed.",
-      "unitLine": "Phase {unit} · {steps, plural, =1 {1 step} other {# steps}}",
+      "unitFallback": "Phase {unit}",
+      "unitLine": "{name} · {steps, plural, =1 {1 step} other {# steps}}",
       "attachmentsTitle": "Read {count, plural, =1 {1 attached document} other {# attached documents}}",
       "pdfNote": "PDF: tables with many columns may be read out of order, and scanned PDFs have no readable text. In those cases, send a .docx instead.",
       "creditsRange": "~{min}–{max} credits",
-      "totalRange": "Estimated total: ~{min}–{max} credits",
+      "totalRange": "Estimated total: ~{min} – {max} credits",
       "screenRangeLine": "Screen details · about {min}–{max} screens",
       "screenRangeNote": "The screen count is estimated from the Brief. The exact figure is known after the Screen List step.",
+      "screenRangeNoteScale": "The screen count is estimated from the number of use cases stated in the Brief. The exact figure is known after the Screen List step.",
       "shortRange": "The balance is enough if the project has few screens, and may fall short if it has many. The AI stops when credits run out, finished parts are not charged again.",
       "estimateFailed": "Credits could not be estimated. Press Run to continue drafting; the AI stops when credits run out."
     },
@@ -2953,6 +2955,8 @@
       "loading": "Loading the SRS workspace",
       "convertedNotice": "Baseline signed - the project switched to change management; every edit now goes through a Change Request",
       "redrawNotFound": "This diagram was not found - reload the page and try again.",
+      "redrawTimeout": "Redrawing is taking longer than expected - reload the document to see the result.",
+      "redrawSkipped": "This diagram could not be redrawn yet - use Redraw in Review & finalize.",
       "redrawFailed": "Could not redraw the diagram",
       "turnNeedsInput": "The AI is waiting for your answer",
       "turnGateReady": "New content is waiting for your review",
@@ -4830,7 +4834,9 @@
         "aliases": "Aliases",
         "actor_id": "Actor",
         "actor_ids": "Actors",
+        "platforms": "Platforms",
         "function_ids": "Related functions",
+        "feature_ids": "Related features",
         "includes": "Include",
         "extends": "Extend",
         "feature_id": "Feature",
@@ -5027,6 +5033,10 @@
         "tier": {
           "high": "High level",
           "detail": "Detail"
+        },
+        "platform": {
+          "web": "Web app",
+          "mobile": "Mobile app"
         },
         "status": {
           "unconfirmed": "Unconfirmed",

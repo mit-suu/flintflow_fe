@@ -4,7 +4,7 @@
  */
 import type { ApplyResult, AssumptionEditRequest, ChangeRequest, PreviewResult } from "@/types/pipeline";
 import type { Change, Spine } from "@/types/spine";
-import type { TraceabilityQuery, TraceabilityResponse } from "@/types/flags";
+import type { Flag, TraceabilityQuery, TraceabilityResponse } from "@/types/flags";
 import { ApiClientError, apiCall, authFetch, readRawErrorMessage } from "./client";
 
 export const getSpine = (projectId: string) => apiCall<Spine>(`/projects/${projectId}/spine`);
@@ -118,6 +118,17 @@ export const renderDiagram = (projectId: string, kind: string, ownerId?: string 
   apiCall<{ rendered: string[]; spine_version: number }>(`/projects/${projectId}/diagrams/${kind}/render`, {
     method: "POST",
     body: JSON.stringify({ ...(ownerId ? { owner_id: ownerId } : {}), force: true }),
+  });
+
+/**
+ * FLF-493 (#33): vẽ lại MỘT lượt cho cả lô sơ đồ theo danh sách id (BE vẽ đúng các hình đó, giữ nguyên hình khác, tự tính lại cờ).
+ * BE cũ chưa có route này ⇒ 404 (người gọi lùi về cách vẽ từng loại). `signal` để cắt khi quá trần thời gian.
+ */
+export const renderDiagramsBatch = (projectId: string, diagramIds: readonly string[], signal?: AbortSignal) =>
+  apiCall<{ rendered: string[]; skipped?: string[]; spine_version: number; flags?: Flag[] }>(`/projects/${projectId}/diagrams/render`, {
+    method: "POST",
+    body: JSON.stringify({ diagram_ids: diagramIds, force: true }),
+    signal,
   });
 
 /** SVG của một diagram (cần token nên không dùng thẳng `<img src>`). */

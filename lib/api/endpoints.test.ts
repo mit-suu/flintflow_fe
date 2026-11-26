@@ -420,6 +420,17 @@ describe("lib/api wrappers", () => {
     }
   });
 
+  it("renderDiagramsBatch gửi MỘT request với danh sách id sơ đồ (FLF-493)", async () => {
+    const { renderDiagramsBatch } = await import("./spine");
+    const signal = new AbortController().signal;
+    await renderDiagramsBatch("p1", ["D19", "D21"], signal);
+    expect(apiCall).toHaveBeenCalledTimes(1);
+    const [path, init] = vi.mocked(apiCall).mock.calls[0];
+    expect(path).toBe("/projects/p1/diagrams/render");
+    expect(JSON.parse(init?.body as string)).toEqual({ diagram_ids: ["D19", "D21"], force: true });
+    expect(init?.signal).toBe(signal);
+  });
+
   it("uploadProjectDocument gửi file qua FormData", async () => {
     const file = new File(["nội dung"], "brief.md", { type: "text/markdown" });
 
