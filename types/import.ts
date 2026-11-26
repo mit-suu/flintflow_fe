@@ -312,9 +312,16 @@ export interface ConfirmLatestRequest {
   import_id: string;
 }
 
+/** FLF-460: đổi nhãn một heading - `section_id` đổi mục khớp; `scope` đưa vào / ra Ngoài phạm vi ("auto" = bỏ nhãn tay). */
+export interface MappingHeadingPatch {
+  block_id: string;
+  section_id?: string;
+  scope?: "out_of_scope" | "in_scope" | "auto";
+}
+
 export interface MappingPatchRequest {
   import_id: string;
-  headings?: { block_id: string; section_id: string }[];
+  headings?: MappingHeadingPatch[];
   tables?: { block_id: string; column_index: number; field_path: string | null }[];
   confirm_all?: boolean;
 }
@@ -401,7 +408,18 @@ export interface TextSection {
 export interface StructurePreview {
   summary: { present: number; missing: number; out_of_scope: number; kind: "written" | "template" };
   /** `excerpt` (P09 #15): trích đoạn chữ khách viết dưới mục (≤ 200 ký tự) — mục còn trống / import cũ ⇒ không có. */
-  sections: { section_id: string; title: string; status: TargetSectionStatus; order: number; excerpt?: string }[];
+  sections: {
+    section_id: string;
+    title: string;
+    status: TargetSectionStatus;
+    order: number;
+    excerpt?: string;
+    /** FLF-460: heading của file (khoá đổi nhãn); `uncertain` = I-3 khớp độ tin thấp (kèm `matched_title`); `scope_label` = nhãn Ngoài phạm vi người dùng đổi. */
+    block_id?: string;
+    uncertain?: boolean;
+    matched_title?: string;
+    scope_label?: "out_of_scope" | "in_scope";
+  }[];
   resolved_mode: 1 | 3 | 4;
   intent: "fixed" | "free";
   computed_at: string;

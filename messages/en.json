@@ -3528,6 +3528,26 @@
         "fileDuplicate": "{name}: {message}",
         "dismiss": "Dismiss"
       },
+      "relabel": {
+        "title": "Section labels",
+        "hint": "FlintFlow matches each section of your file to the standard template. Uncertain matches are marked so you can check them; you can change the match or move a section in or out of Out of scope. Changes here cost no credit and call no AI.",
+        "featuredLabel": "Sections to review or relabelled",
+        "uncertain": "Not sure",
+        "needsReview": "Needs review",
+        "guess": "Could it be {title}?",
+        "scope": {
+          "out_of_scope": "You set it to Out of scope",
+          "in_scope": "You set it to In scope"
+        },
+        "matchLabel": "Matches",
+        "matchAria": "Change the match of {title}",
+        "matchKeep": "Keep as is",
+        "ownSection": "Own section of the file",
+        "moveOut": "Move to Out of scope",
+        "moveIn": "Move into scope",
+        "resetScope": "Let the system decide",
+        "others": "Relabel other sections ({count})"
+      },
       "outOfScope": {
         "title": "Out of scope",
         "hint": "{count, plural, one {This section is} other {These sections are}} not part of a software requirements specification under ISO/IEC/IEEE 29148 (for example a cost estimate). FlintFlow keeps the text as is: it does not draft it, check it or count it toward readiness. To change the text in a section, ask in the chat.",

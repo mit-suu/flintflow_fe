@@ -197,7 +197,8 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
           unsureKind={doc.preflight.document_kind?.kind === "unknown"}
           foreignProject={doc.foreign_project ?? null}
           playKey={doc.id}
-          startBlocked={imp.busy === "drop"}
+          startBlocked={imp.busy === "drop" || imp.busy === "relabel"}
+          onRelabel={(patch) => void imp.relabel(patch)}
           textSections={<TextSections sections={imp.data?.text_sections ?? []} busy={imp.busy === "drop" || imp.busy === "start"} onChange={(keys) => void imp.setDropText(keys)} />}
         />
       );

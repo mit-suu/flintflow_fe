@@ -10,6 +10,7 @@ import {
   pauseImport,
   resumeImport,
   runImportReview,
+  patchMapping,
   setDropText,
   startExtraction,
   stopImportReview,
@@ -17,14 +18,14 @@ import {
 } from "@/lib/api/import";
 import { getSpine } from "@/lib/api/spine";
 import { importFromOrgTemplate } from "@/lib/api/org-library";
-import type { FieldsPatchRequest, GetImportResponse, ImportStatus } from "@/types/import";
+import type { FieldsPatchRequest, GetImportResponse, ImportStatus, MappingHeadingPatch } from "@/types/import";
 import { useErrorText } from "../../_components/mode1/i18n";
 import { IMPORT_DONE_STATUSES } from "../../_components/mode1/labels";
 
 /** Nhịp poll `GET /import` khi lượt import chạy nền (#6/#10 trả ngay). */
 export const EXTRACT_POLL_MS = 2000;
 
-export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "confirm" | "review" | "reviewStop";
+export type ImportAction = "upload" | "start" | "finalize" | "resume" | "pause" | "drop" | "relabel" | "confirm" | "review" | "reviewStop";
 
 /** Bước chạy nền của lượt một mạch (FLF-343): trích ⇒ tạo bản gốc 0.1 ⇒ kiểm tra. */
 const PIPELINE_STATUSES: readonly ImportStatus[] = ["baselining", "checking"];
@@ -154,6 +155,8 @@ export function useImport(projectId: string, { pollMs = EXTRACT_POLL_MS }: { pol
       }),
     /** FLF-412: lưu lựa chọn Bỏ chữ (cả tập) ⇒ bản sơ bộ + credit mới. */
     setDropText: (keys: string[]) => run("drop", () => setDropText(projectId, importId, keys)),
+    /** FLF-460: đổi nhãn mục ở màn đọc khung (không tốn credit) ⇒ bản sơ bộ + credit tính lại. */
+    relabel: (heading: MappingHeadingPatch) => run("relabel", () => patchMapping(projectId, { import_id: importId, headings: [heading] })),
     /** Nút Bắt đầu: một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu trả lời "đây là bản mới nhất". */
     start: (confirmLatest: boolean) =>
       run("start", async () => {
