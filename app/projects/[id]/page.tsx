@@ -1453,6 +1453,21 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     if (prefill !== undefined) ws.setInputMessage(prefill);
     focusInputAtEnd();
   };
+  /**
+   * FLF-453: gửi nguyên văn đề xuất / phương án của AI như một lệnh sửa qua chat. Không ghi thẳng tài liệu: BE soạn bản xem
+   * trước, người dùng xác nhận như mọi lần sửa.
+   */
+  const acceptReviewProposal = (label: string, issue: string, proposal: string, option?: "A" | "B") => {
+    if (editDisabledReason) {
+      setToast(editDisabledReason);
+      return;
+    }
+    setEditMode(true);
+    setKnowledgeMode(false);
+    setRightPanel(null);
+    const text = option ? t("userText.pickReviewOption", { label, issue, key: option, proposal }) : t("userText.acceptProposal", { label, issue, proposal });
+    void sendEditInstruction(text);
+  };
   /** Đợi ô nhập render lại (chip đổi, chữ điền sẵn) rồi mới focus, con trỏ về cuối dòng. */
   const focusInputAtEnd = () => {
     setTimeout(() => {
@@ -2970,6 +2985,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 : undefined,
               rewriting: changes.applying && changes.previewSource !== "instruction",
               onEditSection: canEdit ? (label, issue) => startEditing(issue ? t("userText.editFlag", { label, issue }) : t("userText.editSection", { label })) : undefined,
+              // FLF-453: "Chấp nhận" / "Chọn phương án" của phát hiện rà soát — đi đúng đường lệnh sửa qua chat (thẻ xem trước, xác nhận)
+              onAcceptProposal: canEdit ? (label, issue, proposal, option) => acceptReviewProposal(label, issue, proposal, option) : undefined,
               onDraftSection: canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined,
               acceptedSteps,
             }}
