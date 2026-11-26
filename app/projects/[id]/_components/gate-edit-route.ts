@@ -35,7 +35,53 @@ const SECTION_COLLECTIONS: Readonly<Record<string, readonly string[]>> = {
 };
 
 const SECTION_MENTION = /(?:§|(?<!\p{L})(?:mục|muc|phần|phan|section))\s*(\d+(?:\.\d+)*)/giu;
-const EDIT_VERB = /(?<!\p{L})(thêm|them|bổ sung|bo sung|sửa|sua|đổi|doi|xoá|xóa|xoa|bỏ|cập nhật|cap nhat|ghi|add|change|edit|remove|delete|update|rename)(?!\p{L})/iu;
+const EDIT_VERB_SRC = "thêm|them|bổ sung|bo sung|sửa|sua|đổi|doi|xoá|xóa|xoa|bỏ|cập nhật|cap nhat|ghi|add|change|edit|remove|delete|update|rename";
+/** Số từ đầu câu mà động từ sửa còn được coi là "mở lệnh" (giống `isChangeInstruction` của BE). */
+const VERB_WINDOW = 4;
+/** Tên loại phần tử / số mục phải nằm gần sau động từ mới là tân ngữ của nó. */
+const OBJECT_WINDOW = 6;
+
+/** Cụm thu hẹp phạm vi bản phát hành ("bỏ hai nhóm …", "để bản sau", "không làm … ở bản 1.0", "drop … from release"). */
+const SCOPE_NARROWING: readonly RegExp[] = [
+  /(?<!\p{L})(?:bỏ|bo|loại|loai|cắt|cat)\s+(?:\p{L}+\s+)?(?:nhóm|nhom|vai trò|vai tro|phân hệ|phan he|module|chức năng|chuc nang)(?!\p{L})/iu,
+  /(?<!\p{L})(?:để|de|dời|doi|hoãn|hoan)\s+(?:lại\s+|lai\s+)?(?:(?:sang|qua|cho|ở|o)\s+)?(?:bản|ban|phiên bản|phien ban|đợt|dot)\s+(?:sau|tới|toi|kế|ke|2|\d+\.\d+)/iu,
+  /(?<!\p{L})không\s+(?:làm|lam).*(?:bản|ban)\s+\d+(?:\.\d+)?/iu,
+  /(?<!\p{L})(?:drop|defer|postpone|cut).*(?:from|to)\s+(?:the\s+)?(?:release|v\d|next)/iu,
+];
+/** Bước ghi các collection này thì tự xử lý được lệnh đổi phạm vi. */
+const SCOPE_COLLECTIONS = ["use_cases", "project", "release_scope"];
+
+const words = (clause: string): string[] => clause.toLowerCase().split(/\s+/).map((w) => w.replace(/[^\p{L}\p{N}.]/gu, "")).filter(Boolean);
+
+/** Tách thành câu / dòng; số thứ tự "1." đầu dòng và dấu chấm trong số ("5.3", "1.0") không phải ranh giới câu. */
+const clausesOf = (text: string): string[] =>
+  text
+    .split(/\r?\n|(?<=[\p{L})"”])[.!?;]+\s+/u)
+    .map((c) => c.replace(/^\s*(?:[-*•]|\d+[.)])\s+/u, "").trim())
+    .filter(Boolean);
+
+/** Vị trí (theo từ) của động từ sửa đầu tiên nếu nó nằm trong cửa sổ mở câu; -1 nếu không. */
+const leadVerbIndex = (ws: string[]): number => {
+  const verbs = new RegExp(`^(?:${EDIT_VERB_SRC})$`, "iu");
+  for (let i = 0; i < ws.length && i < VERB_WINDOW + 1; i++) {
+    if (verbs.test(ws[i])) return i;
+  }
+  return -1;
+};
+
+/**
+ * Tin là CÂU TRẢ LỜI cho câu hỏi / thẻ đang chờ, không phải lệnh: nhiều dòng (hoặc đánh số / gạch đầu dòng), hoặc mở bằng
+ * "trả lời", "câu 3", "1." … Tin dạng này không bao giờ chuyển sang Sửa tài liệu — kể cả khi trong đó có chữ "thông báo", "ghi", "đổi".
+ */
+export const isAnswerShaped = (text: string): boolean => {
+  const lines = text.split(/\r?\n/).map((l) => l.trim()).filter(Boolean);
+  if (lines.length >= 3) return true;
+  if (lines.length >= 2 && lines.filter((l) => /^(?:[-*•]|\d+[.)]|câu\s*\d+)/iu.test(l)).length >= 2) return true;
+  if (/^(?:mình\s+|em\s+|tôi\s+)?(?:trả lời|tra loi|đáp|dap)(?!\p{L})/iu.test(text.trim())) return true;
+  if (/^(?:câu|cau)\s*\d+/iu.test(text.trim())) return true;
+  // Một khối dài ghép nhiều ý ("(1) …; (2) …") cũng là trả lời hàng loạt
+  return (text.match(/(?:^|\s)\(?\d+[.)]\s/g) ?? []).length >= 3;
+};
 
 /** Số mục được nhắc ("mục 5.3", "§3.1.5"), chỉ mục có trong bảng. */
 export const mentionedSections = (text: string): string[] =>
@@ -44,11 +90,24 @@ export const mentionedSections = (text: string): string[] =>
 export const gateEditRoute = (text: string, stepId: string | null, callsUsed: number | null | undefined): GateEditRoute | null => {
   if (!text.trim() || !stepId) return null;
   if (callsUsed !== null && callsUsed !== undefined && callsUsed >= CALLS_LIMIT) return "callLimit";
-  if (!EDIT_VERB.test(text)) return null;
-  const targets = [...mentionedSections(text).flatMap((n) => SECTION_COLLECTIONS[n]), ...mentionedKinds(text)];
-  if (targets.length === 0) return null;
+  // Câu trả lời cho câu hỏi / thẻ đang chờ đi `revision` của bước (AI ghi vào Brief) — không bao giờ qua Sửa tài liệu
+  if (isAnswerShaped(text)) return null;
   const writes = new Set((getStepDef(stepId)?.writes ?? []).map((w) => w.split(":")[0]));
-  return targets.some((c) => writes.has(c)) ? null : "otherSection";
+  for (const clause of clausesOf(text)) {
+    const ws = words(clause);
+    const at = leadVerbIndex(ws);
+    if (at >= 0) {
+      // tân ngữ của động từ: tên loại / số mục nằm ngay sau nó
+      const object = ws.slice(at + 1, at + 1 + OBJECT_WINDOW).join(" ");
+      const targets = [...mentionedSections(object).flatMap((n) => SECTION_COLLECTIONS[n]), ...mentionedKinds(object)];
+      if (targets.length > 0 && !targets.some((c) => writes.has(c))) return "otherSection";
+    }
+    // Lệnh đổi phạm vi bản phát hành ở bước không ghi phạm vi (#20: S-5.5 chỉ ghi màn hình)
+    if (SCOPE_NARROWING.some((re) => re.test(clause)) && (at >= 0 || /^(?:bản|ban)\s/iu.test(clause) || ws.length <= 24)) {
+      if (!SCOPE_COLLECTIONS.some((c) => writes.has(c))) return "otherSection";
+    }
+  }
+  return null;
 };
 
 /**
