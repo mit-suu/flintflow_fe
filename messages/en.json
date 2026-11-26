@@ -5664,8 +5664,12 @@
         "keep_old_table": "Keep the old table",
         "ai_resolve": "Let AI arrange it",
         "move_to": "Move into “{target}”",
+        "move_to_filled": "Merge into “{target}” (after its current content)",
+        "move_to_group": "Add as the last subsection of “{target}”",
         "to": "Place in “{target}”",
-        "drop_from_print": "Do not print"
+        "drop_from_print": "Do not print",
+        "keep_pair": "Keep the current pairing",
+        "distribute": "Split by requirement"
       },
       "missing": {
         "aria": "Sections missing after the template change",
@@ -5727,7 +5731,26 @@
         "undecided": "{count} items to confirm",
         "continue": "Continue",
         "split": "Split section",
-        "unpair": "Unpair"
+        "unpair": "Unpair",
+        "placement": "Paired by id, not by meaning",
+        "chosenDetail": "{count} to review",
+        "chosenTables": "{count, plural, one {# table} other {# tables}} with different columns",
+        "aiNote": "Only tables with different columns, split sections, history tables and free-text sections moved into a structured section offer an AI option (credits charged on apply). Other options only change where content prints and use no AI.",
+        "dropData": "{count, plural, one {# item} other {# items}} will not be printed",
+        "searchTargets": "Search sections of the new template",
+        "searchPlaceholder": "Search {count} sections of the new template",
+        "targetGroups": {
+          "suggested": "Suggested",
+          "empty": "All sections of the new template · empty",
+          "filled": "All sections of the new template · with content",
+          "group": "All sections of the new template · new subsection of a group"
+        },
+        "why": {
+          "same_section": "same kind of section",
+          "guidance": "matches the guidance",
+          "data_fit": "fits the data type",
+          "title": "similar name"
+        }
       },
       "reasons": {
         "no_place": "The new template has no place for this section",
@@ -5735,14 +5758,22 @@
         "map_columns": "The new template's table has different columns",
         "no_table_in_new": "This section has no table in the new template",
         "keep_history": "The new history table has different columns",
-        "first_heading": "The new template splits this section into {count}"
+        "first_heading": "The new template splits this section into {count}",
+        "best_fit": "Best fit for “{target}” (name, guidance, data type)",
+        "best_fit_distribute": "The requirements in this section fit different sections of the new template",
+        "same_data": "“{target}” already prints this data, merged in so it is not printed twice",
+        "kept_for_data": "No section of the new template fits and this section has data, so it is kept as its own section"
       },
       "consequence": {
         "drop_from_print": "The export no longer shows this section. The data stays and comes back on undo.",
         "keep_custom": "Printed as its own section at the end of the nearest part.",
         "delete": "Deletes this section's content from the document.",
         "move_to": "Content printed under “{target}”.",
+        "move_to_filled": "Content printed after the current content of “{target}”.",
+        "move_to_group": "Printed as the last subsection of “{target}”.",
         "to": "Content printed under “{target}”.",
+        "keep_pair": "Stays paired with “{target}”.",
+        "distribute": "Each requirement prints under the best-fitting section of the new template.",
         "map_by_header": "Rearranged to the new columns, columns without data left empty.",
         "keep_old_table": "Keeps the old table as is.",
         "ai_resolve": "AI rearranges it, credits charged on apply.",
@@ -5763,6 +5794,8 @@
           "drop": "Table not printed"
         },
         "from": "from “{from}”",
+        "partDistributed": "{heading} (part)",
+        "fromSpine": "Printed from data",
         "droppedMore": "and {count} more",
         "credit": "Cost",
         "creditTranslation": "Translation ({batches} batches)",
