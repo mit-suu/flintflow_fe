@@ -111,6 +111,26 @@ describe("ReferenceDocumentsPanel - cảnh báo sau khi tải (FLF-449 việc 27
     expect(row("minutes.txt")).not.toHaveTextContent(/không được đọc|Không đọc được|chưa đọc được/);
   });
 
+  it("FLF-458: tài liệu chưa đọc ⇒ nút Đọc bằng AI; báo credit, xác nhận mới gọi API tóm tắt", async () => {
+    mockServer.use(
+      http.post(`${API_BASE_URL}/projects/:projectId/documents/summarize`, async ({ request }) => {
+        const body = (await request.json()) as { document_ids: string[] };
+        return HttpResponse.json({ data: [{ _id: body.document_ids[0], summaryStatus: "success" }], error: null });
+      }),
+    );
+    const docs = [doc("d1", "minutes.txt", { summaryStatus: "pending" })];
+    renderWithIntl(<ReferenceDocumentsPanel projectId={MODE1_PROJECT_ID} docs={docs} onRemove={vi.fn()} onCrsCreated={vi.fn()} canExtract={false} />);
+    expect(screen.getByText("chưa đọc bằng AI")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Đọc bằng AI" }));
+    const dialog = await screen.findByRole("dialog", { name: "Xác nhận credit trước khi AI đọc tài liệu" });
+    expect(dialog).toHaveTextContent(/tốn ~1 credit/);
+
+    fireEvent.click(screen.getByRole("button", { name: "Chạy" }));
+    await waitFor(() => expect(screen.queryByText("chưa đọc bằng AI")).toBeNull());
+    expect(screen.queryByRole("button", { name: "Đọc bằng AI" })).toBeNull();
+  });
+
   it("bản tiếng Anh", () => {
     renderWithIntl(
       <ReferenceDocumentsPanel
