@@ -11,7 +11,14 @@ export interface ContinueCardInput {
   aiWorking: boolean;
   showOpening: boolean;
   sessionMessages: number;
+  /** FLF-489: vừa duyệt xong một bước chạy lại và quy trình dừng — hiện thẻ cả khi bước tới lượt đang dở hoặc phiên còn trống. */
+  afterRerun?: boolean;
 }
 
 export const canShowContinueCard = (i: ContinueCardInput): boolean =>
-  !i.mode1 && i.canEdit && i.onPipelineSession && i.stepNotStarted && !i.aiWorking && !i.showOpening && i.sessionMessages > 0;
+  !i.mode1 &&
+  i.canEdit &&
+  i.onPipelineSession &&
+  !i.aiWorking &&
+  !i.showOpening &&
+  (i.afterRerun === true || (i.stepNotStarted && i.sessionMessages > 0));

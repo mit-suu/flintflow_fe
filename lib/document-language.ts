@@ -31,6 +31,20 @@ export const knownDocumentLanguage = (
 };
 
 /**
+ * FLF-480 (ChoViet #14): `knownDocumentLanguage` trả `null` cho dự án import mode 1 chưa lưu `documentLanguage` —
+ * trước đây nơi gọi tự rơi về "en" (trang khách hiện "I. Record of Changes" dù file tiếng Việt). BE giờ suy đúng
+ * sẵn (`document_language` của `GET /projects/:id`, cùng logic `documentLanguageOf`) — dùng làm phương án cuối
+ * thay vì "en".
+ */
+export const resolvedDocumentLanguage = (
+  project: Pick<Project, "mode" | "documentLanguage" | "converted_from" | "document_language"> | null | undefined
+): DocumentLanguage | null => {
+  const known = knownDocumentLanguage(project);
+  if (known) return known;
+  return project && isDocumentLanguage(project.document_language) ? project.document_language : null;
+};
+
+/**
  * `meta.translation` của `GET /document` — chỉ có khi ngôn ngữ tài liệu khác ngôn ngữ gốc của Spine. Envelope sai khuôn
  * ⇒ `null` (coi như tài liệu đang ở ngôn ngữ gốc) thay vì để chip / cảnh báo đọc phải giá trị lạ.
  */

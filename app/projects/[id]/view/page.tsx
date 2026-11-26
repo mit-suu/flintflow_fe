@@ -18,7 +18,7 @@ import { fetchOrganization } from "@/lib/api/orgs";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import { createComment, listComments, replyComment, resolveComment } from "@/lib/api/comments";
 import { userErrorMessage } from "@/lib/api/error-messages";
-import { knownDocumentLanguage, shownDocumentLanguage, translationMetaOf } from "@/lib/document-language";
+import { resolvedDocumentLanguage, shownDocumentLanguage, translationMetaOf } from "@/lib/document-language";
 import { sectionLabel } from "../_components/DocumentPane";
 import CommentPanel, { commentTab, type CommentTab, type CommentTarget } from "../_components/CommentPanel";
 import DocumentLanguageChip from "../_components/DocumentLanguageChip";
@@ -139,8 +139,9 @@ export default function ReadOnlyDocumentPage() {
       const project = projectResult.status === "fulfilled" ? projectResult.value.data : null;
       setRole(nextRole);
       setMode(project?.mode ?? null);
-      // Ngôn ngữ tài liệu (FLF-265) — lỗi thì thôi hiện chip
-      setProjectLanguage(knownDocumentLanguage(project));
+      // Ngôn ngữ tài liệu (FLF-265) — lỗi thì thôi hiện chip. FLF-480 (ChoViet #14): dự án import mode 1 chưa lưu
+      // field riêng thì dùng ngôn ngữ BE đã suy (`document_language`), không rơi về "en".
+      setProjectLanguage(resolvedDocumentLanguage(project));
       setBaselines(nextBaselines);
       const latest = nextBaselines[nextBaselines.length - 1];
       setVersion(nextRole === "viewer" && latest ? latest.id : "draft");

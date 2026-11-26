@@ -3,6 +3,7 @@
  * ("Sửa tên của tác nhân “Admin”: Admin → Administrator"). Dùng cho thẻ sửa trong chat và "Lịch sử sửa".
  */
 import { createTranslator } from "next-intl";
+import { clipPair } from "@/lib/word-diff";
 import { DEFAULT_LOCALE, type Locale } from "@/lib/i18n";
 import en from "@/messages/en.json";
 import vi from "@/messages/vi.json";
@@ -51,5 +52,9 @@ export const describeChange = (change: ChangeLike, locale: Locale = DEFAULT_LOCA
   // Thêm / thay nguyên phần tử: tên đã nằm trong câu
   if (whole && change.op === "add") return target;
   if (change.op === "add") return `${target}: ${valueText(change.value, field, locale)}`;
-  return `${target}: ${valueText(change.before, field, locale)} → ${valueText(change.value, field, locale)}`;
+  // FLF-486 (A3): cắt quanh chỗ khác đầu tiên, không cắt đầu chuỗi (câu thêm cuối đoạn dài không bị mất)
+  const both = [change.before, change.value].map((v) => (v === null || v === undefined ? null : spineFor(locale).humanValue(v, field)));
+  if (both[0] === null || both[1] === null) return `${target}: ${valueText(change.before, field, locale)} → ${valueText(change.value, field, locale)}`;
+  const clipped = clipPair(both[0], both[1], 60);
+  return `${target}: ${clipped.before} → ${clipped.after}`;
 };

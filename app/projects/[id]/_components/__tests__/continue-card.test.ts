@@ -16,3 +16,16 @@ describe("FLF-432 canShowContinueCard", () => {
     expect(canShowContinueCard({ ...base, stepNotStarted: false })).toBe(false);
   });
 });
+
+describe("FLF-489 thẻ sau bước chạy lại", () => {
+  const rerun: ContinueCardInput = { ...base, stepNotStarted: false, sessionMessages: 0, afterRerun: true };
+  it("hiện cả khi bước tới lượt đang dở (stepNotStarted sai) và phiên còn trống", () => {
+    expect(canShowContinueCard(rerun)).toBe(true);
+  });
+  it("runner bận / Viewer / mode 1 / lời mở đầu ⇒ ẩn", () => {
+    expect(canShowContinueCard({ ...rerun, aiWorking: true })).toBe(false);
+    expect(canShowContinueCard({ ...rerun, canEdit: false })).toBe(false);
+    expect(canShowContinueCard({ ...rerun, mode1: true })).toBe(false);
+    expect(canShowContinueCard({ ...rerun, showOpening: true })).toBe(false);
+  });
+});

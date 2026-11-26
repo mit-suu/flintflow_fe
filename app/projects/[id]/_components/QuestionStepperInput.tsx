@@ -88,6 +88,9 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
   const values = questions.map((q, i) => answerValue(answers[i], Boolean(q.multiple)));
   const isAnswered = (i: number) => values[i] !== null;
   const hasAnyAnswer = values.some((v) => v !== null);
+  // FLF-474: câu bắt buộc (mâu thuẫn với tài liệu) còn trống ⇒ không gửi được, dù thẻ cho gửi trống
+  const missingRequired = questions.some((q, i) => q.required && values[i] === null);
+  const canSubmit = !missingRequired && (hasAnyAnswer || allowEmpty);
 
   const update = (index: number, next: CardAnswer) => {
     const merged = { ...answers, [index]: next };
@@ -101,7 +104,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
   };
 
   const submit = () => {
-    if ((!hasAnyAnswer && !allowEmpty) || sending) return;
+    if (!canSubmit || sending) return;
     onSubmit(values);
   };
 
@@ -152,7 +155,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
   const preview = hasPreview ? options[previewIndex]?.preview : undefined;
 
   const isSubmitTab = current === lastTab;
-  const actionLabel = isSubmitTab ? t("submit") : isAnswered(current) ? t("next") : t("skip");
+  const actionLabel = isSubmitTab ? t("submit") : isAnswered(current) || question?.required ? t("next") : t("skip");
 
   return (
     // Đứng một mình thì chừa đáy; có ô chat ngay sau (ChatPane) thì để ô chat lo khoảng cách
@@ -324,7 +327,7 @@ export default function QuestionStepperInput({ questions, onSubmit, onChange, al
           <button
             type="button"
             onClick={next}
-            disabled={isSubmitTab && ((!hasAnyAnswer && !allowEmpty) || sending)}
+            disabled={isSubmitTab && (!canSubmit || sending)}
             className={`h-7 px-3 shrink-0 rounded-control text-body font-bold flex items-center gap-1.5 transition-colors ${
               isSubmitTab
                 ? "bg-primary text-on-primary hover:bg-primary-hover disabled:bg-surface-container-highest disabled:text-on-surface-subtle"

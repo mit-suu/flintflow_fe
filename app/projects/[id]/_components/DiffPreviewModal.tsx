@@ -4,9 +4,10 @@ import { useContext, useId, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { ChangeDiff, ChangeRequestInfo, PreviewResult } from "@/types/pipeline";
 import type { Spine } from "@/types/spine";
-import { elementNames, refNames, type RefNames } from "./mode1/spine-labels";
+import { elementNames, isInternalCollection, parseElementPath, refNames, type RefNames } from "./mode1/spine-labels";
 import { CR_SOURCE_KINDS } from "./mode1/labels";
 import { SectionNamesContext, useMode1Labels } from "./mode1/i18n";
+import { diffTokens, focusTokens } from "@/lib/word-diff";
 
 interface DiffPreviewModalProps {
   preview: PreviewResult;
@@ -32,19 +33,58 @@ interface DiffPreviewModalProps {
  * `deletedText`: chữ cho giá trị đã bị xoá (`workspace.diff.deleted`). `humanValue` (FLF-411 #23): chỉ phần người đọc được —
  * tên + mô tả của phần tử, enum qua nhãn, tham chiếu qua tên; không mã, không khoá thô (`flows_in`).
  */
+const readable = (
+  value: unknown,
+  field: string | undefined,
+  names: RefNames,
+  humanValue: (value: unknown, field: string | undefined, names?: RefNames) => string
+): string | null => {
+  if (value === undefined || value === null) return null;
+  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return null;
+  return humanValue(value, field, names);
+};
+
 const short = (
   value: unknown,
   field: string | undefined,
   names: RefNames,
-  deletedText: string,
+  absentText: string,
   humanValue: (value: unknown, field: string | undefined, names?: RefNames) => string
 ): string => {
   if (value === undefined) return "-";
   if (value === null) return "-";
-  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return deletedText;
+  if (typeof value === "object" && "_absent" in (value as Record<string, unknown>)) return absentText;
   const text = humanValue(value, field, names);
-  return text.length > 80 ? `${text.slice(0, 80)}…` : text;
+  return text.length > 160 ? `${text.slice(0, 160)}…` : text;
 };
+
+/**
+ * FLF-486 (A1/A2): hai bên cùng có chữ và khác nhau ⇒ so theo từ, chỉ giữ vài từ quanh chỗ đổi (câu thêm ở cuối đoạn dài
+ * không còn bị cắt mất); ô Trước vẽ phần xoá, ô Sau vẽ phần thêm. Giá trị nhiều dòng giữ cách hiện cũ.
+ */
+function DiffCell({ side, before, after, fallback, tone }: { side: "before" | "after"; before: string | null; after: string | null; fallback: string; tone: string }) {
+  if (before === null || after === null || before === after || before.includes("\n") || after.includes("\n")) {
+    return <td className={`border border-[#ECEAE5] px-2 py-1 align-top ${tone}`}>{fallback}</td>;
+  }
+  const kept = focusTokens(diffTokens(before, after)).filter((tk) => tk.kind === "same" || tk.kind === (side === "before" ? "del" : "ins"));
+  // gom các từ liền nhau cùng loại thành một đoạn
+  const segs: { kind: "same" | "del" | "ins"; text: string }[] = [];
+  for (const tk of kept) {
+    const last = segs[segs.length - 1];
+    if (last && last.kind === tk.kind) last.text += ` ${tk.text}`;
+    else segs.push({ kind: tk.kind, text: tk.text });
+  }
+  return (
+    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#4B4842]">
+      {segs.map((sg, i) => {
+        const sep = i > 0 ? " " : "";
+        if (sg.kind === "del") return <span key={i}>{sep}<del className="text-[#B03030]">{sg.text}</del></span>;
+        if (sg.kind === "ins") return <span key={i}>{sep}<ins className="no-underline rounded px-0.5 bg-[#E6F4EA] text-[#1F7A45]">{sg.text}</ins></span>;
+        return <span key={i} className={sg.text === "…" ? "text-[#A8A49C]" : undefined}>{sep}{sg.text}</span>;
+      })}
+    </td>
+  );
+}
 
 /** Field cuối của path: `use_cases[id=UC27].actor_ids` ⇒ `actor_ids`; path trỏ cả phần tử ⇒ undefined. */
 const lastField = (path: string): string | undefined => /\.([a-z_]+)$/.exec(path)?.[1];
@@ -85,7 +125,7 @@ export default function DiffPreviewModal({
 }: DiffPreviewModalProps) {
   const t = useTranslations("workspace.diff");
   const titleId = useId();
-  const { pathLabel, humanValue, changeLabel, changeSummary, referrerLabel, ruleLabel, sectionName, violationText, crSource } = useMode1Labels();
+  const { pathLabel, humanValue, changeLabel, changeSummary, referrerLabel, ruleLabel, humanizeText, sectionName, violationText, crSource } = useMode1Labels();
   const documentSections = useContext(SectionNamesContext);
   const [reason, setReason] = useState("");
   const [requester, setRequester] = useState("");
@@ -93,8 +133,23 @@ export default function DiffPreviewModal({
   const [sourceRef, setSourceRef] = useState("");
   const names = useMemo(() => refNames(spine), [spine]);
   const allNames = useMemo(() => elementNames(spine), [spine]);
+  // FLF-480 (B11): flags/steps/progress/sessions/baselines/usage/decisions là sổ sách nội bộ của lô sửa
+  // (cờ, trạng thái bước áp…), không phải nội dung tài liệu — ẩn khỏi bảng xem trước (và khỏi tóm tắt).
+  const { visibleChanges, removedFlagCount } = useMemo(() => {
+    const visible: ChangeDiff[] = [];
+    const flagKeys = new Set<string>();
+    for (const c of preview.changes) {
+      const p = parseElementPath(c.path);
+      if (p && isInternalCollection(p.collection)) {
+        if (p.collection === "flags" && p.key) flagKeys.add(p.key);
+        continue;
+      }
+      visible.push(c);
+    }
+    return { visibleChanges: visible, removedFlagCount: flagKeys.size };
+  }, [preview.changes]);
   // FLF-411 #24: tóm tắt dựng từ chính các thay đổi, không chỉ lời của model
-  const summary = useMemo(() => changeSummary(preview.changes, allNames), [changeSummary, preview.changes, allNames]);
+  const summary = useMemo(() => changeSummary(visibleChanges, allNames), [changeSummary, visibleChanges, allNames]);
   // FLF-411 #23: mục BE suy ra mà tài liệu đang xem không có (vd "5.5 Glossary" ở file không có mục đó) ⇒ không kể ra
   const impactSections = (preview.impact?.sections ?? []).filter((s) => !documentSections || documentSections.size === 0 || documentSections.has(s.id));
   const referrerNames = Array.from(new Set((preview.impact?.referrers ?? []).map((r) => referrerLabel(r.path, allNames))));
@@ -104,6 +159,8 @@ export default function DiffPreviewModal({
   // không đi đâu ở bước này nên không hỏi, tránh bắt gõ một câu rồi âm thầm vứt đi.
   const needsReason = !confirmWhenInvalid && preview.branch === "post_baseline";
   const hasViolations = preview.violations.length > 0;
+  // FLF-493: hoà giải không có cổng xoá như CR ⇒ nói rõ mục nào sẽ bị xoá (không chặn: có lúc xoá là đúng)
+  const removedItems = preview.removed_items ?? [];
   // BUG-27: "Không có thay đổi nào" mà vẫn có nút Xác nhận là mời user bấm vào chỗ không làm gì.
   // Ngoại lệ: lượt hoà giải trả `no_change` — ở đó xác nhận CÓ nghĩa ("nội dung vẫn đúng", gỡ cờ).
   // Luồng CR của mode 1 v3 (`confirmWhenInvalid`) thì "Tạo CR" vẫn có nghĩa kể cả khi bản xem trước rỗng:
@@ -156,13 +213,30 @@ export default function DiffPreviewModal({
           </div>
         )}
 
+        {removedItems.length > 0 && (
+          <div role="alert" data-testid="diff-removed-items" className="bg-[#FDEDED] border border-[#F2CACA] rounded-[12px] p-3 flex flex-col gap-1.5 text-body text-[#8A4141]">
+            <span className="font-bold">{t("removedTitle", { count: removedItems.length })}</span>
+            <ul className="list-disc pl-5">
+              {removedItems.map((item, i) => (
+                <li key={i}>{item.label ? humanizeText(item.label) : pathLabel(item.path)}</li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {summary && (
           <p className="text-body text-[#4B4842] leading-relaxed" data-testid="diff-summary">
             {summary}
           </p>
         )}
 
-        {preview.changes.length === 0 ? (
+        {removedFlagCount > 0 && (
+          <p className="text-body text-[#4B4842] leading-relaxed" data-testid="diff-flags-removed">
+            {t("flagsRemoved", { count: removedFlagCount })}
+          </p>
+        )}
+
+        {visibleChanges.length === 0 ? (
           <div className="text-body py-4 text-center flex flex-col gap-1">
             <span className="text-[#A8A49C] italic">{t("none")}</span>
             {preview.no_change && (
@@ -182,11 +256,20 @@ export default function DiffPreviewModal({
                 </tr>
               </thead>
               <tbody>
-                {preview.changes.map((change, i) => (
+                {visibleChanges.map((change, i) => (
                   <tr key={i}>
                     <td className="border border-[#ECEAE5] px-2 py-1 align-top">{changeLabel(change, allNames)}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#B03030]">{short(change.before, lastField(change.path), names, t("deleted"), humanValue)}</td>
-                    <td className="border border-[#ECEAE5] px-2 py-1 align-top text-[#1F7A45]">{short(change.value, lastField(change.path), names, t("deleted"), humanValue)}</td>
+                    {(() => {
+                      const field = lastField(change.path);
+                      const b = readable(change.before, field, names, humanValue);
+                      const a = readable(change.value, field, names, humanValue);
+                      return (
+                        <>
+                          <DiffCell side="before" before={b} after={a} tone="text-[#B03030]" fallback={short(change.before, field, names, t("notYet"), humanValue)} />
+                          <DiffCell side="after" before={b} after={a} tone="text-[#1F7A45]" fallback={short(change.value, field, names, t("deleted"), humanValue)} />
+                        </>
+                      );
+                    })()}
                   </tr>
                 ))}
               </tbody>
@@ -307,7 +390,13 @@ export default function DiffPreviewModal({
               onClick={() => onConfirm(needsReason ? reason.trim() : undefined, changeRequest())}
               className="px-3.5 py-1.5 rounded-full text-body font-bold bg-[#191817] text-white disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
             >
-              {busy ? (busyLabel ?? t("applying")) : preview.no_change && !confirmWhenInvalid ? t("confirmNoChange") : (confirmLabel ?? t("confirm"))}
+              {busy
+                ? (busyLabel ?? t("applying"))
+                : removedItems.length > 0
+                  ? t("confirmRemoving", { count: removedItems.length })
+                  : preview.no_change && !confirmWhenInvalid
+                    ? t("confirmNoChange")
+                    : (confirmLabel ?? t("confirm"))}
             </button>
           )}
         </div>

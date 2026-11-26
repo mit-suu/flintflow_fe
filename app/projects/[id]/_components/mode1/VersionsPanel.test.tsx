@@ -219,6 +219,23 @@ describe("VersionsPanel - danh sách version và tải file", () => {
     expect(vi.mocked(saveBlob).mock.calls.map((c) => c[1])).toEqual(["Lumen_v1.0.docx", "Lumen_v0.1+CR-003_DRAFT.docx", "Lumen_v0.1+CR-003_tracked_DRAFT.docx", "Lumen_v1.0.pdf"]);
   });
 
+  it("FLF-484: bản phát hành có bản đánh dấu ⇒ tooltip so với bản ổn định liền trước, không phải bản nháp cuối", () => {
+    const first = { ...version("1.0", "release", ["CR-001", "CR-002"]), has_tracked_file: true, based_on: "0.3" };
+    const second = { ...version("2.0", "release", ["CR-004"]), has_tracked_file: true, based_on: "1.1" };
+    const middle = version("1.1", "cr_revision", ["CR-004"]);
+    renderPanel({ versions: [second, middle, first, ...DRAFTS] });
+    const items = screen.getAllByRole("listitem");
+    expect(within(items[2]).getByRole("button", { name: "Tải bản có đánh dấu" })).toHaveAttribute("title", expect.stringContaining("so với bản 0.1,"));
+    expect(within(items[2]).getByRole("button", { name: "Tải bản có đánh dấu" })).toHaveAttribute("title", expect.stringContaining("CR-001, CR-002"));
+    expect(within(items[0]).getByRole("button", { name: "Tải bản có đánh dấu" })).toHaveAttribute("title", expect.stringContaining("so với bản 1.0,"));
+  });
+
+  it("FLF-484: bản nháp giữ `so với bản <based_on>`", () => {
+    const draft = { ...version("0.3", "cr_revision", ["CR-003"]), based_on: "0.2" };
+    renderPanel({ versions: [draft, ...DRAFTS.slice(1)] });
+    expect(screen.getAllByRole("button", { name: "Tải bản có đánh dấu" })[0]).toHaveAttribute("title", expect.stringContaining("so với bản 0.2,"));
+  });
+
   it("tải dùng tên BE trả nếu có; lỗi tải ⇒ hiện thông báo", async () => {
     serveDownload("SRS_v0.3_DRAFT.docx");
     renderPanel();
