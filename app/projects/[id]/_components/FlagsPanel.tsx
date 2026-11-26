@@ -222,6 +222,30 @@ export default function FlagsPanel({
   const sectionName = (id: string) => sectionLabelOf?.(id) ?? (fptSectionName(id) || id);
   const counts = issueCounts(openFlags, showOutdated ? outdatedCount : 0, acceptedSteps);
 
+  /** Khối "Viết lại cho khớp": hiện ở đầu CẢ HAI tab (FLF-493 #29: tab mở sẵn là "Cần xử lý" khi còn cờ đỏ, người dùng không thấy nút ở tab kia). */
+  const rewriteBlock = showOutdated && (
+    <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h5 className="text-body font-bold text-on-surface">
+          {t("rewriteTitle")} <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
+        </h5>
+        <p className="text-body text-on-surface-muted leading-relaxed">
+          {t("rewriteHint")}
+        </p>
+      </div>
+      <button type="button" onClick={onRewriteOutdated} disabled={rewriting} className={`${pillButton} bg-primary text-on-primary hover:bg-primary-hover`}>
+        {rewriting ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="spinner" size={12} className="animate-spin motion-reduce:animate-none" />
+            <ShimmerText className="[--ff-shimmer-base:rgb(255_255_255/0.6)] [--ff-shimmer-peak:#fff]">{t("rewriteChecking")}</ShimmerText>
+          </span>
+        ) : (
+          t("rewrite")
+        )}
+      </button>
+    </section>
+  );
+
   const closeWaiveModal = () => {
     setWaiveError(null);
     setWaivingId(null);
@@ -573,6 +597,7 @@ export default function FlagsPanel({
       <div role="tabpanel" id="doc-issues-panel" aria-labelledby={`doc-issues-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "blocking" && (
           <>
+            {rewriteBlock}
             {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
             {redGroups.length === 0 && emptyNote(t("noBlocking"))}
           </>
@@ -580,29 +605,7 @@ export default function FlagsPanel({
 
         {tab === "suggestions" && (
           <>
-            {showOutdated && (
-              <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h5 className="text-body font-bold text-on-surface">
-                    {t("rewriteTitle")} <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
-                  </h5>
-                  <p className="text-body text-on-surface-muted leading-relaxed">
-                    {t("rewriteHint")}
-                  </p>
-                </div>
-                <button type="button" onClick={onRewriteOutdated} disabled={rewriting} className={`${pillButton} bg-primary text-on-primary hover:bg-primary-hover`}>
-                  {rewriting ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Icon name="spinner" size={12} className="animate-spin motion-reduce:animate-none" />
-                      <ShimmerText className="[--ff-shimmer-base:rgb(255_255_255/0.6)] [--ff-shimmer-peak:#fff]">{t("rewriteChecking")}</ShimmerText>
-                    </span>
-                  ) : (
-                    t("rewrite")
-                  )}
-                </button>
-              </section>
-            )}
-
+            {rewriteBlock}
             {yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`))}
             {yellowGroups.length === 0 && !showOutdated && emptyNote(t("noSuggestions"))}
           </>

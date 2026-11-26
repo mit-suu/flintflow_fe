@@ -416,3 +416,18 @@ describe("FLF-428 - Sửa trong chat điền sẵn câu của cờ", () => {
     });
   });
 });
+
+describe("FlagsPanel - Viết lại cho khớp (FLF-493 #29)", () => {
+  it("còn cờ đỏ + có mục Cũ ⇒ tab mở sẵn (Cần xử lý) đã có nút Viết lại, bấm gọi onRewriteOutdated", () => {
+    const onRewriteOutdated = vi.fn();
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onRecompute={vi.fn()} outdatedCount={41} onRewriteOutdated={onRewriteOutdated} />);
+    expect(screen.getByText("Viết lại cho khớp")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Viết lại" }));
+    expect(onRewriteOutdated).toHaveBeenCalledTimes(1);
+  });
+
+  it("không có mục Cũ ⇒ không hiện khối Viết lại", () => {
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onRecompute={vi.fn()} outdatedCount={0} onRewriteOutdated={vi.fn()} />);
+    expect(screen.queryByText("Viết lại cho khớp")).toBeNull();
+  });
+});

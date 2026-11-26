@@ -1697,7 +1697,7 @@
       "emptyTitle": "Bắt đầu bước hiện tại",
       "emptyBody": "Gõ vào ô chat để AI bắt đầu: AI hỏi phần còn thiếu rồi soạn nháp. Có thể đính kèm tài liệu tham khảo.",
       "notPipeline": "Phiên này không phải phiên pipeline - lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.",
-      "editPlaceholder": "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator",
+      "editPlaceholder": "Mô tả chỗ cần sửa, vd: Đổi tên tác nhân Quản trị thành Administrator",
       "stepDivider": "Bắt đầu bước {step}",
       "knowledgePending": "Đang tra kho tri thức…",
       "sideSession": "Phiên hỏi đáp - hỏi AI về dự án, hoặc bật \"Sửa tài liệu\" để sửa. Quy trình soạn tài liệu chạy ở phiên chính.",
@@ -2234,7 +2234,7 @@
     "change": {
       "title": "Sửa qua lệnh",
       "instruction": "Lệnh sửa",
-      "placeholder": "Ví dụ: Đổi tên actor A03 thành Administrator",
+      "placeholder": "Ví dụ: Đổi tên tác nhân Quản trị thành Administrator",
       "previewing": "Đang xem trước…",
       "preview": "Xem trước thay đổi",
       "clarify": "Cần làm rõ",
@@ -2949,7 +2949,8 @@
         "reference_documents": "Đọc tài liệu tham khảo trước khi hỏi ý tưởng"
       },
       "screenRange": "Phần màn là ước tính: khoảng {min} đến {max} màn, ~{creditsMin} đến ~{creditsMax} credit. Số chính xác sẽ báo khi chốt danh sách màn.",
-      "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
+      "unitFallback": "Giai đoạn {unit}",
+      "unitLine": "{name} · {steps, plural, =1 {1 bước} other {# bước}}",
       "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}",
       "pdfNote": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx.",
       "creditsRange": "~{min}–{max} credit",
@@ -2957,6 +2958,7 @@
       "referenceLine": "Đọc {count, plural, =1 {1 tài liệu tham khảo} other {# tài liệu tham khảo}}",
       "screenRangeLine": "Chi tiết màn hình · khoảng {min}–{max} màn",
       "screenRangeNote": "Số màn hình là ước tính theo Brief. Con số chính xác có sau bước Danh sách màn hình.",
+      "screenRangeNoteScale": "Số màn hình ước tính theo số use case ghi trong Brief. Con số chính xác có sau bước Danh sách màn hình.",
       "shortRange": "Số dư đủ nếu dự án ít màn, có thể thiếu nếu nhiều màn. AI sẽ dừng khi hết credit, phần đã xong không tính lại.",
       "estimateFailed": "Chưa ước tính được credit. Bấm Chạy để soạn tiếp, AI dừng khi hết credit."
     },
@@ -2977,6 +2979,8 @@
       "loading": "Đang tải không gian làm việc SRS",
       "convertedNotice": "Baseline đã chốt - dự án chuyển sang chế độ quản lý thay đổi, mọi chỉnh sửa đi qua Change Request",
       "redrawNotFound": "Không tìm thấy sơ đồ này - tải lại trang rồi thử lại.",
+      "redrawTimeout": "Đang vẽ lại lâu hơn dự kiến - tải lại tài liệu để xem kết quả.",
+      "redrawSkipped": "Sơ đồ này chưa vẽ lại được - bấm Vẽ lại ở Kiểm & chốt.",
       "redrawFailed": "Không vẽ lại được sơ đồ",
       "turnNeedsInput": "AI đang chờ bạn trả lời",
       "turnGateReady": "Có nội dung mới chờ bạn duyệt",
@@ -4903,7 +4907,9 @@
         "aliases": "Tên khác",
         "actor_id": "Tác nhân",
         "actor_ids": "Tác nhân",
+        "platforms": "Nền tảng",
         "function_ids": "Chức năng liên quan",
+        "feature_ids": "Tính năng liên quan",
         "includes": "Include",
         "extends": "Extend",
         "feature_id": "Tính năng",
@@ -5100,6 +5106,10 @@
         "tier": {
           "high": "Tổng quát",
           "detail": "Chi tiết"
+        },
+        "platform": {
+          "web": "Ứng dụng web",
+          "mobile": "Ứng dụng di động"
         },
         "status": {
           "unconfirmed": "Chưa xác nhận",

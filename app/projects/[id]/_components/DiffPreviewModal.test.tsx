@@ -138,6 +138,26 @@ describe("DiffPreviewModal", () => {
     expect(screen.queryByText(/fixed:|\[id=/)).not.toBeInTheDocument();
   });
 
+  it("FLF-480: nơi tham chiếu trong sổ sách nội bộ (progress, cờ) và tên trường thô không lộ ra", () => {
+    const preview: PreviewResult = {
+      ...basePreview,
+      changes: [{ op: "set", path: "entities[id=E01].feature_ids", before: ["F1"], value: [], reason: null }],
+      impact: {
+        fields: [],
+        sections: [],
+        diagrams: [],
+        referrers: [
+          { path: "progress.screen_queue[=S18]", id: "S18" },
+          { path: "flags[id=FL1].target", id: "FL1" },
+        ],
+      },
+    };
+    renderWithIntl(<DiffPreviewModal preview={preview} onCancel={vi.fn()} onConfirm={vi.fn()} />);
+
+    expect(screen.queryByText(/progress|screen_queue|feature_ids|flags/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/Đang được nhắc tới/)).not.toBeInTheDocument();
+  });
+
   it("FLF-411 #23 #24: xoá phần tử theo tên, giá trị chỉ phần đọc được, tham chiếu theo tên, tóm tắt từ thay đổi", () => {
     const spine = {
       actors: [{ id: "A04", name: "Patron", kind: "human" }, { id: "A02", name: "Menu Manager", kind: "human" }],
