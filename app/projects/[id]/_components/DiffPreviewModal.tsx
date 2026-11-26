@@ -152,7 +152,17 @@ export default function DiffPreviewModal({
   const summary = useMemo(() => changeSummary(visibleChanges, allNames), [changeSummary, visibleChanges, allNames]);
   // FLF-411 #23: mục BE suy ra mà tài liệu đang xem không có (vd "5.5 Glossary" ở file không có mục đó) ⇒ không kể ra
   const impactSections = (preview.impact?.sections ?? []).filter((s) => !documentSections || documentSections.size === 0 || documentSections.has(s.id));
-  const referrerNames = Array.from(new Set((preview.impact?.referrers ?? []).map((r) => referrerLabel(r.path, allNames))));
+  // Chỗ tham chiếu nằm trong sổ sách nội bộ (`progress.screen_queue[=S18]`, cờ…) không phải nội dung tài liệu ⇒ không kể ra.
+  const referrerNames = Array.from(
+    new Set(
+      (preview.impact?.referrers ?? [])
+        .filter((r) => {
+          const p = parseElementPath(r.path);
+          return !(p && isInternalCollection(p.collection));
+        })
+        .map((r) => referrerLabel(r.path, allNames))
+    )
+  );
   const unlinkedUseCases = useCasesWithoutFunction(preview.changes, { newUseCase: t("newUseCase"), useCase: t("useCase") });
   // Tài liệu đã ký baseline: `change.service` từ chối lô không có lý do (400). Hỏi ngay ở đây thay vì
   // để user bấm Xác nhận rồi ăn lỗi khó hiểu. Luồng CR (`confirmWhenInvalid`) không áp thẳng — lý do

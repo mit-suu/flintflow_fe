@@ -55,3 +55,9 @@ describe("spine-labels - tiếng Anh", () => {
     expect(en.pathLabel("unknown_array[id=X].name")).toBe("unknown_array[id=X].name");
   });
 });
+
+describe("FLF-480: nhãn trường liên kết tính năng", () => {
+  it("feature_ids có nhãn tiếng Việt, không lộ tên trường thô", () => {
+    expect(fieldLabel("feature_ids")).not.toBe("feature_ids");
+  });
+});
