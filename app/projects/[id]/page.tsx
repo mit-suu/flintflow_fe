@@ -2475,7 +2475,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
                 {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
                 {/* Chế độ 4, bước 2.9a: xem trước bố cục mới, xác nhận rồi mới áp vào tài liệu */}
-                {ws.project?.import_state === "drafting" && <LayoutPreviewCard projectId={projectId} canEdit={canEdit} refreshKey={progress?.section_progress?.remaining ?? null} className="mx-3 mb-2" />}
+                {ws.project?.import_state === "drafting" && <LayoutPreviewCard projectId={projectId} canEdit={canEdit} refreshKey={`${progress?.section_progress?.remaining ?? "-"}:${spineState.version ?? "-"}`} className="mx-3 mb-2" />}
                 {/* FLF-395: mẫu tổ chức của dự án có bản mới (Lead / Analyst) — "Để sau" chỉ ẩn trong phiên */}
                 {canChangeTemplate && (
                   <TemplateUpdateBanner
