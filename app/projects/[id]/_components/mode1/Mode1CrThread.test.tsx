@@ -9,6 +9,7 @@ import * as mode1State from "@/mocks/mode1/state";
 import { importToGapReview } from "@/mocks/mode1/flows";
 import { useCrChat } from "../../hooks/mode1/useCrChat";
 import Mode1CrThread from "./Mode1CrThread";
+import { CrDocumentViewContext } from "./cr-document-view-context";
 
 /** Mode 1 v3 phase 8 — change request chạy trong khung chat: mở CR, làm rõ, phần liên quan, đề xuất, gửi Lead. */
 const P = MODE1_PROJECT_ID;
@@ -79,11 +80,14 @@ describe("Mode1CrThread - CR trong khung chat", () => {
     fireEvent.click(within(q).getByRole("button", { name: "Gửi câu trả lời" }));
 
     // 3.4 tự chạy ⇒ danh sách phần liên quan; P08 (CR #6): vừa trả lời câu làm rõ ⇒ 3.6 chạy tiếp luôn, không bấm "Tiếp tục"
-    const related = await screen.findByLabelText("Phần liên quan");
-    expect(within(related).getAllByRole("listitem").length).toBeGreaterThan(0);
+    const proposals = await screen.findByLabelText("Đề xuất sửa");
+    // Đã có đề xuất ⇒ phần liên quan thu về một dòng (danh sách chỉ lặp lại đề xuất bên dưới), bấm mới mở
+    const relatedToggle = within(screen.getByLabelText("Phần liên quan")).getByRole("button", { expanded: false });
+    expect(within(screen.getByLabelText("Phần liên quan")).queryAllByRole("listitem")).toHaveLength(0);
+    fireEvent.click(relatedToggle);
+    expect(within(screen.getByLabelText("Phần liên quan")).getAllByRole("listitem").length).toBeGreaterThan(0);
 
     // 3.6 ⇒ đồng ý đề xuất sửa (FLF-375: một nút cho cả danh sách) ⇒ 3.7 tự chạy ⇒ sẵn sàng
-    const proposals = await screen.findByLabelText("Đề xuất sửa");
     fireEvent.click(within(proposals).getByRole("button", { name: /^Đồng ý tất cả/ }));
     await click("Xác nhận & ghi vào bản nháp");
 
@@ -146,7 +150,7 @@ describe("Mode1CrThread - CR trong khung chat", () => {
     // đề xuất đã đổi ⇒ vẫn còn nút Đồng ý tất cả (chưa ai đồng ý bản mới)
     expect(within(await screen.findByLabelText("Đề xuất sửa")).getByRole("button", { name: /^Đồng ý tất cả/ })).toBeInTheDocument();
 
-    fireEvent.click(within(screen.getByLabelText("Đề xuất sửa")).getAllByRole("button", { name: "Bỏ" })[0]);
+    fireEvent.click(within(screen.getByLabelText("Đề xuất sửa")).getAllByRole("button", { name: /^Bỏ / })[0]);
     await waitFor(() => expect(S().crs.get("CR-001")!.locations.every((l) => l.conclusion === "not_related")).toBe(true));
   });
 
@@ -389,12 +393,50 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
     const proposals = await screen.findByLabelText("Đề xuất sửa");
     expect(within(proposals).getAllByRole("button", { name: /^Mở chi tiết/ })).toHaveLength(5);
     expect(within(proposals).queryByRole("article")).not.toBeInTheDocument();
-    expect(within(proposals).queryByRole("button", { name: "Đồng ý" })).not.toBeInTheDocument();
+    // FLF-495: mỗi dòng có Đồng ý / Bỏ riêng, không in diff chữ gạch đỏ trong chat (xem trên tài liệu)
+    expect(within(proposals).getAllByRole("button", { name: /^Đồng ý (?!tất cả)/ })).toHaveLength(5);
+    expect(within(proposals).getAllByRole("button", { name: /^Bỏ / })).toHaveLength(5);
+    expect(proposals.querySelector("del, ins")).toBeNull();
     expect(screen.getByText(/đã chốt 0\/5/)).toBeInTheDocument();
 
     fireEvent.click(within(proposals).getByRole("button", { name: "Đồng ý tất cả (5)" }));
     expect(await screen.findByRole("button", { name: "Xác nhận & ghi vào bản nháp" })).toBeInTheDocument();
     expect(cr().status).toBe("ready_to_submit");
+  });
+
+  it("FLF-495: Đồng ý ngay trên dòng ⇒ chỉ dòng đó đã chốt, các dòng khác vẫn chờ", async () => {
+    await proposalsOf(3);
+    renderWithIntl(<Harness />);
+    const proposals = await screen.findByLabelText("Đề xuất sửa");
+    fireEvent.click(within(proposals).getAllByRole("button", { name: /^Đồng ý (?!tất cả)/ })[0]);
+    await waitFor(() => expect(screen.getByText("đã chốt 1/3", { exact: false })).toBeInTheDocument());
+    expect(within(proposals).getAllByRole("button", { name: /^Đồng ý (?!tất cả)/ })).toHaveLength(2);
+    expect(within(proposals).getAllByText("✓ Đã đồng ý")).toHaveLength(1);
+  });
+
+  it("FLF-495: có pane tài liệu ⇒ mỗi dòng có \"Xem trên tài liệu\" gọi đúng vị trí, \"Xem các thay đổi\" gọi null; không có pane ⇒ không có nút", async () => {
+    await proposalsOf(2);
+    const view = vi.fn();
+    const first = renderWithIntl(
+      <CrDocumentViewContext.Provider value={view}>
+        <Harness />
+      </CrDocumentViewContext.Provider>,
+    );
+    const proposals = await screen.findByLabelText("Đề xuất sửa");
+    const links = within(proposals).getAllByRole("button", { name: "Xem trên tài liệu" });
+    expect(links).toHaveLength(2);
+    fireEvent.click(links[1]);
+    expect(view).toHaveBeenLastCalledWith("L101");
+    fireEvent.click(within(proposals).getByRole("button", { name: "Xem các thay đổi trên tài liệu" }));
+    expect(view).toHaveBeenLastCalledWith(null);
+    // Bấm xem không đổi trạng thái đề xuất (chỉ đọc)
+    expect(within(proposals).getByRole("button", { name: "Đồng ý tất cả (2)" })).toBeInTheDocument();
+    first.unmount();
+
+    renderWithIntl(<Harness />);
+    const plain = await screen.findByLabelText("Đề xuất sửa");
+    expect(within(plain).queryByRole("button", { name: "Xem trên tài liệu" })).not.toBeInTheDocument();
+    expect(within(plain).queryByRole("button", { name: "Xem các thay đổi trên tài liệu" })).not.toBeInTheDocument();
   });
 
   it("phần chưa đề xuất / có lưu ý AI là thẻ riêng, hình gốc là khối riêng - Đồng ý tất cả chỉ duyệt phần còn lại", async () => {
@@ -432,12 +474,11 @@ describe("Mode1CrThread - bước đề xuất gom một danh sách (FLF-375)", 
     await waitFor(() => expect(S().crs.get("CR-001")!.locations.map((l) => l.conclusion)).toEqual(["edit", "not_related"]));
   });
 
-  it("Bỏ một phần từ chi tiết của dòng ⇒ chỉ phần đó thành không liên quan", async () => {
+  it("Bỏ ngay trên dòng ⇒ chỉ phần đó thành không liên quan", async () => {
     await proposalsOf(3);
     renderWithIntl(<Harness />);
     const proposals = await screen.findByLabelText("Đề xuất sửa");
-    fireEvent.click(within(proposals).getAllByRole("button", { name: /^Mở chi tiết/ })[1]);
-    fireEvent.click(within(screen.getByLabelText("Chi tiết đề xuất L101")).getByRole("button", { name: "Bỏ" }));
+    fireEvent.click(within(proposals).getAllByRole("button", { name: /^Bỏ / })[1]);
     await waitFor(() => expect(S().crs.get("CR-001")!.locations.map((l) => l.conclusion)).toEqual(["edit", "not_related", "edit"]));
     expect(await screen.findByRole("button", { name: "Đồng ý tất cả (2)" })).toBeInTheDocument();
   });
