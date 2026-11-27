@@ -4,7 +4,9 @@ import { useTranslations } from "next-intl";
 import type { CrStatus } from "@/types/change-request";
 import { useMode1Labels } from "./i18n";
 
-type Stage = { key: string; statuses: readonly CrStatus[] };
+/** Khoá nhãn trong `mode1.crTimeline.stages` - để `t()` kiểm được khoá có thật. */
+type StageKey = "draft" | "clarify" | "impact" | "propose" | "verify" | "submit" | "review" | "written";
+type Stage = { key: StageKey; statuses: readonly CrStatus[] };
 
 /** Trang CR: đủ vòng đời, từ nháp tới ghi Track Changes. */
 const FULL_STAGES = [
