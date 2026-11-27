@@ -165,3 +165,19 @@ describe("CR của người khác (BF §3.2 / UC-45 A6, UC-48)", () => {
     expect(await screen.findByText(/Đã phát hành trong bản chính thức \(bản 2\.0\)/)).toBeInTheDocument();
   });
 });
+
+describe("CrWorkspace - không lặp chữ", () => {
+  it("mô tả trùng tiêu đề ⇒ không hiện ô mô tả; mã CR chỉ nằm ở tiêu đề popup, không breadcrumb", async () => {
+    const { change_request } = await newCr("Xoá MSG70", "Xoá MSG70");
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+    expect(await screen.findByRole("heading", { name: "Xoá MSG70" })).toBeInTheDocument();
+    expect(screen.getAllByText("Xoá MSG70")).toHaveLength(1);
+    expect(screen.queryByText(change_request.cr_id)).not.toBeInTheDocument();
+  });
+
+  it("mô tả khác tiêu đề ⇒ vẫn hiện", async () => {
+    const { change_request } = await newCr();
+    renderWithIntl(<CrWorkspace projectId={P} crId={change_request.cr_id} />);
+    expect(await screen.findByText("Logging out must sign the user out of all devices.")).toBeInTheDocument();
+  });
+});

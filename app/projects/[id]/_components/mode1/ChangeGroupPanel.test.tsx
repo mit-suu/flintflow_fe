@@ -63,8 +63,9 @@ describe("ChangeGroupPanel - duyệt từng nhóm thay đổi (UC-51, UC-52)", (
     const g1 = article("G1");
     // F6 (mode 1 v3): vị trí hiện theo mục của tài liệu, path Spine để ở tooltip
     expect(within(g1).getByTitle("x[id=L001]")).toHaveTextContent("Product Overview · Sửa");
-    expect(within(g1).getByText("old L001").tagName).toBe("DEL");
-    expect(within(g1).getByText("new L001").tagName).toBe("INS");
+    // Kiểu so sánh version: chỉ tô từ đổi, phần giữ nguyên để thường
+    expect(within(g1).getByText("old").tagName).toBe("DEL");
+    expect(within(g1).getByText("new").tagName).toBe("INS");
     expect(within(g1).getByTitle("x[id=L002]")).toHaveTextContent("Product Overview · Chỉ comment");
     expect(within(g1).getByText("💬 Xác nhận với PM")).toBeInTheDocument();
     expect(within(g1).queryByText(/L003/)).not.toBeInTheDocument();

@@ -114,7 +114,8 @@ export default function Mode1Popup({ projectId, projectName, onChanged, readOnly
         />
       )}
       {panel === "cr" && crId && (
-        <div className="flex flex-col gap-3">
+        // Cùng khung rộng với nội dung CR để link về danh sách thẳng lề với tiêu đề bên dưới
+        <div className="flex flex-col gap-3 max-w-[980px] w-full mx-auto">
           <Link href={crListHref(projectId)} scroll={false} className="self-start text-body font-bold text-primary hover:underline">
             {t("backToList")}
           </Link>

@@ -4424,11 +4424,9 @@
         "image": "Figure"
       },
       "diff": {
-        "remove": "Remove:",
-        "add": "Add:",
-        "before": "Before",
-        "after": "After",
-        "noPreview": "This proposal cannot be previewed yet (a reference is wrong) - the check step will catch it and the AI will redraft."
+        "noPreview": "This proposal cannot be previewed yet (a reference is wrong) - the check step will catch it and the AI will redraft.",
+        "removeUnnamed": "the content in this part",
+        "noChange": "This proposal does not change any content in this part."
       },
       "conflict": {
         "aria": "Three-way comparison - {title}",
@@ -4520,7 +4518,6 @@
       "closedText": "{status}.",
       "closedReasonText": "{status} - {reason}.",
       "viewerText": "You are viewing as a Viewer - only a Lead or Analyst can act on change requests.",
-      "breadcrumb": "Change request",
       "meta": " · requested by {requester} · created {created} · on version {version}",
       "cancelCr": "Cancel CR",
       "seedAria": "Attached preview",
@@ -4667,7 +4664,6 @@
       "aria": "Location {id}",
       "vectorTitle": "Found because its content is close in meaning to the request, not because the words match - read it carefully before approving.",
       "emptySlot": "empty section - add new",
-      "ownerStep": "· part “{step}”",
       "manualBadge": "manual edit",
       "related": "related: {paths}",
       "reason": "Reason: {reason}",
@@ -4682,7 +4678,8 @@
         "comment": "{count} comment only",
         "not_related": "{count} unrelated",
         "pending": "{count} not concluded",
-        "vector": "{count} found by meaning"
+        "vector": "{count} found by meaning",
+        "dropped": "{count} dropped"
       }
     },
     "clarify": {
@@ -4851,7 +4848,8 @@
       "conclusion": {
         "edit": "Edit",
         "comment": "Comment only",
-        "not_related": "Not related"
+        "not_related": "Not related",
+        "dropped": "Dropped"
       },
       "versionKind": {
         "imported": "Imported version",

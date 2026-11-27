@@ -4424,11 +4424,9 @@
         "image": "Hình"
       },
       "diff": {
-        "remove": "Xoá:",
-        "add": "Thêm:",
-        "before": "Trước",
-        "after": "Sau",
-        "noPreview": "Đề xuất này chưa xem trước được (có tham chiếu chưa đúng) - bước kiểm tra sẽ bắt và AI soạn lại."
+        "noPreview": "Đề xuất này chưa xem trước được (có tham chiếu chưa đúng) - bước kiểm tra sẽ bắt và AI soạn lại.",
+        "removeUnnamed": "nội dung ở phần này",
+        "noChange": "Đề xuất này không làm đổi nội dung nào ở phần này."
       },
       "conflict": {
         "aria": "So sánh 3 cột - {title}",
@@ -4520,7 +4518,6 @@
       "closedText": "{status}.",
       "closedReasonText": "{status} - {reason}.",
       "viewerText": "Bạn đang xem với vai trò Viewer - chỉ Lead hoặc Analyst thao tác được change request.",
-      "breadcrumb": "Change request",
       "meta": " · yêu cầu bởi {requester} · tạo {created} · trên bản {version}",
       "cancelCr": "Huỷ CR",
       "seedAria": "Bản xem trước đính kèm",
@@ -4667,7 +4664,6 @@
       "aria": "Vị trí {id}",
       "vectorTitle": "Máy tìm ra vị trí này vì nội dung gần nghĩa với yêu cầu, không phải vì trùng từ - nên đọc kỹ trước khi duyệt.",
       "emptySlot": "mục trống - thêm mới",
-      "ownerStep": "· phần “{step}”",
       "manualBadge": "sửa tay",
       "related": "liên quan: {paths}",
       "reason": "Lý do: {reason}",
@@ -4682,7 +4678,8 @@
         "comment": "{count} chỉ comment",
         "not_related": "{count} không liên quan",
         "pending": "{count} chưa kết luận",
-        "vector": "{count} tìm theo nghĩa"
+        "vector": "{count} tìm theo nghĩa",
+        "dropped": "{count} đã bỏ"
       }
     },
     "clarify": {
@@ -4851,7 +4848,8 @@
       "conclusion": {
         "edit": "Sửa",
         "comment": "Chỉ comment",
-        "not_related": "Không liên quan"
+        "not_related": "Không liên quan",
+        "dropped": "Đã bỏ"
       },
       "versionKind": {
         "imported": "Bản import",

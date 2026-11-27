@@ -79,7 +79,7 @@ describe("VersionCompare - so sánh 2 version kiểu code review (UC-50)", () =>
       blocks: [
         { block_id: null, change: "added", after: "NFR-P03: 500 concurrent learners.", section: "4.2.3 Performance", kind: "paragraph" },
         { block_id: "B0012", change: "removed", before: "[SmartArt]", section: "4.2.3 Performance", kind: "paragraph" },
-        { block_id: "B0008", change: "modified", before: "one session", after: "all sessions", section: "3.2.1 Login", kind: "paragraph" },
+        { block_id: "B0008", change: "modified", before: "Logging out ends one session for the user", after: "Logging out ends all sessions for the user", section: "3.2.1 Login", kind: "paragraph" },
         { block_id: "B0003", change: "moved", before: "Glossary", after: "Glossary", section: "5.5 Glossary", kind: "paragraph" },
       ],
       sections: [],
@@ -96,8 +96,8 @@ describe("VersionCompare - so sánh 2 version kiểu code review (UC-50)", () =>
     // `block_id` là id bookmark neo trong file Word, không mang nghĩa cho user ⇒ không in ra UI
     expect(screen.queryByText("B0012")).toBeNull();
     const login = screen.getByRole("region", { name: "3.2.1 Login" });
-    expect(within(login).getByText("one").tagName).toBe("DEL");
-    expect(within(login).getByText("all").tagName).toBe("INS");
+    expect(within(login).getByText("one session").tagName).toBe("DEL");
+    expect(within(login).getByText("all sessions").tagName).toBe("INS");
     const glossary = screen.getByRole("region", { name: "5.5 Glossary" });
     expect(within(glossary).getByText("đổi chỗ")).toBeInTheDocument();
     expect(glossary.querySelector("ins, del")).toBeNull();
@@ -144,5 +144,37 @@ describe("VersionCompare - so sánh 2 version kiểu code review (UC-50)", () =>
     pick("Từ", "0.1");
     await waitFor(() => expect(screen.queryByText("Không có version 0.2")).not.toBeInTheDocument());
     expect(await screen.findByText("Không có khác biệt.")).toBeInTheDocument();
+  });
+});
+
+describe("BlockDiff - đoạn viết lại gần hết", () => {
+  it("chữ giữ nguyên quá ít ⇒ ô cũ gạch đỏ + ô mới, không tô từng từ", async () => {
+    const { default: BlockDiff } = await import("./BlockDiff");
+    const { container } = renderWithIntl(<BlockDiff entry={{ block_id: null, change: "modified", before: "one session", after: "all sessions" }} />);
+    expect(screen.getByText("one session")).toHaveClass("line-through");
+    expect(screen.getByText("all sessions")).toHaveClass("text-success");
+    expect(container.querySelector("del, ins")).toBeNull();
+  });
+});
+
+describe("BlockDiff - câu sửa nhiều chữ", () => {
+  it("bỏ / thêm của mỗi chỗ đổi gom lại: đọc như Track Changes, không xen kẽ từng từ", async () => {
+    const { default: BlockDiff } = await import("./BlockDiff");
+    const before = "Search Products returns search results within 2 s at p95 with 1,000 concurrent users.";
+    const after = "Search results return in p95 < 800 ms with 1,000 concurrent users.";
+    const { container } = renderWithIntl(<BlockDiff entry={{ block_id: null, change: "modified", before, after }} />);
+    const del = [...container.querySelectorAll("del")].map((x) => x.textContent?.trim());
+    const ins = [...container.querySelectorAll("ins")].map((x) => x.textContent?.trim());
+    expect(del).toEqual(["Products returns search", "within 2 s at"]);
+    expect(ins).toEqual(["return in", "< 800 ms"]);
+  });
+
+  it("đổi ở nhiều hơn 3 chỗ rời nhau ⇒ hai ô cũ / mới", async () => {
+    const { default: BlockDiff } = await import("./BlockDiff");
+    const before = "a one b two c three d four e";
+    const after = "a 1 b 2 c 3 d 4 e";
+    const { container } = renderWithIntl(<BlockDiff entry={{ block_id: null, change: "modified", before, after }} />);
+    expect(screen.getByText(before)).toHaveClass("line-through");
+    expect(container.querySelector("del, ins")).toBeNull();
   });
 });

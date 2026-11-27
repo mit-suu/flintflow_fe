@@ -2,11 +2,10 @@
 
 import { useId, useState, type ReactNode } from "react";
 import { useTranslations } from "next-intl";
-import Icon from "@/components/ui/Icon";
-import type { BlockDiffEntry, BlockDiffSummary, DiffSectionStat, TableDiff, TableRowDiff } from "@/types/import";
-import { diffWords } from "./word-diff";
+import type { BlockDiffEntry, BlockDiffSummary, DiffSectionStat } from "@/types/import";
+import BlockDiff, { type DiffMode } from "./BlockDiff";
 
-export type DiffMode = "unified" | "split";
+export type { DiffMode };
 
 interface VersionDiffViewProps {
   entries: BlockDiffEntry[];
@@ -138,7 +137,7 @@ export default function VersionDiffView({ entries, sections = [], heading, fromL
               <section key={g.key} id={anchor(g.key)} aria-label={g.title ?? t("other")} className="flex flex-col gap-2 scroll-mt-4">
                 <h4 className="text-body font-extrabold text-on-surface break-words">{g.title ?? t("other")}</h4>
                 {g.entries.map((e, i) => (
-                  <EntryView key={`${e.block_id ?? "b"}-${i}`} entry={e} mode={mode} />
+                  <BlockDiff key={`${e.block_id ?? "b"}-${i}`} entry={e} mode={mode} />
                 ))}
                 {g.unchanged > 0 && <p className="text-caption text-on-surface-muted">{t("unchangedParagraphs", { count: g.unchanged })}</p>}
               </section>
@@ -147,176 +146,5 @@ export default function VersionDiffView({ entries, sections = [], heading, fromL
         </div>
       )}
     </div>
-  );
-}
-
-function Words({ before, after, side }: { before: string; after: string; side: "both" | "old" | "new" }) {
-  return (
-    <>
-      {diffWords(before, after).map((p, i) => {
-        if (p.op === "same") return <span key={i}>{p.text}</span>;
-        if (p.op === "del") return side === "new" ? null : <del key={i} className="bg-error-container text-error rounded-sm">{p.text}</del>;
-        return side === "old" ? null : <ins key={i} className="bg-success-soft text-success no-underline rounded-sm">{p.text}</ins>;
-      })}
-    </>
-  );
-}
-
-function EntryView({ entry, mode }: { entry: BlockDiffEntry; mode: DiffMode }) {
-  const t = useTranslations("mode1.versionCompare");
-  if (entry.table) return <TableView table={entry.table} mode={mode} />;
-  if (entry.kind === "image") {
-    return (
-      <p className="rounded-control bg-surface-container px-3 py-2 text-body text-on-surface-variant flex items-center gap-2">
-        <Icon name="file" size={14} />
-        {t("imageChanged")}
-      </p>
-    );
-  }
-  const before = entry.before ?? "";
-  const after = entry.after ?? "";
-  const addedBox = <p className="rounded-control bg-success-soft px-3 py-2 text-body text-success whitespace-pre-wrap break-words">{after}</p>;
-  const removedBox = <p className="rounded-control bg-error-container px-3 py-2 text-body text-error line-through whitespace-pre-wrap break-words">{before}</p>;
-  // Hai cột: đoạn xoá ở cột bản cũ, đoạn thêm ở cột bản mới (cột kia để trống); màn hẹp về một cột
-  if (entry.change === "added") return mode === "split" ? <div className="grid grid-cols-1 gap-2 md:grid-cols-2"><span aria-hidden className="hidden md:block" />{addedBox}</div> : addedBox;
-  if (entry.change === "removed") return mode === "split" ? <div className="grid grid-cols-1 gap-2 md:grid-cols-2">{removedBox}<span aria-hidden className="hidden md:block" /></div> : removedBox;
-  if (entry.change === "moved") {
-    return (
-      <p className="rounded-control bg-surface-container px-3 py-2 text-body text-on-surface whitespace-pre-wrap break-words">
-        <span className="mr-2 inline-flex items-center gap-1 text-caption font-bold text-on-surface-muted">
-          <Icon name="refresh" size={12} />
-          {t("moved")}
-        </span>
-        {after || before}
-      </p>
-    );
-  }
-  if (mode === "split") {
-    return (
-      <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
-        <p className="rounded-control bg-surface-container px-3 py-2 text-body text-on-surface whitespace-pre-wrap break-words">
-          <Words before={before} after={after} side="old" />
-        </p>
-        <p className="rounded-control bg-surface-container px-3 py-2 text-body text-on-surface whitespace-pre-wrap break-words">
-          <Words before={before} after={after} side="new" />
-        </p>
-      </div>
-    );
-  }
-  return (
-    <p className="rounded-control bg-surface-container px-3 py-2 text-body text-on-surface whitespace-pre-wrap break-words">
-      <Words before={before} after={after} side="both" />
-    </p>
-  );
-}
-
-const ROW_STYLE: Record<string, string> = {
-  added: "bg-success-soft text-success",
-  removed: "bg-error-container text-error line-through",
-  modified: "text-on-surface",
-};
-
-function TableView({ table, mode }: { table: TableDiff; mode: DiffMode }) {
-  const t = useTranslations("mode1.versionCompare");
-  const columns = Math.max(table.header.length, ...table.rows.map((r) => (r.change === "unchanged" ? (r.rows[0]?.length ?? 0) : Math.max(r.before?.length ?? 0, r.after?.length ?? 0))));
-  return (
-    <div className="overflow-x-auto rounded-control bg-surface-container">
-      <table className="w-full text-body">
-        <thead>
-          <tr className="text-left text-caption font-bold text-on-surface-variant">
-            <th className="w-6" aria-hidden />
-            {table.header.map((h, i) => (
-              <th key={i} className="px-2 py-1.5">
-                {table.header_before && table.header_before[i] !== h ? <Words before={table.header_before[i] ?? ""} after={h} side="both" /> : h}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {table.rows.map((r, i) => (
-            <RowGroup key={i} row={r} mode={mode} columns={columns} />
-          ))}
-        </tbody>
-      </table>
-      <span className="sr-only">{t("tableLabel")}</span>
-    </div>
-  );
-}
-
-function RowGroup({ row, mode, columns }: { row: TableRowDiff; mode: DiffMode; columns: number }) {
-  const t = useTranslations("mode1.versionCompare");
-  const [open, setOpen] = useState(false);
-  if (row.change === "unchanged") {
-    return (
-      <>
-        <tr>
-          <td colSpan={columns + 1} className="px-2 py-1">
-            <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open} className="text-caption font-bold text-primary hover:underline">
-              {t("unchangedRows", { count: row.count })}
-            </button>
-          </td>
-        </tr>
-        {open &&
-          row.rows.map((cells, i) => (
-            <tr key={i} className="text-on-surface-variant">
-              <td aria-hidden />
-              {cells.map((c, j) => (
-                <td key={j} className="px-2 py-1 align-top break-words">
-                  {c}
-                </td>
-              ))}
-            </tr>
-          ))}
-      </>
-    );
-  }
-  const changed = new Set(row.cells_changed ?? []);
-  const mark = row.change === "added" ? "+" : row.change === "removed" ? "−" : "~";
-  const markLabel = t(`row.${row.change}`);
-  const cellsOf = (side: "old" | "new") => (side === "old" ? (row.before ?? []) : (row.after ?? []));
-  const line = (side: "old" | "new" | "both") => {
-    const cells = side === "old" ? cellsOf("old") : cellsOf("new");
-    return Array.from({ length: Math.max(cells.length, row.before?.length ?? 0) }, (_, j) => {
-      const isChanged = row.change === "modified" && changed.has(j);
-      const content =
-        isChanged && side === "both" ? (
-          <Words before={row.before?.[j] ?? ""} after={row.after?.[j] ?? ""} side="both" />
-        ) : isChanged ? (
-          <Words before={row.before?.[j] ?? ""} after={row.after?.[j] ?? ""} side={side === "old" ? "old" : "new"} />
-        ) : (
-          (cells[j] ?? "")
-        );
-      return (
-        <td key={j} className={`px-2 py-1 align-top break-words ${isChanged ? "bg-accent-gold-soft" : ""}`}>
-          {content}
-        </td>
-      );
-    });
-  };
-  const markCell = (label: string, symbol: string) => (
-    <td className="px-1 py-1 text-center font-bold" title={label}>
-      <span aria-hidden>{symbol}</span>
-      <span className="sr-only">{label}</span>
-    </td>
-  );
-  if (row.change === "modified" && mode === "split") {
-    return (
-      <>
-        <tr className="text-on-surface-variant">
-          {markCell(markLabel, "−")}
-          {line("old")}
-        </tr>
-        <tr className="text-on-surface">
-          {markCell(markLabel, "+")}
-          {line("new")}
-        </tr>
-      </>
-    );
-  }
-  return (
-    <tr data-change={row.change} className={ROW_STYLE[row.change]}>
-      {markCell(markLabel, mark)}
-      {line(row.change === "removed" ? "old" : row.change === "modified" ? "both" : "new")}
-    </tr>
   );
 }

@@ -6,6 +6,7 @@
  */
 import { useTranslations } from "next-intl";
 import type { CrLocation } from "@/types/change-request";
+import BlockDiff, { textChange } from "./BlockDiff";
 import FieldChanges from "./FieldChanges";
 import { useMode1Labels } from "./i18n";
 
@@ -21,39 +22,24 @@ export function useLocTitle(): (loc: CrLocation) => string {
   };
 }
 
-/** FLF-375: đề xuất dạng câu như Track Changes — xoá "Xoá: …", thêm "Thêm: …", sửa: chữ cũ gạch / chữ mới. */
+/**
+ * FLF-375: đề xuất của một chỗ, hiện y như so sánh version (`BlockDiff`): xoá = ô đỏ gạch ngang, thêm = ô xanh, sửa = một ô chỉ tô
+ * từ bị đổi (viết lại gần hết thì hai ô cũ / mới). Dùng ở cả khung chat lẫn popup CR.
+ */
 export function ProposalDiff({ loc }: { loc: CrLocation }) {
   const t = useTranslations("mode1.crThread.diff");
   const d = loc.display;
   const p = loc.proposal;
   if (!d || !p) return p && loc.conclusion === "edit" ? <FieldChanges oldText={p.old_text} newText={p.new_text} /> : null;
-  if (d.change === "remove")
-    return (
-      <p className="rounded-[8px] bg-[#FDF4F4] px-2.5 py-1.5">
-        <strong className="text-[#B03030]">{t("remove")}</strong> <del className="text-[#B03030]">{d.label || d.before}</del>
-      </p>
-    );
-  if (d.change === "add")
-    return (
-      <p className="rounded-[8px] bg-[#F3FAF6] px-2.5 py-1.5 whitespace-pre-wrap">
-        <strong className="text-[#1F7A45]">{t("add")}</strong> {d.after}
-      </p>
-    );
+  // Xoá: tên chỗ ngắn gọn hơn cả nội dung; không có tên / chữ (vd thông báo không đọc được nội dung) ⇒ vẫn nói rõ là xoá phần này
+  if (d.change === "remove") return <BlockDiff entry={{ block_id: null, change: "removed", before: d.label || d.before || t("removeUnnamed") }} />;
+  if (d.change === "add") return <BlockDiff entry={{ block_id: null, change: "added", after: d.after ?? "" }} />;
   if (d.change !== "edit") return null;
   // Đề xuất chưa chạy thử được (op hỏng) — nói rõ, không hiện thành "xoá"
-  if (d.after === null) return <p className="rounded-[8px] bg-[#FBF4E4] px-2.5 py-1.5 text-[#8A6D1F]">{t("noPreview")}</p>;
-  return (
-    <div className="grid gap-1 text-body">
-      <p className="rounded-[8px] bg-[#FDF4F4] px-2.5 py-1.5 whitespace-pre-wrap">
-        <span className="text-caption font-bold text-[#B03030] block">{t("before")}</span>
-        <del className="text-[#8A4141]">{d.before}</del>
-      </p>
-      <p className="rounded-[8px] bg-[#F3FAF6] px-2.5 py-1.5 whitespace-pre-wrap">
-        <span className="text-caption font-bold text-[#1F7A45] block">{t("after")}</span>
-        <ins className="no-underline text-[#1F5A35]">{d.after}</ins>
-      </p>
-    </div>
-  );
+  if (d.after === null) return <p className="text-body rounded-control bg-accent-gold-soft px-3 py-2 text-accent-gold-text">{t("noPreview")}</p>;
+  // Trước và sau như nhau (vd bỏ một mục phạm vi khi phần phạm vi đang trống) ⇒ nói thẳng là không đổi gì, không vẽ ô rỗng
+  if (d.after.trim() === (d.before ?? "").trim()) return <p className="text-body rounded-control bg-surface-container-high px-3 py-2 text-on-surface-variant">{t("noChange")}</p>;
+  return <BlockDiff entry={textChange(d.before ?? "", d.after)} />;
 }
 
 /** FLF-375 (BF §3.2): người khác có bản sửa chưa xác nhận ở cùng chỗ — chỉ báo, không chặn ai. */
