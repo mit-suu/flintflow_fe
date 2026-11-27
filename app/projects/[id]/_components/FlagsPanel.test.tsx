@@ -389,4 +389,45 @@ describe("FLF-428 - Sửa trong chat điền sẵn câu của cờ", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Sửa trong chat/ })[0]);
     expect(onEditSection).toHaveBeenCalledWith(expect.stringContaining("4.2.2"), "Yêu cầu độ tin cậy NFR-12 thiếu chỉ số đo / ngưỡng");
   });
+  describe("FLF-453: Chấp nhận phát hiện rà soát", () => {
+    const review: Flag = { ...baseFlag, id: "FL90", level: "yellow", rule_id: "import_review", section_id: "fixed:4.2.2", remediation_step: "C-1", message: "Mơ hồ: \"nhanh\" chưa đo được. Đề xuất: ghi phản hồi dưới 2 giây." };
+
+    it("Chấp nhận gửi đúng đề xuất của AI, không gọi Bỏ qua", () => {
+      const onAcceptProposal = vi.fn();
+      const onWaive = vi.fn();
+      renderWithIntl(<FlagsPanel flags={[review]} onWaive={onWaive} onRecompute={vi.fn()} onAcceptProposal={onAcceptProposal} />);
+      fireEvent.click(screen.getByRole("button", { name: "Chấp nhận" }));
+      expect(onAcceptProposal).toHaveBeenCalledWith(expect.any(String), review.message, "ghi phản hồi dưới 2 giây.");
+      expect(onWaive).not.toHaveBeenCalled();
+    });
+
+    it("nghi sai nghiệp vụ: mỗi phương án một nút, gửi đúng phương án đã chọn", () => {
+      const onAcceptProposal = vi.fn();
+      const flag: Flag = { ...review, id: "FL91", message: "Duyệt bỏ qua Trưởng phòng. Phương án A: thêm bước duyệt. Phương án B: giữ nguyên. Khuyến nghị: A vì an toàn." };
+      renderWithIntl(<FlagsPanel flags={[flag]} onWaive={vi.fn()} onRecompute={vi.fn()} onAcceptProposal={onAcceptProposal} />);
+      expect(screen.queryByRole("button", { name: "Chấp nhận" })).toBeNull();
+      fireEvent.click(screen.getByRole("button", { name: "Chọn phương án B" }));
+      expect(onAcceptProposal).toHaveBeenCalledWith(expect.any(String), flag.message, "giữ nguyên.", "B");
+    });
+
+    it("không có nút khi cờ không mang đề xuất", () => {
+      renderWithIntl(<FlagsPanel flags={[{ ...review, message: "Chỉ nêu vấn đề" }]} onWaive={vi.fn()} onRecompute={vi.fn()} onAcceptProposal={vi.fn()} />);
+      expect(screen.queryByRole("button", { name: "Chấp nhận" })).toBeNull();
+    });
+  });
+});
+
+describe("FlagsPanel - Viết lại cho khớp (FLF-493 #29)", () => {
+  it("còn cờ đỏ + có mục Cũ ⇒ tab mở sẵn (Cần xử lý) đã có nút Viết lại, bấm gọi onRewriteOutdated", () => {
+    const onRewriteOutdated = vi.fn();
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onRecompute={vi.fn()} outdatedCount={41} onRewriteOutdated={onRewriteOutdated} />);
+    expect(screen.getByText("Viết lại cho khớp")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Viết lại" }));
+    expect(onRewriteOutdated).toHaveBeenCalledTimes(1);
+  });
+
+  it("không có mục Cũ ⇒ không hiện khối Viết lại", () => {
+    renderWithIntl(<FlagsPanel flags={[baseFlag]} onRecompute={vi.fn()} outdatedCount={0} onRewriteOutdated={vi.fn()} />);
+    expect(screen.queryByText("Viết lại cho khớp")).toBeNull();
+  });
 });

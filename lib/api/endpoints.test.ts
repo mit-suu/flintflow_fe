@@ -327,6 +327,8 @@ const cases: EndpointCase[] = [
   ],
   ["finalizeImport", () => importApi.finalizeImport("p1", "i1", 7), "/projects/p1/import/finalize", post({ import_id: "i1", base_version: 7 })],
   ["resumeImport", () => importApi.resumeImport("p1", "i1"), "/projects/p1/import/resume", post({ import_id: "i1" })],
+  ["getLayoutPreview (2.9a)", () => importApi.getLayoutPreview("p1"), "/projects/p1/import/layout-preview"],
+  ["confirmLayoutPreview (2.9a)", () => importApi.confirmLayoutPreview("p1"), "/projects/p1/import/layout-preview/confirm", { method: "POST" }],
   ["getGapReport", () => importApi.getGapReport("p1"), "/projects/p1/gap-report"],
   // ─── mode 1 v2: step-plan (#32–#33, FLF-182) ───
   ["getStepPlan", () => importApi.getStepPlan("p1"), "/projects/p1/step-plan"],
@@ -418,6 +420,17 @@ describe("lib/api wrappers", () => {
     } else {
       expect(apiCall).toHaveBeenCalledWith(path);
     }
+  });
+
+  it("renderDiagramsBatch gửi MỘT request với danh sách id sơ đồ (FLF-493)", async () => {
+    const { renderDiagramsBatch } = await import("./spine");
+    const signal = new AbortController().signal;
+    await renderDiagramsBatch("p1", ["D19", "D21"], signal);
+    expect(apiCall).toHaveBeenCalledTimes(1);
+    const [path, init] = vi.mocked(apiCall).mock.calls[0];
+    expect(path).toBe("/projects/p1/diagrams/render");
+    expect(JSON.parse(init?.body as string)).toEqual({ diagram_ids: ["D19", "D21"], force: true });
+    expect(init?.signal).toBe(signal);
   });
 
   it("uploadProjectDocument gửi file qua FormData", async () => {

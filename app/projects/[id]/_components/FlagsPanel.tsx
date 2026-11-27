@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useLocale, useTranslations } from "next-intl";
+import { parseReviewProposal } from "./review-proposal";
 import Tabs from "@/components/ui/Tabs";
 import { workspaceStepLabel } from "./phase-labels";
 import { isFlagWaivable, isOpenFlag } from "@/types/flags";
@@ -123,6 +124,11 @@ interface FlagsPanelProps {
    * từ câu này để model sửa đúng field và báo lại nếu cờ chưa đóng).
    */
   onEditSection?: (sectionLabel: string, issue?: string) => void;
+  /**
+   * FLF-453: "Chấp nhận" / "Chọn phương án" trên phát hiện của vòng rà soát — gửi đúng đề xuất vào đường sửa qua chat
+   * (thẻ xem trước rồi xác nhận), không ghi thẳng tài liệu.
+   */
+  onAcceptProposal?: (sectionLabel: string, issue: string, proposal: string, option?: "A" | "B") => void;
   /** FLF-278: "Nhờ AI soạn" trên cờ mục của mẫu còn trống — điền sẵn lệnh soạn nháp vào ô chat. */
   onDraftSection?: (sectionLabel: string) => void;
   /** Bước đã chốt: cờ "rỗng" của bước đã chốt là vấn đề cần xử lý, không phải "sẽ điền ở bước sau" (FLF-248). */
@@ -175,6 +181,7 @@ export default function FlagsPanel({
   onRewriteOutdated,
   rewriting = false,
   onEditSection,
+  onAcceptProposal,
   onDraftSection,
   acceptedSteps,
 }: FlagsPanelProps) {
@@ -214,6 +221,30 @@ export default function FlagsPanel({
   // Tài liệu chưa tải xong ⇒ tên mục theo mẫu FPT, không hiện mã `fixed:3.1.2` (FLF-247)
   const sectionName = (id: string) => sectionLabelOf?.(id) ?? (fptSectionName(id) || id);
   const counts = issueCounts(openFlags, showOutdated ? outdatedCount : 0, acceptedSteps);
+
+  /** Khối "Viết lại cho khớp": hiện ở đầu CẢ HAI tab (FLF-493 #29: tab mở sẵn là "Cần xử lý" khi còn cờ đỏ, người dùng không thấy nút ở tab kia). */
+  const rewriteBlock = showOutdated && (
+    <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
+      <div className="min-w-0">
+        <h5 className="text-body font-bold text-on-surface">
+          {t("rewriteTitle")} <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
+        </h5>
+        <p className="text-body text-on-surface-muted leading-relaxed">
+          {t("rewriteHint")}
+        </p>
+      </div>
+      <button type="button" onClick={onRewriteOutdated} disabled={rewriting} className={`${pillButton} bg-primary text-on-primary hover:bg-primary-hover`}>
+        {rewriting ? (
+          <span className="inline-flex items-center gap-1.5">
+            <Icon name="spinner" size={12} className="animate-spin motion-reduce:animate-none" />
+            <ShimmerText className="[--ff-shimmer-base:rgb(255_255_255/0.6)] [--ff-shimmer-peak:#fff]">{t("rewriteChecking")}</ShimmerText>
+          </span>
+        ) : (
+          t("rewrite")
+        )}
+      </button>
+    </section>
+  );
 
   const closeWaiveModal = () => {
     setWaiveError(null);
@@ -412,6 +443,24 @@ export default function FlagsPanel({
               <span className="text-body text-on-surface leading-relaxed">{message}</span>
               <span className="text-caption text-on-surface-muted flex flex-wrap items-center gap-x-2.5" onClick={(e) => e.stopPropagation()}>
                 {sectionLink(flag)}
+                {onAcceptProposal &&
+                  (() => {
+                    const found = parseReviewProposal(flag.rule_id, flag.message);
+                    if (!found) return null;
+                    const label = sectionName(flag.section_id);
+                    const pill = `${pillButton} h-6 px-2 bg-primary text-on-primary hover:opacity-90`;
+                    return found.kind === "fix" ? (
+                      <button type="button" disabled={busy} onClick={() => onAcceptProposal(label, flag.message, found.proposal)} className={pill} title={t("acceptTitle")}>
+                        {t("accept")}
+                      </button>
+                    ) : (
+                      found.options.map((o) => (
+                        <button key={o.key} type="button" disabled={busy} onClick={() => onAcceptProposal(label, flag.message, o.text, o.key)} className={pill} title={t("pickOptionTitle", { key: o.key })}>
+                          {t("pickOption", { key: o.key })}
+                        </button>
+                      ))
+                    );
+                  })()}
                 {onEditSection && (
                   <button
                     type="button"
@@ -548,6 +597,7 @@ export default function FlagsPanel({
       <div role="tabpanel" id="doc-issues-panel" aria-labelledby={`doc-issues-tab-${tab}`} className="flex flex-col gap-2.5">
         {tab === "blocking" && (
           <>
+            {rewriteBlock}
             {redGroups.map((group) => renderGroup(group, `red:${group.action}`))}
             {redGroups.length === 0 && emptyNote(t("noBlocking"))}
           </>
@@ -555,29 +605,7 @@ export default function FlagsPanel({
 
         {tab === "suggestions" && (
           <>
-            {showOutdated && (
-              <section className="rounded-card bg-surface-container-lowest px-3.5 py-3 flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <h5 className="text-body font-bold text-on-surface">
-                    {t("rewriteTitle")} <span className="font-semibold text-on-surface-muted tabular-nums">({outdatedCount})</span>
-                  </h5>
-                  <p className="text-body text-on-surface-muted leading-relaxed">
-                    {t("rewriteHint")}
-                  </p>
-                </div>
-                <button type="button" onClick={onRewriteOutdated} disabled={rewriting} className={`${pillButton} bg-primary text-on-primary hover:bg-primary-hover`}>
-                  {rewriting ? (
-                    <span className="inline-flex items-center gap-1.5">
-                      <Icon name="spinner" size={12} className="animate-spin motion-reduce:animate-none" />
-                      <ShimmerText className="[--ff-shimmer-base:rgb(255_255_255/0.6)] [--ff-shimmer-peak:#fff]">{t("rewriteChecking")}</ShimmerText>
-                    </span>
-                  ) : (
-                    t("rewrite")
-                  )}
-                </button>
-              </section>
-            )}
-
+            {rewriteBlock}
             {yellowGroups.map((group) => renderGroup(group, `yellow:${group.action}`))}
             {yellowGroups.length === 0 && !showOutdated && emptyNote(t("noSuggestions"))}
           </>

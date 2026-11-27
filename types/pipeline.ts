@@ -362,6 +362,8 @@ export interface RunState {
 /** GET /projects/:id/run-estimate (FLF-332) — ước tính credit cho lượt chạy liền sắp tới, trước khi gọi AI. */
 export interface RunEstimateUnit {
   unit: string;
+  /** FLF-485 (#18): tên người dùng đọc được (tên màn / "Chức năng không có màn" / nhãn giai đoạn); BE cũ không trả. */
+  label?: string;
   steps: number;
   ai_steps: number;
   interview_credits: number;
@@ -399,13 +401,15 @@ export interface RunEstimate {
 }
 
 /** FLF-466: các lần báo credit theo số màn — sau Approve Brief, sau chốt danh sách màn (S-4.1), sau thêm màn. */
-export type CreditAckScope = "after_brief" | "screens_locked" | "screens_added";
+export type CreditAckScope = "after_brief" | "screens_locked" | "screens_added" | "reference_documents";
 
 export interface CreditAckRequired {
   scope: CreditAckScope;
   credits: number;
   created_at: string;
   screens?: string[];
+  /** FLF-458: `reference_documents` - số tài liệu tham khảo chờ đọc. */
+  documents?: number;
 }
 
 export interface ScreenRange {
@@ -415,6 +419,8 @@ export interface ScreenRange {
   credits_min: number;
   credits_max: number;
   inputs: { goals: number; other_requirements: number; feature_notes: number; total: number };
+  /** FLF-485: căn cứ của dải — `scale_note` (ghi chú quy mô trong Brief) hoặc `inputs` (đầu vào S-1); BE cũ không trả. */
+  basis?: "scale_note" | "inputs";
   estimated: true;
 }
 
@@ -483,6 +489,8 @@ export interface GateResponse {
   message_vi?: string;
   /** FLF-489: bước vừa duyệt đã từng được chốt trước lượt này (chạy lại bước đã qua). Client không tự chạy tiếp quy trình. */
   rerun?: boolean;
+  /** FLF-482: sau `revision`, một phần lời sửa nằm ngoài mục bước ghi được ⇒ mở Sửa tài liệu với đúng câu user gõ. */
+  route_to_change?: { instruction: string };
 }
 
 // ─── progress ────────────────────────────────────────────────────
@@ -520,9 +528,17 @@ export interface VersionResponse {
   document_revision: string;
 }
 
+/** FLF-461: chế độ 3/4 đếm mục còn cần xử lý thay vì 12 giai đoạn. */
+export interface SectionTodo {
+  remaining: number;
+  total: number;
+}
+
 /** `GET /projects/:id/progress`. */
 export interface ProgressResponse {
   readiness: Readiness;
   progress: StepProgress;
+  /** Chỉ chế độ 3/4 đang ở Luồng 2; dự án khác vắng / null. */
+  section_progress?: SectionTodo | null;
   sections: SectionProgress[];
 }

@@ -61,6 +61,17 @@ describe("StructureChangeNotice - kết quả đọc cuối lệch màn đọc k
     expect(getImport).not.toHaveBeenCalled();
   });
 
+  it("FLF-455: mục thành Ngoài phạm vi sau khi đọc nội dung ⇒ báo kết quả cuối khác bản sơ bộ, giữ nguyên chữ", async () => {
+    vi.mocked(getImport).mockResolvedValue({
+      data: { import: { structure_changes: [{ section_id: "custom:CS03", title: "Phụ lục A Dự toán", from: "missing", to: "out_of_scope" }] } },
+      error: null,
+    } as never);
+    const { container } = renderWithIntl(<StructureChangeNotice projectId="p3" />);
+    expect(await screen.findByText(/Kết quả cuối khác bản sơ bộ: .*Phụ lục A Dự toán thuộc Ngoài phạm vi/)).toBeInTheDocument();
+    expect(container).toHaveTextContent("giữ nguyên chữ, không soạn và không kiểm tra");
+    expect(screen.queryByText(/khác với màn đọc khung/)).not.toBeInTheDocument();
+  });
+
   it("khớp (rỗng) hoặc không đọc được ⇒ không hiện gì", async () => {
     vi.mocked(getImport).mockRejectedValue(new Error("409"));
     const { container } = renderWithIntl(<StructureChangeNotice projectId="p2" />);

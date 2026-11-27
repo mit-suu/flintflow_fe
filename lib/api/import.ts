@@ -13,7 +13,9 @@ import type {
   ImportStateResponse,
   MappingPatchRequest,
   ReuploadDiff,
+  LayoutPreview,
   ReviewRunResponse,
+  ReviewSectionResponse,
   ReviewStopResponse,
   StepPlanPatchRequest,
   StepPlanResponse,
@@ -76,6 +78,10 @@ export const patchMapping = (projectId: string, body: MappingPatchRequest) =>
 export const setDropText = (projectId: string, importId: string, keys: string[]) =>
   apiCall<ImportStateResponse>(`${base(projectId)}/import/drop-text`, { method: "PATCH", body: JSON.stringify({ import_id: importId, keys }) });
 
+/** FLF-456: chọn ngôn ngữ tài liệu khi file chỉ còn khung (trước Bắt đầu) — BE tính lại credit, đọc lại `GET /import`. */
+export const setSkeletonLanguage = (projectId: string, importId: string, language: "en" | "vi") =>
+  apiCall<ImportStateResponse>(`${base(projectId)}/import/document-language`, { method: "PATCH", body: JSON.stringify({ import_id: importId, language }) });
+
 /**
  * Nút "Bắt đầu" (FLF-343): BE chạy một mạch I-4 ⇒ baseline 0.1 ⇒ kiểm tra. `confirmLatest` = câu "đây là bản mới nhất"
  * (bắt buộc khi file chưa xác nhận — thiếu ⇒ 409 `IMPORT_NEEDS_LATEST_CONFIRM`).
@@ -128,12 +134,26 @@ export const runImportReview = (projectId: string, importId: string) =>
     body: JSON.stringify({ import_id: importId }),
   });
 
+/** FLF-453: người dùng đã xác nhận credit riêng của một mục chỉ được Code kiểm ⇒ AI rà đúng mục đó (vẫn `reviewing`). */
+export const runImportSectionReview = (projectId: string, importId: string, sectionId: string) =>
+  apiCall<ReviewSectionResponse>(`${base(projectId)}/import/review/section`, {
+    method: "POST",
+    body: JSON.stringify({ import_id: importId, section_id: sectionId, confirm: true }),
+  });
+
 /** Bấm Dừng khi vòng rà soát đang chạy — giữ tiến độ, lượt chưa trừ credit không chạy. */
 export const stopImportReview = (projectId: string, importId: string) =>
   apiCall<ReviewStopResponse>(`${base(projectId)}/import/review/stop`, {
     method: "POST",
     body: JSON.stringify({ import_id: importId }),
   });
+
+/** FLF-461 bước 2.9a: bố cục mới của chế độ 4 trước khi áp vào bản in. */
+export const getLayoutPreview = (projectId: string) => apiCall<LayoutPreview>(`${base(projectId)}/import/layout-preview`);
+
+/** FLF-461 bước 2.9a: xác nhận bố cục mới ⇒ bản in từ giờ áp bố cục đó. */
+export const confirmLayoutPreview = (projectId: string) =>
+  apiCall<LayoutPreview>(`${base(projectId)}/import/layout-preview/confirm`, { method: "POST" });
 
 export const getGapReport = (projectId: string) => apiCall<GapReport>(`${base(projectId)}/gap-report`);
 

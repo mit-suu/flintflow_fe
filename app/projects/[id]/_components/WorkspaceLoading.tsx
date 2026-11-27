@@ -172,6 +172,7 @@ export default function WorkspaceLoading({ projectId, viewer = false }: { projec
           <WorkspaceHeader
             project={project}
             user={user}
+            orgRole={boot.orgRole ?? null}
             nameLoading={!memory}
             progressHidden={!mode1 && !railShown}
             onShowProgress={noop}

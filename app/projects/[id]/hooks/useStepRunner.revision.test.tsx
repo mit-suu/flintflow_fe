@@ -129,3 +129,37 @@ describe("FLF-411 #20: nhắn sửa ở thẻ cổng đã cũ", () => {
     expect(runPhase.mock.calls[0][1]).toBe("B-1");
   });
 });
+
+describe("gate revision ngoài mục của bước (FLF-482)", () => {
+  it("route_to_change ⇒ bước chạy lại rồi gọi onRouteToChange với câu user", async () => {
+    const order: string[] = [];
+    submitGate.mockResolvedValue({ data: { spine_version: 5, next_step: null, message_vi: "Phần này nằm ở mục khác.", route_to_change: { instruction: "  bản 1.0 bỏ hai nhóm  " } } });
+    runStep.mockImplementation(async (_p: string, _s: string, _r: unknown, h: { onEvent: (e: unknown) => void }) => {
+      order.push("run");
+      h.onEvent(gateReady);
+    });
+    const onRouteToChange = vi.fn((instruction: string) => order.push(`route:${instruction}`));
+    const { result } = renderHook(() =>
+      useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 4, onSpineChanged: vi.fn(), onRouteToChange })
+    );
+    await act(async () => result.current.run("B-0.1"));
+    order.length = 0;
+
+    await act(async () => result.current.gate("revision", "bản 1.0 bỏ hai nhóm"));
+
+    expect(order).toEqual(["run", "route:bản 1.0 bỏ hai nhóm"]);
+    expect(onRouteToChange).toHaveBeenCalledWith("bản 1.0 bỏ hai nhóm", "B-0.1");
+  });
+
+  it("không có route_to_change ⇒ không mở Sửa tài liệu", async () => {
+    submitGate.mockResolvedValue({ data: { spine_version: 5, next_step: null } });
+    runStep.mockImplementation(async (_p: string, _s: string, _r: unknown, h: { onEvent: (e: unknown) => void }) => h.onEvent(gateReady));
+    const onRouteToChange = vi.fn();
+    const { result } = renderHook(() =>
+      useStepRunner({ projectId: "p1", sessionId: "s1", getBaseVersion: () => 4, onSpineChanged: vi.fn(), onRouteToChange })
+    );
+    await act(async () => result.current.run("B-0.1"));
+    await act(async () => result.current.gate("revision", "sửa"));
+    expect(onRouteToChange).not.toHaveBeenCalled();
+  });
+});

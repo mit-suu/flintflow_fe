@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExt
 import Link from "next/link";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
-import { applyChangesWithRebase, editAssumption, renderDiagram } from "@/lib/api/spine";
+import { applyChangesWithRebase, editAssumption, renderDiagram, renderDiagramsBatch } from "@/lib/api/spine";
 import { disableScreenMockups, getProject, getScreenMockupSummary, runScreenMockups, setDocumentLanguage, setScreenTheme } from "@/lib/api/projects";
 import ScreenMockupRunCard from "./_components/ScreenMockupRunCard";
 import { useScreenMockupRun } from "./hooks/useScreenMockupRun";
@@ -63,7 +63,7 @@ import TemplateProposalCard from "@/components/org-template/template-proposal-ca
 import SaveStructureEntry from "@/components/org-template/save-structure-entry";
 import TranslateDialog from "@/components/project/TranslateDialog";
 import ProjectActionDialogs from "@/components/project/ProjectActionDialogs";
-import { resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
+import { isDocumentLanguageLocked, resolvedDocumentLanguage, MODE2_SOURCE_LANGUAGE } from "@/lib/document-language";
 import { languageCommandOutcome, parseLanguageCommand, type LanguageCommandOutcome } from "@/lib/document-language-command";
 import { getTranslationStatus } from "@/lib/api/translations";
 import { ackRunEstimate, getRunEstimate, submitGate } from "@/lib/api/pipeline";
@@ -115,6 +115,8 @@ import { IMPORT_DONE_STATUSES } from "./_components/mode1/labels";
 import { setPendingReupload } from "./_components/mode1/pending-reupload";
 import SrsAttachmentChip from "./_components/mode1/srs-attachment-chip";
 import StructureChangeNotice from "./_components/mode1/structure-change-notice";
+import { isFlow2OpeningStep, startsFromFile } from "./_components/flow2-start";
+import LayoutPreviewCard from "./_components/mode1/layout-preview-card";
 import ImportWorkspace from "./_components/import/import-workspace";
 import ReferenceUploadsNote from "./_components/import/reference-uploads-note";
 import { clearImportPending } from "@/lib/import-pending";
@@ -230,6 +232,9 @@ type WorkspacePanel = "verification" | "tools" | "comments";
  * (FLF-185): chưa import xong ⇒ màn đọc khung / tiến trình trong layout workspace (`ImportWorkspace`); import xong ⇒ **cùng workspace** (step theo template người dùng,
  * sửa qua chat tới baseline v1) + công cụ mode 1. Không đọc được project ⇒ workspace mode 2 tự xử lý lỗi/đăng nhập.
  */
+/** Trần thời gian cho một lượt vẽ lại cả lô sơ đồ (BE vẽ tuần tự, mỗi hình vài giây). Quá trần ⇒ nhả nút, báo tải lại. */
+const REDRAW_TIMEOUT_MS = 5 * 60 * 1000;
+
 export default function WorkspacePage() {
   const projectId = useParams()?.id as string;
   const router = useRouter();
@@ -638,10 +643,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const { markPending: markDocumentPending, clearPending: clearDocumentPending } = doc;
 
   /**
-   * Vẽ lại các sơ đồ (một lời gọi cho mỗi cặp kind + owner: `screen_flow` nhiều phần vẽ chung một lượt) rồi quét lại cờ và
-   * tải lại tài liệu MỘT lần cho cả lô — ảnh trong tài liệu là PNG BE nhúng lúc trả, phải đọc lại mới thấy hình mới.
-   * Mỗi sơ đồ vẽ trong một transaction riêng nên một sơ đồ lỗi không làm mất phần đã vẽ: vẫn tính lại cờ, đọc lại Spine
-   * (version tăng sau mỗi lần vẽ ⇒ `base_version` phải theo kịp, nếu không lệnh sửa kế tiếp ăn 409) và tải lại tài liệu.
+   * Vẽ lại các sơ đồ bằng MỘT request cho cả lô (FLF-493 #33: trước đây mỗi cặp kind + owner một lời gọi, mà BE vẽ lại cả bộ
+   * mỗi lần nên 8 cờ = 8 lượt vẽ nối tiếp), có trần thời gian, rồi tải lại tài liệu MỘT lần — ảnh trong tài liệu là PNG BE nhúng
+   * lúc trả, phải đọc lại mới thấy hình mới. BE tự tính lại cờ và trả kèm; BE cũ chưa có route (404) ⇒ lùi về cách cũ nhưng gửi
+   * tuần tự, từng loại một. Hết trần thời gian ⇒ nhả nút, báo "tải lại để xem kết quả" và vẫn đọc lại cờ + Spine (version tăng
+   * sau mỗi lần vẽ ⇒ `base_version` phải theo kịp, nếu không lệnh sửa kế tiếp ăn 409).
    * Trả kết quả từng sơ đồ (`error` = câu tiếng người, `null` = vẽ xong) và cờ sau khi tính lại (`null` = tính lại lỗi).
    */
   const runRedraw = useCallback(
@@ -650,29 +656,67 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       // Mục có sơ đồ đang vẽ báo "đang cập nhật" ngay từ lúc bắt đầu ghi, tới khi tài liệu mới về
       markDocumentPending(targets.map((d) => d.section));
       const results = new Map<string, string | null>();
-      for (const d of targets) {
+      const failAll = (message: string) => targets.forEach((d) => results.set(diagramKey(d), message));
+      const errorText = (err: unknown) => {
+        const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
+        return friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message;
+      };
+      // Đo nhẹ để lượt E2E sau biết thời gian vẽ và dựng lại tài liệu (FLF-493 #33, chưa chống treo theo giả thuyết)
+      const mark = (name: string) => {
         try {
-          await renderDiagram(projectId, d.kind, d.owner_id);
-          results.set(diagramKey(d), null);
-        } catch (err) {
-          const code = err instanceof ApiClientError ? err.code : "UNKNOWN_ERROR";
-          results.set(diagramKey(d), friendlyError(code, err instanceof ApiClientError ? err.rawMessage : "", locale).message);
+          performance.mark(name);
+        } catch {
+          // môi trường không có Performance API
         }
-      }
-      const drawn = [...results.values()].some((error) => error === null);
+      };
+      mark("ff-redraw-start");
       let flagsAfter: Flag[] | null = null;
+      let flagsFromBatch = false;
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), REDRAW_TIMEOUT_MS);
+      try {
+        const res = await renderDiagramsBatch(projectId, diagrams.map((d) => d.id), controller.signal);
+        const skipped = new Set(res.data?.skipped ?? []);
+        for (const d of targets) results.set(diagramKey(d), skipped.has(d.id) ? t("page.redrawSkipped") : null);
+        if (Array.isArray(res.data?.flags)) {
+          flagsAfter = res.data.flags;
+          flagsFromBatch = true;
+        }
+      } catch (err) {
+        if (controller.signal.aborted) {
+          failAll(t("page.redrawTimeout"));
+        } else if (err instanceof ApiClientError && err.status === 404) {
+          // BE cũ chưa có route theo danh sách ⇒ từng loại một, tuần tự (không song song để khỏi chồng nhiều lượt vẽ cả bộ)
+          for (const d of targets) {
+            try {
+              await renderDiagram(projectId, d.kind, d.owner_id);
+              results.set(diagramKey(d), null);
+            } catch (inner) {
+              results.set(diagramKey(d), errorText(inner));
+            }
+          }
+        } else {
+          failAll(errorText(err));
+        }
+      } finally {
+        clearTimeout(timer);
+      }
+      mark("ff-redraw-api-done");
+      const timedOut = controller.signal.aborted;
+      const drawn = timedOut || [...results.values()].some((error) => error === null);
       if (drawn) {
-        flagsAfter = await recomputeFlagsFn().catch(() => null);
+        if (!flagsFromBatch) flagsAfter = await recomputeFlagsFn().catch(() => null);
         bumpVersion(await reloadSpine());
         void reloadProgress();
         setDocumentRefreshToken((v) => v + 1);
+        mark("ff-redraw-doc-reload-requested");
       } else {
         // Không sơ đồ nào vẽ được ⇒ không có bản mới nào về để tự xoá vùng chờ
         clearDocumentPending();
       }
       return { results, flagsAfter };
     },
-    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, bumpVersion, locale, markDocumentPending, clearDocumentPending]
+    [projectId, recomputeFlagsFn, reloadSpine, reloadProgress, bumpVersion, locale, markDocumentPending, clearDocumentPending, t]
   );
 
   /** Vẽ lại từ nút trên tài liệu (theo mục / khung lỗi). Ném lỗi bằng câu tiếng Việt nếu có sơ đồ không vẽ được. */
@@ -823,26 +867,35 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
       .catch(() => null);
     const ack = est?.ack_required;
     if (!est || !ack) return true;
-    const range = est.screen_range;
-    const min = est.credits_min ?? est.credits_total;
-    const max = est.credits_max ?? est.credits_total;
-    const hasRange = est.units.some((u) => u.screens);
+    const range = est.screen_range && est.screen_range.max > 0 ? est.screen_range : null;
+    // BE cũ (không có `basis`): tổng chưa gồm phần vòng màn hình ⇒ cộng thêm ở đây
+    const rangeInTotal = range?.basis !== undefined;
+    const min = (est.credits_min ?? est.credits_total) + (range && !rangeInTotal ? range.credits_min : 0);
+    const max = (est.credits_max ?? est.credits_total) + (range && !rangeInTotal ? range.credits_max : 0);
+    const unitHasRange = est.units.some((u) => u.screens);
+    const lines = est.units.map((u) =>
+      u.screens
+        ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
+        : { label: t("creditGate.unitLine", { name: u.label ?? t("creditGate.unitFallback", { unit: u.unit }), steps: u.steps }), credits: u.credits },
+    );
+    // Dòng phần màn là một dòng như các giai đoạn khác (FLF-485 #9), không chỉ là chú thích
+    if (range && !unitHasRange) lines.push({ label: t("creditGate.screenRangeLine", { min: range.min, max: range.max }), credits: range.credits_min, creditsMax: range.credits_max });
     const ok = await confirmCredits({
       title: t(`creditGate.scope.${ack.scope}`),
-      lines: est.units.map((u) =>
-        u.screens
-          ? { label: t("creditGate.screenRangeLine", { min: u.screens.min, max: u.screens.max }), credits: u.credits_min ?? u.credits, creditsMax: u.credits_max ?? u.credits }
-          : { label: t("creditGate.unitLine", { unit: u.unit, steps: u.steps }), credits: u.credits },
-      ),
+      lines:
+        ack.scope === "reference_documents"
+          ? [{ label: t("creditGate.referenceLine", { count: ack.documents ?? 0 }), credits: ack.credits }]
+          : lines,
       total: min,
       totalMax: max,
       available: est.available_credits,
-      notes: hasRange ? [t("creditGate.screenRangeNote")] : undefined,
-      ...(range && range.max > 0 ? { note: t("creditGate.screenRange", { min: range.min, max: range.max, creditsMin: range.credits_min, creditsMax: range.credits_max }) } : {}),
+      notes: range || unitHasRange ? [t(range?.basis === "scale_note" ? "creditGate.screenRangeNoteScale" : "creditGate.screenRangeNote")] : undefined,
     });
     if (!ok) return false;
     try {
-      await ackRunEstimate(projectId);
+      // #19: ack ghi Spine và trả phiên bản mới ⇒ nâng base version trước khi chạy, tránh 409 SPINE_VERSION_CONFLICT
+      const acked = await ackRunEstimate(projectId);
+      if (acked.data?.spine_version !== undefined) onSpineChanged(acked.data.spine_version);
       return true;
     } catch {
       return false;
@@ -851,6 +904,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
 
   /** FLF-489: vừa duyệt xong bước chạy lại, quy trình dừng ở bước tới lượt — thẻ "Tiếp tục: <bước>" */
   const [afterRerun, setAfterRerun] = useState<{ done: string; next: string } | null>(null);
+
+  // FLF-482: `submitEditInstruction` khai báo sau runner ⇒ đi qua ref
+  const routeToChangeRef = useRef<(instruction: string) => void>(() => {});
 
   const runner = useStepRunner({
     projectId,
@@ -865,6 +921,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     onRevisionMessage: (message, stepId) => {
       if (ws.isPipelineActive) ws.appendLocalMessage(message, stepId, "ai");
     },
+    // FLF-482: BE báo lời sửa nằm ngoài mục của bước ⇒ mở Sửa tài liệu với đúng câu user (bản xem trước + Áp dụng)
+    onRouteToChange: (instruction) => routeToChangeRef.current(instruction),
     // FLF-393: lượt chạy ở nền (không còn SSE) — lời AI chỉ có trong transcript ⇒ tải lại phiên đang mở để nó hiện ngay
     onTranscriptChanged: () => {
       if (ws.activeSession?._id) void ws.reloadActiveSession(ws.activeSession._id);
@@ -1493,6 +1551,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     [requestPreview, cancelPreview, activeSessionId, lastMessageStep, appendLocalMessage, dropLocalMessage, reloadActiveSession]
   );
+  routeToChangeRef.current = submitEditInstruction;
   const closeEditCard = () => {
     // Bỏ bản xem trước ⇒ kết thúc vòng hỏi đáp thêm / xoá use case (lệnh sau mở lại từ đầu)
     useCaseTurnsRef.current = null;
@@ -1527,6 +1586,21 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     setKnowledgeMode(false);
     if (prefill !== undefined) ws.setInputMessage(prefill);
     focusInputAtEnd();
+  };
+  /**
+   * FLF-453: gửi nguyên văn đề xuất / phương án của AI như một lệnh sửa qua chat. Không ghi thẳng tài liệu: BE soạn bản xem
+   * trước, người dùng xác nhận như mọi lần sửa.
+   */
+  const acceptReviewProposal = (label: string, issue: string, proposal: string, option?: "A" | "B") => {
+    if (editDisabledReason) {
+      setToast(editDisabledReason);
+      return;
+    }
+    setEditMode(true);
+    setKnowledgeMode(false);
+    setRightPanel(null);
+    const text = option ? t("userText.pickReviewOption", { label, issue, key: option, proposal }) : t("userText.acceptProposal", { label, issue, proposal });
+    void sendEditInstruction(text);
   };
   /** Đợi ô nhập render lại (chip đổi, chữ điền sẵn) rồi mới focus, con trỏ về cuối dòng. */
   const focusInputAtEnd = () => {
@@ -1855,7 +1929,9 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     stepNotStarted &&
     currentStep === "B-0.1" &&
     (ws.activeSession?.messages.length ?? 0) === 0 &&
-    (spine?.addendum.length ?? 0) === 0;
+    (spine?.addendum.length ?? 0) === 0 &&
+    // FLF-461: đã có đầu vào từ file ⇒ AI tự mở lời (flow2AutoStart), không bắt kể lại ý tưởng
+    !startsFromFile({ hasImportState: !!ws.project?.import_state, hasSystemNameFromFile: !!spine?.project.system_name?.trim() });
 
   /** FLF-432: thẻ "Tiếp tục" — bước tới lượt chưa chạy, không lượt nào đang chạy, phiên đã có hội thoại (`continue-card.ts`). */
   const showContinueCard = canShowContinueCard({
@@ -1884,8 +1960,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     // Đợi phiên pipeline + Spine tải xong — chạy sớm hơn thì runner báo "phiên chỉ để hỏi đáp" (NOT_PIPELINE_SESSION)
     !!(ws.pipelineSession?._id ?? (ws.isPipelineActive ? ws.activeSession?._id : null)) &&
     getBaseVersion() !== null &&
-    currentStep !== null &&
-    currentStep.startsWith("B-1.") &&
+    isFlow2OpeningStep(currentStep) &&
     (ws.activeSession?.messages.length ?? 0) === 0 &&
     !!spine?.project.system_name?.trim();
 
@@ -1957,7 +2032,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
   const interceptLanguageCommand = (text: string, via: LanguageCommandState["via"], intent?: RunIntent): boolean => {
     const target = parseLanguageCommand(text);
     // FLF-318: dự án tạo SRS đã chốt baseline chạy ở mode 1 nhưng không phải dự án tải file lên ⇒ vẫn đổi được ngôn ngữ
-    const languageLocked = mode1 && ws.project?.converted_from !== "fpt";
+    const languageLocked = isDocumentLanguageLocked(ws.project, mode1);
     const kind = languageCommandOutcome({ target, canEdit, mode1: languageLocked, current: documentLanguage });
     if (target === null || kind === "send") return false;
     const id = ++languageCommandSeq.current;
@@ -2293,6 +2368,7 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           onSelectStep={setSelectedStepId}
           reopenableStepIds={reopenableStepIds}
           readinessPercent={progress?.readiness.accepted_pct}
+          sectionTodo={progress?.section_progress ?? null}
         />
         </div>
         <ResizeHandle active={rail.resizing} onStart={rail.startResize} onReset={rail.reset} label={t("page.resizeRail")} />
@@ -2305,6 +2381,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <WorkspaceHeader
           project={ws.project}
           user={ws.user}
+          orgRole={ws.orgRole}
+          orgName={ws.orgName}
           progressHidden={!mode1 && !railShown}
           onShowProgress={toggleProgress}
           // FLF-221: không còn nút chạy — gõ chat là chạy
@@ -2473,6 +2551,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
               <NoticeTray collapsed={chatNeedsRoom}>
                 {/* Dự án tải file SRS lên: kết quả đọc chi tiết lệch màn đọc khung ⇒ báo một lần */}
                 {(mode1 || ws.project?.import_state) && <StructureChangeNotice projectId={projectId} />}
+                {/* Chế độ 4, bước 2.9a: xem trước bố cục mới, xác nhận rồi mới áp vào tài liệu */}
+                {ws.project?.import_state === "drafting" && <LayoutPreviewCard projectId={projectId} canEdit={canEdit} refreshKey={`${progress?.section_progress?.remaining ?? "-"}:${spineState.version ?? "-"}`} className="mx-3 mb-2" />}
                 {/* FLF-395: mẫu tổ chức của dự án có bản mới (Lead / Analyst) — "Để sau" chỉ ẩn trong phiên */}
                 {canChangeTemplate && (
                   <TemplateUpdateBanner
@@ -3066,6 +3146,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                 : undefined,
               rewriting: changes.applying && changes.previewSource !== "instruction",
               onEditSection: canEdit ? (label, issue) => startEditing(issue ? t("userText.editFlag", { label, issue }) : t("userText.editSection", { label })) : undefined,
+              // FLF-453: "Chấp nhận" / "Chọn phương án" của phát hiện rà soát — đi đúng đường lệnh sửa qua chat (thẻ xem trước, xác nhận)
+              onAcceptProposal: canEdit ? (label, issue, proposal, option) => acceptReviewProposal(label, issue, proposal, option) : undefined,
               onDraftSection: canEdit && requiredTemplate ? (label) => startEditing(t("userText.draftSection", { label })) : undefined,
               acceptedSteps,
             }}

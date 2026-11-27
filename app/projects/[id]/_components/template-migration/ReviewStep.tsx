@@ -4,10 +4,12 @@ import { useId, useState } from "react";
 import { useTranslations } from "next-intl";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import SearchInput from "@/components/ui/SearchInput";
 import MappingReview, { useSectionOptions, type MappingReviewHeading } from "@/components/org-template/mapping-review";
-import type { BatchAction, ConflictItem, EditedItem, ExtraItem, MappingEdit, Migration, MigrationDecision, PairEdit } from "@/types/template-migration";
+import { DROP_FROM_PRINT_CHOICE, type BatchAction, type ConflictItem, type EditedItem, type ExtraItem, type MappingEdit, type Migration, type MigrationDecision, type PairEdit, type PlaceTargetHint } from "@/types/template-migration";
 import BrokenLinksNotice from "./BrokenLinksNotice";
-import { useChoiceLabel } from "./choice-label";
+import { MOVE_KEY, moveTargetKindOf, useChoiceLabel, type MoveTargetKind } from "./choice-label";
+import { fold } from "./TargetPicker";
 
 interface ReviewStepProps {
   migration: Migration;
@@ -40,7 +42,9 @@ export default function ReviewStep({ migration, busy, onDecide, onEditPairs, onE
   const isTable = (i: ReviewItem) => i.group === "conflict" && (i.kind === "table_columns" || i.kind === "record_of_changes") && i.new_key !== null && i.confidence !== "guess";
   const detailed = items.filter((i) => !isTable(i));
   const compact = items.filter(isTable);
-  const toWrite = groups.missing.filter((m) => m.needs_content);
+  // Ô thống kê và tiêu đề danh sách cùng một con số: thẻ cần xem + dòng bảng đổi cột
+  const chosenDetail = [detailed.length > 0 && t("chosenDetail", { count: detailed.length }), compact.length > 0 && t("chosenTables", { count: compact.length })].filter(Boolean).join(" · ");
+  const toWrite = groups.missing.filter((m) => m.needs_content && !m.filled_from_spine);
   const mappingEditable = migration.direction === "forward" && migration.to.visibility === "project" && onEditMapping !== undefined;
   const pairBase = useId();
   // Mục của mẫu mới ghép được (bỏ heading phần tử ví dụ); mục đã có chủ khác bị khoá ở các dòng còn lại
@@ -52,10 +56,11 @@ export default function ReviewStep({ migration, busy, onDecide, onEditPairs, onE
     <div className="flex flex-col gap-5">
       <ul className="grid grid-cols-3 gap-2">
         <Stat value={groups.matched.length} label={t("stats.matched")} />
-        <Stat value={items.length} label={t("stats.chosen")} />
+        <Stat value={items.length} label={t("stats.chosen")} detail={chosenDetail} />
         <Stat value={toWrite.length} label={t("stats.toWrite")} tone="gold" />
       </ul>
       <p className="text-caption text-on-surface-muted">{t("free")}</p>
+      {items.length > 0 && <p className="text-caption text-on-surface-muted">{t("aiNote")}</p>}
 
       {migration.warnings.length > 0 && (
         <ul role="status" className="rounded-card bg-accent-gold-soft p-3 text-body text-accent-gold-text flex flex-col gap-1">
@@ -73,9 +78,15 @@ export default function ReviewStep({ migration, busy, onDecide, onEditPairs, onE
       )}
       {reverse && groups.edited_since.length > 0 && <EditedGroup items={groups.edited_since} migration={migration} busy={busy} onChoose={(id, choice) => onDecide({ decisions: [{ id, choice }] })} onBatch={(batch) => onDecide({ batch })} />}
 
+      {items.length > 0 && (
+        <div className="flex flex-wrap items-baseline gap-x-2">
+          <h4 className="text-body font-extrabold text-on-surface">{t("reviewTitle", { count: items.length })}</h4>
+          <span className="text-caption text-on-surface-muted">{chosenDetail}</span>
+        </div>
+      )}
+
       {detailed.length > 0 && (
-        <section aria-label={t("reviewTitle", { count: detailed.length })} className="flex flex-col gap-2">
-          <h4 className="text-body font-extrabold text-on-surface">{t("reviewTitle", { count: detailed.length })}</h4>
+        <section aria-label={t("chosenDetail", { count: detailed.length })} className="flex flex-col gap-2">
           <ul className="flex flex-col gap-2">
             {detailed.map((item) => (
               <ReviewRow key={item.id} item={item} migration={migration} busy={busy} onDecide={onDecide} onEditPairs={onEditPairs} />
@@ -171,21 +182,35 @@ const oldText = (m: Migration, key: string) => m.from.headings.find((h) => h.key
 const newText = (m: Migration, key: string | null) => (key ? (m.to.headings.find((h) => h.key === key)?.heading_text ?? key) : "");
 const decisionOf = (m: Migration, id: string): string | undefined => m.decisions.find((d) => d.id === id)?.choice;
 
-function Stat({ value, label, tone }: { value: number; label: string; tone?: "gold" }) {
+function Stat({ value, label, tone, detail }: { value: number; label: string; tone?: "gold"; detail?: string }) {
   return (
     <li className="rounded-control bg-surface-container-low px-3 py-2 flex flex-col">
       <span className={`text-subtitle font-extrabold ${tone === "gold" && value > 0 ? "text-accent-gold-text" : "text-on-surface"}`}>{value}</span>
       <span className="text-caption text-on-surface-muted">{label}</span>
+      {detail && <span className="text-caption text-on-surface-muted">{detail}</span>}
     </li>
   );
 }
 
-/** Mục mới chưa có cặp (mục thiếu) mà mục thừa ghép được — trừ mục đã là lựa chọn "chuyển vào". */
+const MOVE_PREFIX = "move_to:";
+/** Từ số mục đích này trở lên thì có ô tìm trong danh sách (mẫu lớn có ≈ 46 mục). */
+const SEARCH_FROM = 10;
+const MOVE_GROUPS: readonly MoveTargetKind[] = ["empty", "filled", "group"];
+
+/**
+ * Mục của mẫu mới chưa có chủ mà mục thừa ghép cặp được (sửa cặp qua PATCH pairs) — trừ mục đã là lựa chọn "chuyển vào", heading phần
+ * tử ví dụ, heading con gộp vào mục cha và mục đã ghép / tách cho mục cũ khác (BE cấm hai mục cũ cùng một đích).
+ */
 const pairTargets = (m: Migration, item: ReviewItem): string[] => {
   if (item.group !== "extra") return [];
-  const moves = new Set(item.choices.filter((c) => c.startsWith("move_to:")).map((c) => c.slice("move_to:".length)));
-  return m.groups.missing.map((x) => x.new_key).filter((k) => !moves.has(k));
+  const moves = new Set(item.choices.filter((c) => c.startsWith(MOVE_PREFIX)).map((c) => c.slice(MOVE_PREFIX.length)));
+  const taken = new Set([...m.pairing.ignored_new, ...(m.pairing.children ?? []), ...m.pairing.split.flatMap((s) => s.new_keys)]);
+  for (const p of m.pairing.pairs) if (p.new_key) taken.add(p.new_key);
+  return m.to.headings.map((h) => h.key).filter((k) => !moves.has(k) && !taken.has(k));
 };
+
+/** Mục đích của lựa chọn `move_to:<k>` / `to:<k>`; lựa chọn khác ⇒ `null`. */
+const targetOf = (choice: string | undefined): string | null => (choice && /^(move_to|to):/.test(choice) ? choice.slice(choice.indexOf(":") + 1) : null);
 
 /** Câu "vì sao" ngắn theo lý do của BE (dòng bản ghi cũ không có lý do ⇒ không hiện). */
 function useReason(m: Migration) {
@@ -193,24 +218,30 @@ function useReason(m: Migration) {
   return (item: ReviewItem): string | null => {
     const reason = item.suggested_reason;
     if (!reason) return null;
-    if (reason === "close_name") return t("close_name", { target: newText(m, item.suggested?.replace(/^move_to:/, "") ?? null) });
+    const target = newText(m, targetOf(item.suggested));
+    if (reason === "close_name" || reason === "same_data") return t(reason, { target });
+    if (reason === "best_fit") return item.suggested === "distribute" || !target ? t("best_fit_distribute") : t("best_fit", { target });
     if (reason === "first_heading") return t("first_heading", { count: item.group === "conflict" ? item.candidate_keys.length : 2 });
     return t(reason);
   };
 }
 
-/** Hậu quả của lựa chọn đang hiệu lực, một câu. */
+/** Hậu quả của lựa chọn đang hiệu lực, một câu. `pairKey`: mục của mẫu mới đang ghép với dòng (cho "Giữ cặp hiện tại"). */
 function useConsequence(m: Migration) {
   const t = useTranslations("mode1.templateMigration.consequence");
-  return (choice: string | undefined): string | null => {
+  const kindOf = moveTargetKindOf(m);
+  return (choice: string | undefined, pairKey: string | null): string | null => {
     if (!choice) return null;
     if (choice.startsWith(PAIR_PREFIX)) return t("pair", { target: newText(m, choice.slice(PAIR_PREFIX.length)) });
+    if (choice === "keep_pair") return t("keep_pair", { target: newText(m, pairKey) });
     const sep = choice.indexOf(":");
     if (sep > 0) {
       const kind = choice.slice(0, sep);
-      return kind === "move_to" || kind === "to" ? t(kind, { target: newText(m, choice.slice(sep + 1)) }) : null;
+      const key = choice.slice(sep + 1);
+      if (kind === "move_to") return t(MOVE_KEY[kindOf(key)], { target: newText(m, key) });
+      return kind === "to" ? t(kind, { target: newText(m, key) }) : null;
     }
-    return ["drop_from_print", "keep_custom", "delete", "map_by_header", "keep_old_table", "ai_resolve"].includes(choice) ? t(choice as "delete") : null;
+    return ["drop_from_print", "keep_custom", "delete", "map_by_header", "keep_old_table", "ai_resolve", "distribute"].includes(choice) ? t(choice as "delete") : null;
   };
 }
 
@@ -230,7 +261,35 @@ function ReviewRow({ item, migration, busy, onDecide, onEditPairs }: RowProps & 
   const value = decided ?? item.suggested;
   const guessOpen = item.confidence === "guess" && decided === undefined;
   const title = item.group === "extra" ? item.heading_text : oldText(migration, item.old_key);
+  const kindOf = moveTargetKindOf(migration);
+  const [query, setQuery] = useState("");
+  // Nhóm Thừa không còn "Xoá" (BE đã bỏ; lọc phòng BE cũ): xoá hẳn nội dung thì tạo CR sau khi áp mẫu
+  const visible = item.choices.filter((c) => !(item.group === "extra" && c === "delete"));
+  // Gợi ý: các mục BE chấm điểm cao nhất (bản ghi cũ không có ⇒ không có nhóm này), chỉ lấy mục là lựa chọn hợp lệ của dòng
+  const hints = (item.targets ?? []).flatMap((hint): { hint: PlaceTargetHint; choice: string }[] => {
+    const choice = [`${MOVE_PREFIX}${hint.new_key}`, `to:${hint.new_key}`].find((c) => visible.includes(c));
+    return choice ? [{ hint, choice }] : [];
+  });
+  const hinted = new Set(hints.map((h) => h.choice));
+  const plain = visible.filter((c) => !c.startsWith(MOVE_PREFIX) && !hinted.has(c));
+  const moves = visible.filter((c) => c.startsWith(MOVE_PREFIX) && !hinted.has(c));
   const pairs = pairTargets(migration, item);
+  const searchable = moves.length + pairs.length >= SEARCH_FROM;
+  const q = fold(query.trim());
+  // Lựa chọn đang hiệu lực luôn còn trong danh sách để ô chọn không hiện sai khi đang lọc
+  const shown = (choice: string, key: string) => !q || choice === value || fold(newText(migration, key)).includes(q);
+  const moveGroups = MOVE_GROUPS.map((kind) => ({ kind, list: moves.filter((c) => kindOf(c.slice(MOVE_PREFIX.length)) === kind && shown(c, c.slice(MOVE_PREFIX.length))) })).filter((g) => g.list.length > 0);
+  const shownPairs = pairs.filter((k) => shown(`${PAIR_PREFIX}${k}`, k));
+  const droppedData = value === DROP_FROM_PRINT_CHOICE && (item.data_size ?? 0) > 0 ? item.data_size! : 0;
+  const consequence = consequenceOf(value, item.group === "conflict" ? item.new_key : null);
+
+  const option = (c: string, why?: string) => (
+    <option key={c} value={c}>
+      {label(c)}
+      {why ? ` · ${why}` : ""}
+      {item.ai_choices.includes(c) || c === "ai_resolve" ? ` ${t("aiSuffix")}` : ""}
+    </option>
+  );
 
   const onChange = (v: string) => {
     if (v.startsWith(PAIR_PREFIX)) onEditPairs([{ old_key: item.old_key, new_key: v.slice(PAIR_PREFIX.length) }]);
@@ -247,6 +306,7 @@ function ReviewRow({ item, migration, busy, onDecide, onEditPairs }: RowProps & 
             </label>
             {item.confidence && <Badge tone={item.confidence === "guess" ? "warning" : "neutral"}>{t(item.confidence === "guess" ? "guess" : "suggested")}</Badge>}
             {item.group === "conflict" && item.kind === "split_section" && <Badge tone="info">{t("split")}</Badge>}
+            {item.group === "conflict" && item.kind === "placement" && <Badge tone="info">{t("placement")}</Badge>}
           </span>
           {reason && <span className="text-caption text-on-surface-muted break-words">{reason}</span>}
         </div>
@@ -258,14 +318,14 @@ function ReviewRow({ item, migration, busy, onDecide, onEditPairs }: RowProps & 
           className="h-9 w-full sm:w-[300px] rounded-control bg-surface-container-lowest px-2 text-body text-on-surface outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
         >
           {value === undefined && <option value="">{t("pick")}</option>}
-          {/* Nhóm Thừa không còn "Xoá" (BE đã bỏ; lọc phòng BE cũ): xoá hẳn nội dung thì tạo CR sau khi áp mẫu */}
-          {item.choices.filter((c) => !(item.group === "extra" && c === "delete")).map((c) => (
-            <option key={c} value={c}>
-              {label(c)}
-              {item.ai_choices.includes(c) || c === "ai_resolve" ? ` ${t("aiSuffix")}` : ""}
-            </option>
+          {plain.map((c) => option(c))}
+          {hints.length > 0 && <optgroup label={t("targetGroups.suggested")}>{hints.map(({ hint, choice }) => option(choice, hint.why.map((w) => t(`why.${w}`)).join(", ")))}</optgroup>}
+          {moveGroups.map((g) => (
+            <optgroup key={g.kind} label={t(`targetGroups.${g.kind}`)}>
+              {g.list.map((c) => option(c))}
+            </optgroup>
           ))}
-          {pairs.map((k) => (
+          {shownPairs.map((k) => (
             <option key={k} value={`${PAIR_PREFIX}${k}`}>
               {t("pairWith", { target: newText(migration, k) })}
             </option>
@@ -277,7 +337,11 @@ function ReviewRow({ item, migration, busy, onDecide, onEditPairs }: RowProps & 
           </Button>
         )}
       </div>
-      {consequenceOf(value) && <p className="text-caption text-on-surface-variant break-words">{consequenceOf(value)}</p>}
+      {searchable && (
+        <SearchInput value={query} onChange={setQuery} label={t("searchTargets")} placeholder={t("searchPlaceholder", { count: moves.length + hints.length + pairs.length })} className="w-full sm:w-[300px] sm:self-end" />
+      )}
+      {consequence && <p className="text-caption text-on-surface-variant break-words">{consequence}</p>}
+      {droppedData > 0 && <p className="text-caption font-semibold text-accent-gold-text">{t("dropData", { count: droppedData })}</p>}
     </li>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DOCUMENT_LANGUAGE_NAME, isDocumentLanguage, knownDocumentLanguage, resolvedDocumentLanguage, shownDocumentLanguage, translationMetaOf } from "./document-language";
+import { DOCUMENT_LANGUAGE_NAME, isDocumentLanguage, isDocumentLanguageLocked, knownDocumentLanguage, resolvedDocumentLanguage, shownDocumentLanguage, translationMetaOf } from "./document-language";
 
 describe("document-language (FLF-265)", () => {
   it("tên ngôn ngữ viết bằng chính ngôn ngữ đó; chỉ nhận vi | en", () => {
@@ -53,5 +53,17 @@ describe("document-language (FLF-265)", () => {
     expect(shownDocumentLanguage({ locale: "vi", source_locale: "en", missing: 0 }, "en")).toBe("vi");
     expect(shownDocumentLanguage(null, "en")).toBe("en");
     expect(shownDocumentLanguage(null, null)).toBeNull();
+  });
+});
+
+describe("isDocumentLanguageLocked (FLF-456)", () => {
+  it("theo cờ BE: dự án mode fpt có file nền bị khoá dù không phải mode 1", () => {
+    expect(isDocumentLanguageLocked({ document_language_locked: true, converted_from: null }, false)).toBe(true);
+    expect(isDocumentLanguageLocked({ document_language_locked: false, converted_from: null }, true)).toBe(false);
+  });
+  it("BE cũ chưa trả cờ ⇒ suy như trước (mode 1 không chuyển từ tạo SRS)", () => {
+    expect(isDocumentLanguageLocked({ converted_from: null }, true)).toBe(true);
+    expect(isDocumentLanguageLocked({ converted_from: "fpt" }, true)).toBe(false);
+    expect(isDocumentLanguageLocked(null, false)).toBe(false);
   });
 });

@@ -982,6 +982,9 @@
         "drop": "Kéo thả file vào đây hoặc bấm để chọn",
         "addMore": "Thêm file"
       },
+      "google": {
+        "chosen": "Google Docs: {name}"
+      },
       "orgTemplates": {
         "uploadNew": "Tải mẫu lên thư viện",
         "toggle": "Hoặc chọn từ mẫu của tổ chức ({count})",
@@ -1609,7 +1612,18 @@
       "account": "Tài khoản",
       "credits": "credits",
       "more": "Thao tác khác",
-      "secondaryActions": "Thao tác khác của dự án"
+      "secondaryActions": "Thao tác khác của dự án",
+      "rolePrefix": "Vai trò của bạn",
+      "role": {
+        "lead": "Lead",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      },
+      "roleHint": {
+        "lead": "Bạn là Lead: duyệt và chốt baseline cho dự án",
+        "analyst": "Bạn là Analyst: soạn và sửa tài liệu, Lead duyệt và chốt baseline",
+        "viewer": "Bạn là Viewer: chỉ đọc tài liệu và góp ý bằng comment"
+      }
     },
     "phaseHeader": {
       "done": "Hoàn tất",
@@ -1694,7 +1708,7 @@
       "emptyTitle": "Bắt đầu bước hiện tại",
       "emptyBody": "Gõ vào ô chat để AI bắt đầu: AI hỏi phần còn thiếu rồi soạn nháp. Có thể đính kèm tài liệu tham khảo.",
       "notPipeline": "Phiên này không phải phiên pipeline - lệnh sửa gõ bên dưới sẽ gửi thẳng vào Change panel để xem trước rồi xác nhận.",
-      "editPlaceholder": "Mô tả chỗ cần sửa, vd: Đổi tên actor A03 thành Administrator",
+      "editPlaceholder": "Mô tả chỗ cần sửa, vd: Đổi tên tác nhân Quản trị thành Administrator",
       "stepDivider": "Bắt đầu bước {step}",
       "knowledgePending": "Đang tra kho tri thức…",
       "sideSession": "Phiên hỏi đáp - hỏi AI về dự án, hoặc bật \"Sửa tài liệu\" để sửa. Quy trình soạn tài liệu chạy ở phiên chính.",
@@ -2025,6 +2039,10 @@
       "redrawCheckFailed": "Đã vẽ lại nhưng không kiểm lại được cờ. Bấm “Kiểm tra lại toàn bộ tài liệu” để thử lại.",
       "editInChatTitle": "Gõ lệnh sửa cho mục này trong chat",
       "editInChat": "Sửa trong chat",
+      "acceptTitle": "Áp dụng đề xuất của AI: bạn sẽ xem bản xem trước thay đổi rồi mới xác nhận",
+      "accept": "Chấp nhận",
+      "pickOptionTitle": "Áp dụng phương án {key}: bạn sẽ xem bản xem trước thay đổi rồi mới xác nhận",
+      "pickOption": "Chọn phương án {key}",
       "sectionsSteps": "{sections} mục · {steps} bước",
       "showMore": "Xem thêm {count}",
       "listAria": "Danh sách vấn đề",
@@ -2227,7 +2245,7 @@
     "change": {
       "title": "Sửa qua lệnh",
       "instruction": "Lệnh sửa",
-      "placeholder": "Ví dụ: Đổi tên actor A03 thành Administrator",
+      "placeholder": "Ví dụ: Đổi tên tác nhân Quản trị thành Administrator",
       "previewing": "Đang xem trước…",
       "preview": "Xem trước thay đổi",
       "clarify": "Cần làm rõ",
@@ -2752,7 +2770,20 @@
       "collapseAll": "Thu gọn tất cả bước",
       "expandAll": "Mở rộng tất cả bước",
       "readinessHint": "Phần mục bắt buộc của SRS đã được bạn duyệt xong",
-      "readiness": "Tài liệu đã chốt"
+      "readiness": "Tài liệu đã chốt",
+      "sectionsLeft": "Mục còn cần xử lý",
+      "sectionsLeftValue": "{remaining} / {total}",
+      "sectionsLeftHint": "Các mục file còn thiếu mà FlintFlow chưa soạn xong"
+    },
+    "layoutPreview": {
+      "title": "Xem trước bố cục mới",
+      "intro": "Mục soạn thêm được chèn đúng vị trí chuẩn, mục Ngoài phạm vi chuyển xuống cuối và giữ nguyên chữ. Tài liệu chưa đổi gì cho tới khi bạn xác nhận.",
+      "originAdded": "Soạn thêm",
+      "originOutOfScope": "Ngoài phạm vi, chuyển xuống cuối",
+      "confirm": "Xác nhận bố cục",
+      "confirming": "Đang xác nhận...",
+      "confirmed": "Đã xác nhận bố cục. Tài liệu từ giờ theo bố cục này.",
+      "failed": "Chưa xác nhận được bố cục. Bạn thử lại nhé."
     },
     "runProgress": {
       "aria": "Tiến trình bước",
@@ -2881,6 +2912,8 @@
       "fixFlag": "Sửa giúp tôi theo đề xuất cho vấn đề này: {message}",
       "editSection": "Trong {label}: ",
       "editFlag": "Trong {label}: sửa vấn đề \"{issue}\" ",
+      "acceptProposal": "Trong {label}: sửa vấn đề \"{issue}\" theo đề xuất sau: {proposal}",
+      "pickReviewOption": "Trong {label}: sửa vấn đề \"{issue}\" theo phương án {key}: {proposal}",
       "fixComment": "Trong {label}, sửa theo góp ý: {text}",
       "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. "
     },
@@ -2923,16 +2956,20 @@
       "scope": {
         "after_brief": "Soạn phần còn lại của SRS sau khi chốt Brief",
         "screens_locked": "Soạn chi tiết các màn đã chốt",
-        "screens_added": "Soạn chi tiết các màn mới thêm"
+        "screens_added": "Soạn chi tiết các màn mới thêm",
+        "reference_documents": "Đọc tài liệu tham khảo trước khi hỏi ý tưởng"
       },
       "screenRange": "Phần màn là ước tính: khoảng {min} đến {max} màn, ~{creditsMin} đến ~{creditsMax} credit. Số chính xác sẽ báo khi chốt danh sách màn.",
-      "unitLine": "Giai đoạn {unit} · {steps, plural, =1 {1 bước} other {# bước}}",
+      "unitFallback": "Giai đoạn {unit}",
+      "unitLine": "{name} · {steps, plural, =1 {1 bước} other {# bước}}",
       "attachmentsTitle": "Đọc {count, plural, =1 {1 tài liệu đính kèm} other {# tài liệu đính kèm}}",
       "pdfNote": "PDF: bảng nhiều cột có thể bị đọc lộn thứ tự, PDF scan không đọc được chữ. Gặp hai trường hợp này, hãy gửi bản .docx.",
       "creditsRange": "~{min}–{max} credit",
       "totalRange": "Tổng ước tính: ~{min}–{max} credit",
+      "referenceLine": "Đọc {count, plural, =1 {1 tài liệu tham khảo} other {# tài liệu tham khảo}}",
       "screenRangeLine": "Chi tiết màn hình · khoảng {min}–{max} màn",
       "screenRangeNote": "Số màn hình là ước tính theo Brief. Con số chính xác có sau bước Danh sách màn hình.",
+      "screenRangeNoteScale": "Số màn hình ước tính theo số use case ghi trong Brief. Con số chính xác có sau bước Danh sách màn hình.",
       "shortRange": "Số dư đủ nếu dự án ít màn, có thể thiếu nếu nhiều màn. AI sẽ dừng khi hết credit, phần đã xong không tính lại.",
       "estimateFailed": "Chưa ước tính được credit. Bấm Chạy để soạn tiếp, AI dừng khi hết credit."
     },
@@ -2953,6 +2990,8 @@
       "loading": "Đang tải không gian làm việc SRS",
       "convertedNotice": "Baseline đã chốt - dự án chuyển sang chế độ quản lý thay đổi, mọi chỉnh sửa đi qua Change Request",
       "redrawNotFound": "Không tìm thấy sơ đồ này - tải lại trang rồi thử lại.",
+      "redrawTimeout": "Đang vẽ lại lâu hơn dự kiến - tải lại tài liệu để xem kết quả.",
+      "redrawSkipped": "Sơ đồ này chưa vẽ lại được - bấm Vẽ lại ở Kiểm & chốt.",
       "redrawFailed": "Không vẽ lại được sơ đồ",
       "turnNeedsInput": "AI đang chờ bạn trả lời",
       "turnGateReady": "Có nội dung mới chờ bạn duyệt",
@@ -3382,6 +3421,7 @@
         },
         "credit": {
           "estimate": "Dự kiến ~<strong>{credits} credit</strong>",
+          "referenceNote": "Đã gồm {count} tài liệu tham khảo đọc cùng lượt này ({credits} credit)",
           "none": "Đọc file này không tốn credit",
           "unknown": "Chưa tính được credit dự kiến",
           "balance": "bạn còn {balance}",
@@ -3390,7 +3430,11 @@
         },
         "start": "Bắt đầu",
         "starting": "Đang bắt đầu…",
-        "unsureKind": "FlintFlow chưa chắc đây là tài liệu SRS. Bạn vẫn bắt đầu được - hãy xem kỹ các mục bên dưới, hoặc chọn file khác."
+        "unsureKind": "FlintFlow chưa chắc đây là tài liệu SRS. Bạn vẫn bắt đầu được - hãy xem kỹ các mục bên dưới, hoặc chọn file khác.",
+        "foreignProject": {
+          "named": "File này lấy từ dự án \"{name}\" - FlintFlow coi đây là file mới, mọi mục mặc định được đặt ở trạng thái Bỏ chữ, bạn chọn lại mục nào muốn giữ nội dung.",
+          "unnamed": "File này lấy từ một dự án FlintFlow khác - FlintFlow coi đây là file mới, mọi mục mặc định được đặt ở trạng thái Bỏ chữ, bạn chọn lại mục nào muốn giữ nội dung."
+        }
       },
       "progress": {
         "title": "FlintFlow đang đọc file",
@@ -3488,6 +3532,12 @@
           "isGuidance": "Là chữ hướng dẫn",
           "isContent": "Là nội dung thật"
         },
+        "fields": {
+          "title": "Chỗ FlintFlow đọc chưa chắc",
+          "confidence": "Độ tin {percent}%",
+          "keep": "Giữ giá trị này",
+          "drop": "Bỏ"
+        },
         "mismatch": {
           "title": "Mục có tên khác với nội dung bên trong",
           "body": "Mục này tên là \"{heading}\" nhưng nội dung đọc được lại thuộc loại khác.",
@@ -3516,7 +3566,13 @@
         "resume": "Tiếp tục rà soát",
         "stop": "Dừng",
         "pausedCredits": "Vòng rà soát tạm dừng vì hết credit. Phần đã xong được giữ nguyên - nạp thêm credit rồi bấm Tiếp tục rà soát.",
-        "pausedError": "Vòng rà soát bị gián đoạn. Phần đã xong được giữ nguyên - bấm Tiếp tục rà soát để chạy lại."
+        "pausedError": "Vòng rà soát bị gián đoạn. Phần đã xong được giữ nguyên - bấm Tiếp tục rà soát để chạy lại.",
+        "optionalTitle": "Rà thêm bằng AI cho từng mục",
+        "optionalBody": "Các mục dưới đây chỉ được kiểm theo luật, không tốn credit. Muốn AI rà thêm mục nào thì bấm cho mục đó; phát hiện (nếu có) hiện trong danh sách cờ.",
+        "sectionRun": "Rà soát bằng AI",
+        "sectionCredit": "Dự kiến ~{credits} credit",
+        "sectionConfirm": "Xác nhận rà soát",
+        "sectionCancel": "Huỷ"
       },
       "creating": {
         "title": "Đang chuẩn bị dự án",
@@ -3530,6 +3586,37 @@
         "fileFailed": "Chưa tải được {name}",
         "fileDuplicate": "{name}: {message}",
         "dismiss": "Đóng"
+      },
+      "relabel": {
+        "title": "Nhãn từng mục",
+        "hint": "FlintFlow khớp mỗi mục của file với mẫu chuẩn. Mục khớp chưa chắc được đánh dấu để bạn xem lại; bạn có thể đổi mục khớp hoặc đưa mục vào / ra Ngoài phạm vi. Đổi ở đây không tốn credit và không gọi AI.",
+        "featuredLabel": "Các mục cần xem hoặc đã đổi nhãn",
+        "uncertain": "Chưa chắc",
+        "needsReview": "Cần xem",
+        "guess": "Có thể là {title}?",
+        "scope": {
+          "out_of_scope": "Bạn đặt là Ngoài phạm vi",
+          "in_scope": "Bạn đặt là Trong phạm vi"
+        },
+        "matchLabel": "Khớp với",
+        "matchAria": "Đổi mục khớp của {title}",
+        "matchKeep": "Giữ nguyên",
+        "ownSection": "Mục riêng của file",
+        "moveOut": "Đưa ra Ngoài phạm vi",
+        "moveIn": "Đưa vào phạm vi",
+        "resetScope": "Để hệ thống tự phân loại",
+        "others": "Đổi nhãn các mục khác ({count})"
+      },
+      "outOfScope": {
+        "title": "Ngoài phạm vi",
+        "hint": "{count, plural, one {Mục này không thuộc} other {Các mục này không thuộc}} tài liệu đặc tả yêu cầu phần mềm theo ISO/IEC/IEEE 29148 (ví dụ dự toán chi phí). FlintFlow giữ nguyên chữ, không soạn, không kiểm tra và không tính vào mức sẵn sàng. Muốn sửa chữ trong mục, bạn nhắn yêu cầu trong chat.",
+        "listLabel": "Các mục ngoài phạm vi"
+      },
+      "skeletonLanguage": {
+        "title": "Ngôn ngữ tài liệu",
+        "hint": "Không mục nào giữ nội dung, file chỉ còn khung. Chọn ngôn ngữ cho tài liệu của bạn. Nếu khác ngôn ngữ của file, tiêu đề mục, tiêu đề cột bảng và chữ hướng dẫn được dịch một lần khi bạn bấm Bắt đầu; phần dịch đã nằm trong số credit bên dưới.",
+        "fileLanguage": "File đang viết bằng {language}",
+        "translating": "Khung sẽ được dịch sang {language} khi bạn bấm Bắt đầu."
       },
       "absorb": {
         "documentLabel": "Tài liệu của bạn",
@@ -3576,6 +3663,7 @@
     "structureChanges": {
       "nowEmpty": "Sau khi đọc chi tiết, {count, plural, one {mục {names} thực ra còn trống} other {các mục {names} thực ra còn trống}} - đã thêm vào danh sách cần soạn / bổ sung.",
       "nowFilled": "Sau khi đọc chi tiết, {count, plural, one {mục {names} đã có nội dung} other {các mục {names} đã có nội dung}} - không cần soạn thêm.",
+      "nowOutOfScope": "Kết quả cuối khác bản sơ bộ: {count, plural, one {mục {names} thuộc} other {các mục {names} thuộc}} Ngoài phạm vi - giữ nguyên chữ, không soạn và không kiểm tra.",
       "other": "Sau khi đọc chi tiết, {count, plural, one {mục {names} khác} other {các mục {names} khác}} với màn đọc khung.",
       "dismiss": "Đóng thông báo"
     },
@@ -4836,7 +4924,9 @@
         "aliases": "Tên khác",
         "actor_id": "Tác nhân",
         "actor_ids": "Tác nhân",
+        "platforms": "Nền tảng",
         "function_ids": "Chức năng liên quan",
+        "feature_ids": "Tính năng liên quan",
         "includes": "Include",
         "extends": "Extend",
         "feature_id": "Tính năng",
@@ -5033,6 +5123,10 @@
         "tier": {
           "high": "Tổng quát",
           "detail": "Chi tiết"
+        },
+        "platform": {
+          "web": "Ứng dụng web",
+          "mobile": "Ứng dụng di động"
         },
         "status": {
           "unconfirmed": "Chưa xác nhận",
@@ -5445,7 +5539,13 @@
       "noText": "Không đọc được chữ trong file",
       "legacyDoc": "Chưa đọc được file .doc, hãy lưu lại thành .docx",
       "imagesSkipped": "Hình / sơ đồ trong file không được đọc",
-      "confirmBatches": "Tài liệu dài, AI đọc thành {batches} lượt, tốn ~{credits} credit. Chạy chứ?"
+      "confirmBatches": "Tài liệu dài, AI đọc thành {batches} lượt, tốn ~{credits} credit. Chạy chứ?",
+      "summaryPending": "chưa đọc bằng AI",
+      "summarize": "Đọc bằng AI",
+      "summarizing": "Đang đọc…",
+      "summarizeFailed": "Không đọc được tài liệu",
+      "confirmSummarizeAria": "Xác nhận credit trước khi AI đọc tài liệu",
+      "confirmSummarize": "AI đọc và tóm tắt tài liệu này, tốn ~{credits} credit. Chạy chứ?"
     },
     "extraction": {
       "aria": "Danh sách yêu cầu rút từ {name}",
@@ -5591,8 +5691,12 @@
         "keep_old_table": "Giữ bảng cũ",
         "ai_resolve": "Để AI sắp xếp",
         "move_to": "Chuyển vào “{target}”",
+        "move_to_filled": "Gộp vào “{target}” (sau nội dung đang có)",
+        "move_to_group": "Thêm thành mục con cuối của “{target}”",
         "to": "Đặt vào “{target}”",
-        "drop_from_print": "Không in ra"
+        "drop_from_print": "Không in ra",
+        "keep_pair": "Giữ cặp hiện tại",
+        "distribute": "Chia theo từng yêu cầu"
       },
       "missing": {
         "aria": "Mục thiếu sau khi đổi mẫu",
@@ -5654,7 +5758,26 @@
         "undecided": "Còn {count} mục cần xác nhận",
         "continue": "Tiếp tục",
         "split": "Mục bị tách",
-        "unpair": "Không ghép"
+        "unpair": "Không ghép",
+        "placement": "Ghép chưa đúng nghĩa",
+        "chosenDetail": "{count} cần xem",
+        "chosenTables": "{count} bảng đổi cột",
+        "aiNote": "Chỉ bảng đổi cột, mục bị tách, bảng lịch sử và mục chữ tự do chuyển vào mục có cấu trúc mới có lựa chọn dùng AI (tính credit khi áp dụng). Các lựa chọn khác chỉ đổi chỗ in, không dùng AI.",
+        "dropData": "{count} phần tử sẽ không in",
+        "searchTargets": "Tìm mục trong mẫu mới",
+        "searchPlaceholder": "Tìm trong {count} mục của mẫu mới",
+        "targetGroups": {
+          "suggested": "Gợi ý",
+          "empty": "Mọi mục của mẫu mới · mục trống",
+          "filled": "Mọi mục của mẫu mới · đã có nội dung",
+          "group": "Mọi mục của mẫu mới · mục con mới của nhóm"
+        },
+        "why": {
+          "same_section": "cùng loại mục",
+          "guidance": "khớp hướng dẫn",
+          "data_fit": "hợp loại dữ liệu",
+          "title": "tên giống"
+        }
       },
       "reasons": {
         "no_place": "Mẫu mới không có chỗ cho mục này",
@@ -5662,14 +5785,22 @@
         "map_columns": "Bảng của mẫu mới có cột khác",
         "no_table_in_new": "Mục này trong mẫu mới không có bảng",
         "keep_history": "Bảng lịch sử của mẫu mới có cột khác",
-        "first_heading": "Mẫu mới chia mục này làm {count}"
+        "first_heading": "Mẫu mới chia mục này làm {count}",
+        "best_fit": "Hợp nghĩa nhất với “{target}” (tên, hướng dẫn, loại dữ liệu)",
+        "best_fit_distribute": "Các yêu cầu của mục này hợp với nhiều mục khác nhau của mẫu mới",
+        "same_data": "“{target}” đã in đúng dữ liệu này, gộp vào để không in hai lần",
+        "kept_for_data": "Không mục nào của mẫu mới hợp mà mục này có dữ liệu, nên giữ thành mục riêng"
       },
       "consequence": {
         "drop_from_print": "Bản xuất không còn mục này. Dữ liệu vẫn lưu, hiện lại khi hoàn tác.",
         "keep_custom": "In thành mục riêng ở cuối phần gần nhất.",
         "delete": "Xoá hẳn nội dung mục này khỏi tài liệu.",
         "move_to": "Nội dung in dưới “{target}”.",
+        "move_to_filled": "Nội dung in sau phần đang có của “{target}”.",
+        "move_to_group": "In thành mục con cuối của “{target}”.",
         "to": "Nội dung in dưới “{target}”.",
+        "keep_pair": "Giữ ghép với “{target}”.",
+        "distribute": "Mỗi yêu cầu in dưới mục hợp nghĩa nhất của mẫu mới.",
         "map_by_header": "Xếp lại theo cột của mẫu mới, cột chưa có dữ liệu để trống.",
         "keep_old_table": "Giữ nguyên bảng cũ.",
         "ai_resolve": "AI sắp xếp, tính credit khi áp dụng.",
@@ -5690,6 +5821,8 @@
           "drop": "Không in bảng"
         },
         "from": "từ “{from}”",
+        "partDistributed": "{heading} (một phần)",
+        "fromSpine": "In từ dữ liệu",
         "droppedMore": "và {count} mục khác",
         "credit": "Chi phí",
         "creditTranslation": "Dịch ({batches} lô)",

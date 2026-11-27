@@ -385,6 +385,8 @@ export interface UseStepRunnerOptions {
   onStoppedAfterRerun?: (doneStep: string, nextStep: string | null) => void;
   /** Sau `revision`: lời AI (`message_vi`) nói đã sửa gì — gọi trước khi bước chạy lại. */
   onRevisionMessage?: (message: string, stepId: string) => void;
+  /** FLF-482: BE báo lời sửa nằm ngoài mục của bước ⇒ mở Sửa tài liệu với câu user (sau khi thẻ cổng đã dựng lại). */
+  onRouteToChange?: (instruction: string, stepId: string) => void;
   /**
    * Không còn SSE (`source: "restored"`): lời AI của lượt chạy ở nền chỉ nằm trong transcript, không tới qua sự kiện `elicit`.
    * Lượt nền đổi trạng thái (hỏi tiếp / tới cổng / gián đoạn) ⇒ gọi để tải lại phiên chat, lời đáp hiện ngay thay vì phải
@@ -484,7 +486,7 @@ const trackAwaiting = () => {
   };
 };
 
-export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onStoppedAfterRerun, onRevisionMessage, beforePhaseRun, onCreditAckRequired, onTranscriptChanged, myUserId = null }: UseStepRunnerOptions) {
+export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onStoppedAfterRerun, onRevisionMessage, onRouteToChange, beforePhaseRun, onCreditAckRequired, onTranscriptChanged, myUserId = null }: UseStepRunnerOptions) {
   const [state, dispatch] = useReducer(stepRunnerReducer, initialRunnerState);
   const meRef = useRef<string | null>(myUserId);
   useEffect(() => {
@@ -863,6 +865,8 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         const stopHere = standaloneRef.current || res.data?.rerun === true;
         if (action === "regenerate" || action === "revision") {
           await runStepTurn(stepId);
+          const routed = action === "revision" ? res.data?.route_to_change?.instruction?.trim() : undefined;
+          if (routed) onRouteToChange?.(routed, stepId);
         } else if (phaseRef.current && !standaloneRef.current) {
           // Đang chạy liền cả giai đoạn: duyệt xong là đi tiếp ngay. Duyệt cổng chốt CUỐI giai đoạn ⇒ tự chạy luôn
           // giai đoạn kế (FLF-221) — trước đây chuỗi chỉ trả "Đã xong giai đoạn" và user phải tự khởi động lại.
@@ -926,7 +930,7 @@ export function useStepRunner({ projectId, sessionId, getBaseVersion, onSpineCha
         return "failed";
       }
     },
-    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onStoppedAfterRerun, onRevisionMessage, runStepTurn, runPhaseTurn, restore, allowPhaseRun]
+    [projectId, sessionId, getBaseVersion, onSpineChanged, onGateDone, onStoppedAfterRerun, onRevisionMessage, onRouteToChange, runStepTurn, runPhaseTurn, restore, allowPhaseRun]
   );
 
   /** Huỷ lượt đang chạy: BE nhả khoá và abort request tới model; FE đóng stream (BUG-05). */

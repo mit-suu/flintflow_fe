@@ -184,7 +184,7 @@ export default function TemplateMigrationScreen({ projectId, orgId, orgRole, fla
           <MissingSectionsCard
             projectId={projectId}
             canWrite={orgRole !== "viewer"}
-            items={openMigrationMissing(flags).map((f) => ({
+            items={openMigrationMissing(flags, current.groups.missing).map((f) => ({
               id: f.id,
               // Tài liệu trong workspace có thể chưa đọc lại sau khi áp dụng ⇒ tên lấy từ câu cờ, rồi từ chính lần đổi mẫu (heading của mẫu mới)
               label: migrationMissingLabel(f) ?? current.groups.missing.find((x) => x.section_id === f.section_id)?.heading_text ?? sectionName(f.section_id),
