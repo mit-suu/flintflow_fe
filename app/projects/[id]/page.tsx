@@ -92,12 +92,14 @@ import RunPill from "./_components/RunPill";
 import { recordStepStat } from "@/lib/step-stats";
 import CrPrefillCard from "./_components/mode1/CrPrefillCard";
 import Mode1CrThread from "./_components/mode1/Mode1CrThread";
+import CrDocumentDiffView, { crProposalsKey, type CrDocFocus } from "./_components/mode1/CrDocumentDiffView";
+import { CrDocumentViewContext } from "./_components/mode1/cr-document-view-context";
 import { usePendingSections } from "./hooks/mode1/usePendingSections";
 import { usePendingQueue } from "./hooks/usePendingQueue";
 import ResolveQueueDock from "./_components/resolve-queue/ResolveQueueDock";
 import NoticeTray from "./_components/NoticeTray";
 import { useResolveQueue } from "./_components/resolve-queue/useResolveQueue";
-import { useCrChat } from "./hooks/mode1/useCrChat";
+import { isFailing, useCrChat } from "./hooks/mode1/useCrChat";
 import Mode1WorkspaceTools from "./_components/mode1/Mode1WorkspaceTools";
 import Mode1VersionsMenu from "./_components/mode1/Mode1VersionsMenu";
 import { packageStatusView } from "./_components/mode1/review-package-status";
@@ -360,6 +362,23 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
     },
     ws.user?.id ?? null
   );
+  // FLF-495: chế độ "Xem CR trên tài liệu" - pane tài liệu tô đề xuất của CR đang mở; `focus` = chỗ vừa bấm trong khung chat
+  const [crDocView, setCrDocView] = useState<{ crId: string; focus: CrDocFocus | null } | null>(null);
+  const crDocNonce = useRef(0);
+  const openCrId = crChat.detail?.change_request.cr_id ?? null;
+  const viewCrOnDocument = useCallback(
+    (locationId: string | null) => {
+      if (!openCrId) return;
+      crDocNonce.current += 1;
+      const nonce = crDocNonce.current;
+      setCrDocView({ crId: openCrId, focus: locationId ? { locationId, nonce } : null });
+    },
+    [openCrId],
+  );
+  // CR đóng / đổi ⇒ thoát chế độ xem (không để tô đề xuất của CR cũ lên tài liệu)
+  useEffect(() => {
+    setCrDocView(null);
+  }, [openCrId]);
   // E2E 24/11 #3: "Mở trong khung chat" ở trang một CR ⇒ `?openCr=CR-007` ⇒ khung chat mở đúng CR đó (nếu là CR đang mở của mình)
   // Theo dõi query (không chỉ lúc mount): Link trong cùng route không mount lại trang.
   const { reloadOpen } = crChat;
@@ -616,6 +635,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
    * Chưa `ws.ready` thì chưa tải (projectId rỗng ⇒ hook đứng yên).
    */
   const doc = useDocument(ws.ready ? projectId : "", "draft", undefined, documentRefreshToken, documentLanguage);
+  // FLF-495: đề xuất đổi (Sửa lại, Bỏ, Đồng ý, AI soạn lại) hoặc tài liệu đổi ở phiên khác ⇒ tải lại phần tô đề xuất của CR
+  const crDocRefreshKey = `${crProposalsKey(crChat.detail?.locations ?? [])}|${doc.meta?.spine_version ?? ""}`;
   // BF §3.2: mục đang có bản sửa chưa xác nhận của người khác (mode 1)
   // BF §3.2: sau baseline = CR chưa đóng; trước baseline = bản xem trước sửa qua chat chưa áp của người khác
   const pendingSections = usePendingSections(projectId, ws.ready, documentRefreshToken, mode1 ? "cr" : "preview");
@@ -2661,7 +2682,11 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           {showOpening && <ChatOpening disabled={aiWorking} onPick={(chip) => void sendFromChat(chip.message, chip.intent)} />}
           {flow2AutoStart && currentStep && <RunOnce onRun={() => void runner.runWholePhase(unitOfStep(currentStep) ?? currentStep)} />}
           {mode1 && ws.crPrefill && <CrPrefillCard projectId={projectId} prefill={ws.crPrefill} onDismiss={ws.dismissCrPrefill} />}
-          {mode1 && editMode && <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />}
+          {mode1 && editMode && (
+            <CrDocumentViewContext.Provider value={viewCrOnDocument}>
+              <Mode1CrThread projectId={projectId} chat={crChat} me={ws.user?.name ?? ""} myUserId={ws.user?.id ?? null} />
+            </CrDocumentViewContext.Provider>
+          )}
           {/* FLF-432 (QLHS #10, luồng C #2): bước tới lượt chưa chạy mà không có lượt nào đang chạy (BE khởi động lại giữa
               chừng, sang giai đoạn mới) — trước chỉ có cách gõ chat. Phiên còn trống thì ChatPane đã có lời mời riêng. */}
           {showContinueCard && currentStep && (
@@ -2962,6 +2987,22 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
                   await setScreenTheme(projectId, { primaryColor: color });
                   mockupRun.dismiss();
                   await afterMockupChange();
+                }}
+              />
+            ) : undefined
+          }
+          // FLF-495: đề xuất của CR đang mở tô thẳng lên tài liệu (chỉ đọc, BE dựng khô)
+          crDocumentView={
+            mode1 && editMode && crDocView && openCrId && crDocView.crId === openCrId ? (
+              <CrDocumentDiffView projectId={projectId} crId={openCrId} refreshKey={crDocRefreshKey} focus={crDocView.focus}
+                onExit={() => setCrDocView(null)}
+                proposalCount={(crChat.detail?.locations ?? []).filter((l) => l.conclusion !== "not_related" || isFailing(l)).length}
+                decide={{
+                  locations: crChat.detail?.locations ?? [],
+                  isAccepted: crChat.isAccepted,
+                  busy: crChat.busy !== null,
+                  onAccept: (loc) => void crChat.accept(loc),
+                  onReject: (loc) => void crChat.reject(loc),
                 }}
               />
             ) : undefined

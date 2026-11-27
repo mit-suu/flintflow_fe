@@ -99,6 +99,11 @@ interface DocumentPaneProps {
   /** Nút thêm ở cuối header (vd. thoát mở rộng trang). */
   headerEnd?: ReactNode;
   /**
+   * FLF-495: chế độ "Xem CR trên tài liệu" - có nội dung ⇒ thay phần thân tài liệu bằng nội dung này (thanh tiêu đề + chip version
+   * giữ nguyên). Trang workspace truyền `CrDocumentDiffView`; pane không biết gì về CR.
+   */
+  crDocumentView?: ReactNode;
+  /**
    * Pill trạng thái việc chạy nền (FLF-410: lượt vẽ mockup) — nhỏ, dính góc dưới trái khung tài liệu (giữa đáy là chỗ pill
    * "có bản mới"); không thêm gì lên header.
    */
@@ -258,7 +263,7 @@ const runClass = (run: InlineRun): string =>
     .filter(Boolean)
     .join(" ");
 
-const Runs = ({ runs }: { runs: InlineRun[] }) => (
+export const Runs = ({ runs }: { runs: InlineRun[] }) => (
   <>
     {runs.map((run, i) => (
       <span key={i} className={runClass(run) || undefined}>
@@ -952,6 +957,7 @@ function DocumentPaneView({
   rewriteError = null,
   onSectionsLoaded,
   headerEnd,
+  crDocumentView,
   versionMenu,
   statusPill,
   footerStatus,
@@ -1150,8 +1156,8 @@ function DocumentPaneView({
 
       <div ref={scrollRef} className="flex-1 overflow-y-auto ff-scroll px-8 py-6 space-y-1.5 bg-surface-container-lowest">
         {/* AI đang soạn: thanh dính "Đang soạn x/y ‹ › Theo dõi AI" — chỉ hiện khi có mục đang được viết */}
-        {writingIds.length > 0 && <AiFollowBar follow={aiFollow} verb="writing" since={aiWritingSince} className="-mx-8 -mt-6 px-8" />}
-        {newerVersion && (
+        {!crDocumentView && writingIds.length > 0 && <AiFollowBar follow={aiFollow} verb="writing" since={aiWritingSince} className="-mx-8 -mt-6 px-8" />}
+        {!crDocumentView && newerVersion && (
           <div role="status" className="sticky top-0 z-10 rounded-control bg-primary-soft px-3 py-1.5 flex items-center gap-1.5 text-body text-on-surface">
             <Icon name="refresh" size={14} className="text-primary" />
             <span>{newerVersion.message ?? t("newerVersion")}</span>
@@ -1213,7 +1219,8 @@ function DocumentPaneView({
           </div>
         )}
 
-        {document &&
+        {crDocumentView}
+        {!crDocumentView && document &&
           document.sections.map((section, i) => (
             <SectionView
               key={sectionKeys[i]}

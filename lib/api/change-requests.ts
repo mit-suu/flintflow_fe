@@ -5,6 +5,7 @@ import type {
   CreateCrRequest,
   Cr,
   CrDetail,
+  CrDocumentDiff,
   CrMessageOutcome,
   CrStatus,
   GroupDecisionRequest,
@@ -28,6 +29,9 @@ export const listCrs = (projectId: string, status?: CrStatus) =>
   apiCall<Cr[]>(status ? `${crs(projectId)}?status=${status}` : crs(projectId));
 
 export const getCr = (projectId: string, crId: string) => apiCall<CrDetail>(cr(projectId, crId));
+
+/** FLF-495 (#23b): đề xuất của CR tô lên tài liệu — chỉ đọc, BE dựng khô, không tốn credit. */
+export const getCrDocumentDiff = (projectId: string, crId: string) => apiCall<CrDocumentDiff>(`${cr(projectId, crId)}/document-diff`);
 
 /** BF §3.2: mục đang có bản sửa chưa xác nhận của CR chưa đóng, ai giữ. */
 export const getPendingSections = (projectId: string) => apiCall<PendingSection[]>(`${crs(projectId)}/pending-sections`);

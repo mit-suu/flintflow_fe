@@ -2,6 +2,7 @@
  * Change request mode 1 — bám `flintflow_be/src/modules/change-request/change-request.dto.ts` (FLF-171).
  * Tên `Cr*` để không trùng `ChangeRequest` của `types/pipeline.ts` (body `POST /changes` ở mode 2).
  */
+import type { Block, InlineRun, TableCell } from "./document";
 import type { Paused } from "./import";
 import type { IsoDateTime } from "./spine";
 
@@ -368,4 +369,58 @@ export interface PendingSection {
   title: string;
   /** `cr_id` vắng ⇒ bản xem trước sửa qua chat trước baseline (chưa thành CR). */
   items: { cr_id?: string; who: string }[];
+}
+
+/*
+ * FLF-495 (#23b `GET …/change-requests/:crId/document-diff`) — ĐỒNG BỘ TAY, nguồn là BE `cr-document-diff.service.ts`.
+ * Đề xuất của CR tô lên tài liệu: block đầy đủ của bản SAU CR (block bị xoá chèn lại đúng chỗ) kèm dấu thay đổi.
+ */
+
+export type DocChange = "unchanged" | "added" | "removed" | "modified" | "moved";
+
+export interface DocDiffRow {
+  cells: TableCell[];
+  change: DocChange;
+  /** Chữ từng ô trước CR khi `modified`. */
+  before?: string[];
+  cells_changed?: number[];
+  location_id?: string;
+}
+
+export interface DocDiffItem {
+  runs: InlineRun[];
+  change: DocChange;
+  before?: string;
+  location_id?: string;
+}
+
+export interface DocDiffBlock {
+  /** Bảng / danh sách vẽ theo `rows` / `items`; block khác vẽ thẳng `block`. */
+  block: Block;
+  change: DocChange;
+  before?: string;
+  location_id?: string;
+  rows?: DocDiffRow[];
+  items?: DocDiffItem[];
+  /** Chữ từng ô tiêu đề bảng trước CR, chỉ khi hàng tiêu đề đổi. */
+  header_before?: string[];
+}
+
+export interface DocDiffSection {
+  id: string;
+  number: string;
+  heading: string;
+  heading_before?: string;
+  level: number;
+  /** Vị trí `edit` của CR nằm ở mục này (cuộn tới mục khi vị trí không có block / dòng riêng). */
+  location_ids: string[];
+  change: "added" | "removed" | "modified";
+  blocks: DocDiffBlock[];
+}
+
+export interface CrDocumentDiff {
+  cr_id: string;
+  spine_version: number;
+  change_count: number;
+  sections: DocDiffSection[];
 }

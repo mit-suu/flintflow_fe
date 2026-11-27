@@ -3,27 +3,46 @@
 import Link from "next/link";
 import { useState, type ReactNode } from "react";
 import { useLocale, useTranslations } from "next-intl";
-import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrDetail, type CrLocation, type CrStatus } from "@/types/change-request";
+import { CR_MAX_MATERIALS, NEW_CR_SOURCE_KINDS, type CrDetail, type CrLocation } from "@/types/change-request";
 import { canKeepViolations, fromApprovedPreview, inApprovedBatch, isFailing, isWarningPending, type CrChat, type CrChatPrefill, type CrChatSource } from "../../hooks/mode1/useCrChat";
 import ClarifyPanel from "./ClarifyPanel";
 import { AssumptionsNote, MaterialAdder, MaterialList } from "./CrMaterials";
 import { OthersPending, ProposalDiff, useLocTitle } from "./LocationDisplay";
 import OriginalDiagramChange, { diagramLocationTitle, isDiagramLocation } from "./OriginalDiagramChange";
 import OriginalDiagramGroup from "./OriginalDiagramGroup";
+import { useViewOnDocument } from "./cr-document-view-context";
 import { useMode1Labels } from "./i18n";
 import { diffLines, type DiffToken } from "@/lib/word-diff";
 import PausedBanner from "./PausedBanner";
+import CrTimeline from "./CrTimeline";
 import { removedOfAll } from "./content-removal";
 
 function UserBubble({ children }: { children: ReactNode }) {
   return <div className="self-end max-w-[85%] bg-primary-soft text-on-surface rounded-[14px] rounded-br-[4px] px-3 py-2 text-body whitespace-pre-wrap">{children}</div>;
 }
 
-function AiBubble({ step, children, label }: { step?: string; children: ReactNode; label?: string }) {
+/** `flat`: khung chứa các thẻ con đã có viền riêng (danh sách đề xuất, phần liên quan) ⇒ bỏ viền ngoài, chỉ giữ viền trong cùng. */
+function AiBubble({ step, children, label, flat = false }: { step?: string; children: ReactNode; label?: string; flat?: boolean }) {
   return (
-    <div className="self-start w-full bg-surface-container-lowest border border-outline-variant rounded-[14px] rounded-bl-[4px] px-3 py-2.5 text-body text-on-surface flex flex-col gap-2" aria-label={label}>
+    <div
+      className={`self-start w-full text-body text-on-surface flex flex-col gap-2 ${flat ? "py-1" : "bg-surface-container-lowest border border-outline-variant rounded-[14px] rounded-bl-[4px] px-3 py-2.5"}`}
+      aria-label={label}
+    >
       {step && <p className="text-caption font-bold uppercase tracking-wider text-primary-hover">{step}</p>}
       {children}
+    </div>
+  );
+}
+
+/** Bước "Phần liên quan" sau khi đã có đề xuất: một dòng thu gọn, bấm để xem lại danh sách. */
+function CollapsedImpact({ step, label, children }: { step: string; label: string; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="flex flex-col gap-1" aria-label={label}>
+      <button type="button" aria-expanded={open} onClick={() => setOpen((v) => !v)} className="self-start text-caption font-bold uppercase tracking-wider text-primary-hover cursor-pointer">
+        {step} {open ? "▾" : "▸"}
+      </button>
+      {open && <div className="text-body text-on-surface">{children}</div>}
     </div>
   );
 }
@@ -114,41 +133,6 @@ function RequesterCard({ me, busy, onStart, onCancel, prefill }: { me: string; b
         </form>
       )}
     </AiBubble>
-  );
-}
-
-/** Thanh tiến độ 5 bước của change request trong chat — bước đang ở tô đậm, bước đã qua có dấu ✓. */
-const STEPS = ["clarify", "impact", "propose", "verify", "submit"] as const;
-const stepIndex = (status: CrStatus): number =>
-  status === "draft" || status === "clarifying" || status === "awaiting_answers"
-    ? 0
-    : status === "impact_review"
-      ? 1
-      : status === "proposing"
-        ? 2
-        : status === "verifying" || status === "manual_fix"
-          ? 3
-          : 4;
-
-function StepTracker({ status }: { status: CrStatus }) {
-  const t = useTranslations("mode1.crThread.steps");
-  const current = stepIndex(status);
-  return (
-    <ol className="flex items-center gap-1 text-caption font-bold" aria-label={t("aria")}>
-      {STEPS.map((step, i) => (
-        <li key={step} className="flex items-center gap-1 min-w-0" aria-current={i === current ? "step" : undefined}>
-          <span
-            className={`shrink-0 w-4 h-4 grid place-items-center rounded-full text-caption ${
-              i < current ? "bg-[#1F7A45] text-white" : i === current ? "bg-primary text-on-primary" : "bg-surface-container text-on-surface-muted"
-            }`}
-          >
-            {i < current ? "✓" : i + 1}
-          </span>
-          <span className={`truncate ${i === current ? "text-on-surface" : "text-on-surface-muted"}`}>{t(step)}</span>
-          {i < STEPS.length - 1 && <span aria-hidden className="w-2 h-px bg-outline-variant shrink-0" />}
-        </li>
-      ))}
-    </ol>
   );
 }
 
@@ -300,6 +284,16 @@ function ConflictCard({ loc, chat, request }: { loc: CrLocation; chat: CrChat; r
   );
 }
 
+/** FLF-495: nhảy sang pane tài liệu, tới đúng chỗ đề xuất này (chế độ xem CR trên tài liệu). */
+function ViewOnDocumentLink({ locationId, onView }: { locationId: string; onView: (locationId: string) => void }) {
+  const t = useTranslations("mode1.crThread.loc");
+  return (
+    <button type="button" onClick={() => onView(locationId)} className="mt-0.5 text-caption font-bold text-primary hover:underline cursor-pointer">
+      {t("viewOnDocument")}
+    </button>
+  );
+}
+
 /**
  * Một phần trong bước đề xuất (3.6–3.9). Bốn trạng thái nhìn khác nhau: **AI chưa đề xuất** (vàng), **chưa đạt kiểm tra**
  * (viền đỏ + lý do + ô sửa lại mở sẵn), **chờ bạn quyết** (Đồng ý / Sửa lại / Bỏ), **đã đồng ý** (✓).
@@ -320,6 +314,7 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   const openEdit = () => chat.startRedraft(loc.location_id);
   // Sơ đồ gốc (§4.13): BE tự đề xuất, không có gì để AI soạn lại — chỉ Đồng ý (thay hình) hoặc Giữ hình gốc
   const diagram = isDiagramLocation(loc);
+  const viewOnDocument = useViewOnDocument();
   const tone = failed ? "border-[#E8A5A5] bg-[#FDF4F4]" : missing ? "border-[#EFD9A6] bg-[#FBF4E4]" : accepted ? "border-[#BFE6CE] bg-[#F3FAF6]" : "border-outline-variant bg-white";
 
   return (
@@ -328,6 +323,7 @@ function LocationCard({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
         <p className="flex-1 min-w-0 text-body font-bold text-on-surface">
           {diagram ? diagramLocationTitle(loc, tDiagram) : locTitle(loc)}
           <span className="block text-caption font-medium text-on-surface-muted">{sectionTitle(loc.section_id, loc.section_title)}</span>
+          {viewOnDocument && loc.conclusion === "edit" && !diagram && <ViewOnDocumentLink locationId={loc.location_id} onView={viewOnDocument} />}
         </p>
         {failed ? (
           <span className="shrink-0 px-2 py-0.5 rounded-full bg-[#B03030] text-white text-caption font-bold">{t("failed")}</span>
@@ -463,81 +459,56 @@ function ApprovedBatch({ locations, failing, chat }: { locations: CrLocation[]; 
  * FLF-375: phần phải quyết riêng (thẻ có nút riêng, "Đồng ý tất cả" không duyệt luôn) — trượt kiểm, AI chưa đề xuất, thay
  * sơ đồ gốc (§4.13), hoặc có lưu ý của AI.
  */
-const needsOwnCard = (l: CrLocation): boolean => isFailing(l) || l.conclusion === null || isDiagramLocation(l) || (l.verify?.ai_flags.length ?? 0) > 0 || !!l.conflict || isWarningPending(l) || (l.kept_violations?.length ?? 0) > 0;
+export const needsOwnCard = (l: CrLocation): boolean => isFailing(l) || l.conclusion === null || isDiagramLocation(l) || (l.verify?.ai_flags.length ?? 0) > 0 || !!l.conflict || isWarningPending(l) || (l.kept_violations?.length ?? 0) > 0;
 
 const SHORT = 40;
 const short = (s: string): string => (s.length > SHORT ? `${s.slice(0, SHORT - 1)}…` : s);
 
 /**
- * FLF-375: đoạn khác nhau của "trước → sau" — bỏ phần đầu / cuối giống nhau để dòng tóm tắt không thành "A… → A…"
- * (vd mô tả dự án chỉ đổi một câu ở giữa).
+ * Một dòng trong danh sách gom (FLF-495): mục + tên ngắn + trạng thái + Đồng ý / Bỏ. Chỗ đổi xem trên tài liệu (nút "Xem trên tài
+ * liệu"), không in diff chữ trong chat; bấm ▸ mở chi tiết (diff, lý do, giả định) kèm Sửa lại.
  */
-const changedSlice = (before: string, after: string): { before: string; after: string } => {
-  let start = 0;
-  while (start < before.length && start < after.length && before[start] === after[start]) start++;
-  let end = 0;
-  while (end < before.length - start && end < after.length - start && before[before.length - 1 - end] === after[after.length - 1 - end]) end++;
-  // lùi về đầu từ để không cắt giữa chữ
-  while (start > 0 && /\S/.test(before[start - 1] ?? "")) start--;
-  const lead = start > 0 ? "…" : "";
-  const cut = (s: string) => `${lead}${s.slice(start, s.length - end).trim()}${end > 0 ? "…" : ""}`;
-  return { before: cut(before), after: cut(after) };
-};
-
-/** Một dòng trong danh sách gom: tiêu đề + "cũ → mới" rút gọn; bấm ▸ mở chi tiết kèm Sửa lại / Bỏ của riêng dòng. */
 function BatchRow({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
   const t = useTranslations("mode1.crThread.batch");
   const tLoc = useTranslations("mode1.crThread.loc");
-  const { sectionTitle, humanizeText, fieldChanges } = useMode1Labels();
+  const { sectionTitle, humanizeText } = useMode1Labels();
   const locTitle = useLocTitle();
+  const viewOnDocument = useViewOnDocument();
   const editing = chat.redraftFor === loc.location_id;
   const [open, setOpen] = useState(false);
   const expanded = open || editing;
   const p = loc.proposal;
   const accepted = chat.isAccepted(loc);
   const busy = chat.busy !== null;
-  const d = loc.display;
-  // FLF-375: dòng tóm tắt bằng câu (xoá / thêm / trước → sau); CR cũ chưa có `display` ⇒ so từng trường như trước
-  const changes = d
-    ? d.change === "edit"
-      ? // Chữ chính không đổi (đổi ở trường phụ) ⇒ so từng trường như cũ; phần bị bỏ hẳn ⇒ "(xoá)" thay vì "……"
-        d.before === d.after && p
-        ? fieldChanges(p.old_text, p.new_text).map((c) => changedSlice(c.before, c.after))
-        : d.after === null
-          ? // Đề xuất chưa chạy thử được — không phải xoá; bước kiểm sẽ bắt và AI soạn lại
-            [{ before: d.before ?? "", after: t("noPreview") }]
-          : [changedSlice(d.before ?? "", d.after)].map((x) => (x.after.replace(/…/g, "").trim() ? x : { ...x, after: t("removed") }))
-      : d.change === "remove"
-        ? [{ before: d.label, after: t("removed") }]
-        : d.change === "add"
-          ? [{ before: "", after: d.after ?? d.label }]
-          : []
-    : loc.conclusion === "edit" && p
-      ? fieldChanges(p.old_text, p.new_text)
-      : [];
-  const first = changes[0];
   const title = locTitle(loc);
 
   return (
     <li id={`cr-loc-${loc.location_id}`} className={`scroll-mt-4 rounded-[10px] border ${accepted ? "border-[#BFE6CE] bg-[#F3FAF6]" : "border-outline-variant bg-white"} px-2.5 py-1.5`}>
       <div className="flex items-start gap-2">
-        <p className="flex-1 min-w-0 text-body">
-          <strong className="text-on-surface">{sectionTitle(loc.section_id, loc.section_title)}</strong>
-          <span className="text-on-surface-muted"> - {title}</span>
-          {first ? (
-            <span className="block text-caption">
-              <del className="text-[#B03030]">{short(first.before)}</del>
-              <span className="text-[#A8A49C]"> → </span>
-              <ins className="text-[#1F7A45] no-underline">{short(first.after)}</ins>
-              {changes.length > 1 && <span className="text-on-surface-muted"> {t("more", { count: changes.length - 1 })}</span>}
-            </span>
-          ) : loc.conclusion === "comment" && p?.comment_text ? (
-            <span className="block text-caption text-[#3B4FA8]">💬 {short(humanizeText(p.comment_text))}</span>
-          ) : null}
-        </p>
-        <span className={`shrink-0 px-2 py-0.5 rounded-full text-caption font-bold ${accepted ? "bg-[#1F7A45] text-white" : "bg-primary-soft text-primary-hover"}`}>
-          {accepted ? tLoc("accepted") : tLoc("waiting")}
-        </span>
+        <div className="flex-1 min-w-0">
+          <p className="text-body truncate" title={`${sectionTitle(loc.section_id, loc.section_title)} - ${title}`}>
+            <strong className="text-on-surface">{sectionTitle(loc.section_id, loc.section_title)}</strong>
+            <span className="text-on-surface-muted"> - {title}</span>
+          </p>
+          {loc.conclusion === "comment" && p?.comment_text && <p className="text-caption text-[#3B4FA8] truncate">💬 {short(humanizeText(p.comment_text))}</p>}
+        </div>
+        {viewOnDocument && loc.conclusion === "edit" && (
+          <button type="button" onClick={() => viewOnDocument(loc.location_id)} className="shrink-0 text-caption font-bold text-primary hover:underline cursor-pointer whitespace-nowrap">
+            {tLoc("viewOnDocument")}
+          </button>
+        )}
+        {accepted ? (
+          <span className="shrink-0 px-2 py-0.5 rounded-full text-caption font-bold bg-[#1F7A45] text-white">{tLoc("accepted")}</span>
+        ) : editing ? null : (
+          <>
+            <button type="button" disabled={busy} onClick={() => chat.accept(loc)} aria-label={t("acceptRow", { title })} className={`${btn} px-2.5 py-0.5 bg-[#1F7A45] text-white`}>
+              {tLoc("accept")}
+            </button>
+            <button type="button" disabled={busy} onClick={() => chat.reject(loc)} aria-label={t("rejectRow", { title })} className={`${btn} px-2.5 py-0.5 border border-[#F2CACA] bg-white text-[#B03030]`}>
+              {tLoc("reject")}
+            </button>
+          </>
+        )}
         <button
           type="button"
           aria-expanded={expanded}
@@ -561,16 +532,13 @@ function BatchRow({ loc, chat }: { loc: CrLocation; chat: CrChat }) {
           {editing ? (
             <EditPanel loc={loc} chat={chat} editing />
           ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {chat.canRedraft && (
+            chat.canRedraft && (
+              <div className="flex flex-wrap gap-1.5">
                 <button type="button" disabled={busy} onClick={() => chat.startRedraft(loc.location_id)} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
                   {tLoc("redo")}
                 </button>
-              )}
-              <button type="button" disabled={busy} onClick={() => chat.reject(loc)} className={`${btn} border border-[#F2CACA] bg-white text-[#B03030]`}>
-                {tLoc("reject")}
-              </button>
-            </div>
+              </div>
+            )
           )}
         </div>
       )}
@@ -589,8 +557,16 @@ function ProposalBatch({ projectId, locations, chat }: { projectId: string; loca
   const diagrams = locations.filter((l) => isDiagramLocation(l) && l.conclusion === "edit" && !!l.proposal && !isFailing(l));
   const own = locations.filter((l) => needsOwnCard(l) && !diagrams.includes(l));
   const pending = rows.filter((l) => !chat.isAccepted(l));
+  const viewOnDocument = useViewOnDocument();
   return (
     <div className="flex flex-col gap-2">
+      {viewOnDocument && (rows.length > 0 || own.length > 0) && (
+        <div>
+          <button type="button" onClick={() => viewOnDocument(null)} className={`${btn} border border-outline-variant bg-white text-on-surface`}>
+            {t("viewAllOnDocument")}
+          </button>
+        </div>
+      )}
       {/* FLF-375 (spec 04): việc cần bạn quyết lên đầu; phần đã đạt kiểm thu gọn bên dưới */}
       <OriginalDiagramGroup projectId={projectId} locations={diagrams} chat={chat} />
       {own.length > 0 && (
@@ -700,7 +676,7 @@ function ReadyToSubmit({ c, locations, chat, myUserId }: { c: CrDetail["change_r
 
 export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: { projectId: string; chat: CrChat; me: string; myUserId?: string | null }) {
   const t = useTranslations("mode1.crThread");
-  const { sectionTitle, crStatus } = useMode1Labels();
+  const { sectionTitle } = useMode1Labels();
   const locTitle = useLocTitle();
   const d = chat.detail;
   const busy = chat.busy !== null;
@@ -794,13 +770,12 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
     <div className="flex flex-col gap-3" aria-label={t("crAria", { crId: c.cr_id })}>
       <div className="flex items-center gap-2 text-body text-on-surface-muted">
         <span className="font-bold text-primary-hover">{c.cr_id}</span>
-        <span>· {crStatus(c.status)}</span>
         <span className="truncate">· {c.requester}</span>
         <Link href={`/projects/${projectId}/change-requests/${c.cr_id}`} className="ml-auto underline shrink-0">
           {t("openCr")}
         </Link>
       </div>
-      <StepTracker status={c.status} />
+      <CrTimeline status={c.status} compact />
 
       <UserBubble>{c.description}</UserBubble>
       {c.amendments.map((a, i) => (
@@ -861,15 +836,28 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
       )}
       {/* FLF-375: chỗ ngoài lô đã duyệt (AI đề xuất thêm, sơ đồ gốc vẽ lại) ⇒ người dùng quyết như mọi CR */}
       {approved && proposed && toReview.some((l) => !l.found_by.includes("preview")) && (
-        <AiBubble step={t("proposeStep", { settled, total: toReview.length })} label={t("proposeLabel")}>
+        <AiBubble step={t("proposeStep", { settled, total: toReview.length })} label={t("proposeLabel")} flat>
           <p className="text-on-surface-muted">{t("proposeHint")}</p>
           <ProposalBatch projectId={projectId} locations={toReview.filter((l) => !l.found_by.includes("preview"))} chat={chat} />
           <DroppedList locations={dropped} chat={chat} />
         </AiBubble>
       )}
 
-      {!approved && d.locations.length > 0 && (
-        <AiBubble step={t("impactStep", { count: d.locations.length })} label={t("impactLabel")}>
+      {/* Đã có đề xuất: danh sách phần liên quan chỉ lặp lại danh sách đề xuất bên dưới ⇒ thu về một dòng, bấm mới mở */}
+      {!approved && d.locations.length > 0 && proposed && toReview.length > 0 && (
+        <CollapsedImpact label={t("impactLabel")} step={t("impactStep", { count: d.locations.length })}>
+          <ul className="list-disc pl-5">
+            {d.locations.map((l) => (
+              <li key={l.location_id}>
+                {sectionTitle(l.section_id, l.section_title)} - {locTitle(l)}
+              </li>
+            ))}
+          </ul>
+        </CollapsedImpact>
+      )}
+
+      {!approved && d.locations.length > 0 && !(proposed && toReview.length > 0) && (
+        <AiBubble step={t("impactStep", { count: d.locations.length })} label={t("impactLabel")} flat>
           <ul className="list-disc pl-5">
             {d.locations.map((l) => (
               <li key={l.location_id}>
@@ -891,7 +879,7 @@ export default function Mode1CrThread({ projectId, chat, me, myUserId = null }: 
       )}
 
       {!approved && proposed && (toReview.length > 0 || dropped.length > 0) && (
-        <AiBubble step={t("proposeStep", { settled, total: toReview.length })} label={t("proposeLabel")}>
+        <AiBubble step={t("proposeStep", { settled, total: toReview.length })} label={t("proposeLabel")} flat>
           {toReview.length > 0 ? (
             <p className="text-on-surface-muted">{t("proposeHint")}</p>
           ) : (

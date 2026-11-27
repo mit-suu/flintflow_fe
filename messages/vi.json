@@ -4309,16 +4309,16 @@
       },
       "batch": {
         "listAria": "Danh sách đề xuất",
-        "more": "(+{count} trường)",
         "expand": "Mở chi tiết {title}",
         "collapse": "Thu gọn {title}",
         "detailAria": "Chi tiết đề xuất {id}",
         "ownAria": "Cần bạn xem riêng",
         "ownTitle": "⚠ Cần bạn xem riêng ({count})",
         "acceptAll": "Đồng ý tất cả ({count})",
-        "perRowHint": "Sửa / bỏ từng phần: bấm ▸",
-        "removed": "(xoá)",
-        "noPreview": "(chưa xem trước được)"
+        "perRowHint": "Sửa lại một phần: bấm ▸",
+        "viewAllOnDocument": "Xem các thay đổi trên tài liệu",
+        "acceptRow": "Đồng ý {title}",
+        "rejectRow": "Bỏ {title}"
       },
       "requester": {
         "step": "Mở change request",
@@ -4335,14 +4335,6 @@
         "refPlaceholder": "Tham chiếu (không bắt buộc), vd: Email 23/09",
         "back": "Quay lại",
         "open": "Mở change request"
-      },
-      "steps": {
-        "aria": "Tiến độ change request",
-        "clarify": "Làm rõ",
-        "impact": "Phần liên quan",
-        "propose": "Đề xuất",
-        "verify": "Kiểm tra",
-        "submit": "Gửi Lead"
       },
       "redraft": {
         "formAria": "Hướng sửa lại {id}",
@@ -4383,7 +4375,8 @@
         "proceedHint": "Nếu bạn vẫn muốn, AI sẽ soạn đúng theo yêu cầu. Chưa chọn thì chưa gửi duyệt được.",
         "keep": "Giữ theo ý mình",
         "keepHint": "Giữ bản này thì tài liệu có cờ đỏ mới, và cờ đó chặn Gửi duyệt cho tới khi được xử lý.",
-        "keptNote": "Bạn đã giữ theo ý mình - cờ đỏ còn lại sẽ chặn Gửi duyệt."
+        "keptNote": "Bạn đã giữ theo ý mình - cờ đỏ còn lại sẽ chặn Gửi duyệt.",
+        "viewOnDocument": "Xem trên tài liệu"
       },
       "dropped": {
         "summary": "Không sửa {count} phần (không liên quan hoặc bạn đã bỏ)",
@@ -4476,6 +4469,19 @@
         "answer": "Không, gửi làm câu trả lời",
         "dismiss": "Để tôi trả lời lại"
       }
+    },
+    "crDocView": {
+      "title": "{crId} · {sections, plural, other {# mục}} · {count, plural, =0 {chưa có thay đổi} other {# thay đổi}}",
+      "titleProposals": "{crId} · {count, plural, =0 {chưa có đề xuất} other {# đề xuất}}",
+      "loading": "Đang dựng các thay đổi...",
+      "prev": "Trước",
+      "next": "Sau",
+      "exit": "Thoát",
+      "empty": "CR này chưa có thay đổi nào để xem trên tài liệu.",
+      "loadFailed": "Chưa dựng được các thay đổi trên tài liệu. Thử lại sau.",
+      "sectionAdded": "Mục thêm mới",
+      "sectionRemoved": "Mục bị xoá",
+      "staleNotice": "Chưa cập nhật được các thay đổi mới nhất, đang hiện bản trước đó."
     },
     "crChat": {
       "hiddenOpen": "{crId} vẫn đang mở.",
@@ -4651,10 +4657,10 @@
       "stages": {
         "draft": "Nháp",
         "clarify": "Làm rõ",
-        "impact": "Vị trí ảnh hưởng",
+        "impact": "Phần liên quan",
         "propose": "Đề xuất",
-        "verify": "Kiểm",
-        "submit": "Nộp",
+        "verify": "Kiểm tra",
+        "submit": "Gửi Lead",
         "review": "Duyệt",
         "written": "Ghi Track Changes"
       }
