@@ -123,6 +123,8 @@ export function useWorkspace(
   const [aiError, setAiError] = useState<ChatAiError | null>(null);
   /** Vai trò trong org đang mở — Viewer chỉ đọc (FLF-244). `null` khi chưa biết: không khoá gì, BE vẫn chặn. */
   const [orgRole, setOrgRole] = useState<OrgRole | null>(null);
+  /** Tên org đang mở — header ghi kèm vai trò, vì vai trò tính theo org chứ không theo dự án. */
+  const [orgName, setOrgName] = useState<string | null>(null);
 
   const refreshUser = useCallback(() => {
     apiCall<User>("/users/me")
@@ -193,11 +195,8 @@ export function useWorkspace(
       // `canEdit` mặc định true trong lúc chờ ⇒ Viewer thấy nút soạn thảo chớp lên, và `useSpine` gọi /resume
       // trước khi biết vai trò ⇒ 403. Lỗi thì coi như được sửa (BE vẫn chặn Viewer — viewerReadOnly).
       const orgId = getActiveOrgId();
-      const rolePromise = orgId
-        ? fetchOrganization(orgId)
-            .then((org) => org.role)
-            .catch(() => null)
-        : Promise.resolve(null);
+      const orgPromise = orgId ? fetchOrganization(orgId).catch(() => null) : Promise.resolve(null);
+      const rolePromise = orgPromise.then((org) => org?.role ?? null);
 
       try {
         const [projectRes, userRes, sessionsRes] = await Promise.all([
@@ -228,7 +227,9 @@ export function useWorkspace(
           }
         }
       } finally {
-        setOrgRole(await rolePromise);
+        const org = await orgPromise;
+        setOrgRole(org?.role ?? null);
+        setOrgName(org?.name ?? null);
         setReady(true);
       }
     };
@@ -590,6 +591,7 @@ export function useWorkspace(
       isPipelineActive,
       canEdit,
       orgRole,
+      orgName,
       sendMessage,
       stopMessage,
       uploadPendingAttachments,
@@ -633,6 +635,7 @@ export function useWorkspace(
       isPipelineActive,
       canEdit,
       orgRole,
+      orgName,
       sendMessage,
       stopMessage,
       uploadPendingAttachments,

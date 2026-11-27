@@ -1612,7 +1612,18 @@
       "account": "Account",
       "credits": "credits",
       "more": "More actions",
-      "secondaryActions": "Other project actions"
+      "secondaryActions": "Other project actions",
+      "rolePrefix": "Your role",
+      "role": {
+        "lead": "Lead",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      },
+      "roleHint": {
+        "lead": "You're a Lead: you review and sign off the project baseline",
+        "analyst": "You're an Analyst: you draft and edit the document, a Lead signs off the baseline",
+        "viewer": "You're a Viewer: you can read the document and leave comments"
+      }
     },
     "phaseHeader": {
       "done": "Complete",
@@ -3430,6 +3441,12 @@
         "canLeave": "You can leave this page - FlintFlow keeps reading and saves the result.",
         "pausedTitle": "Reading is paused",
         "pause": {
+          "creditNotice": {
+            "title": "Confirm credits for the AI check",
+            "body": "The final result has a complete structure, so the AI check will run and cost {credits} credits. Press Confirm and continue to run it; what was read is kept.",
+            "bodyUnknown": "The final result has a complete structure, so the AI check will run and cost more credits. Press Confirm and continue to run it; what was read is kept.",
+            "confirm": "Confirm and continue"
+          },
           "credits": {
             "title": "{phase} paused - out of credits",
             "body": "Finished parts are kept. Top up, then press Continue.",
@@ -3452,6 +3469,7 @@
         "stopped": {
           "title": "Reading stopped",
           "body": "{done}/{total} sections read - kept as is, no more credits used. Continue to read the rest from where it stopped.",
+          "bodyCheck": "AI check stopped - results already saved are kept, and batches that did not start cost no credits. Press Continue to run the rest.",
           "resume": "Continue",
           "resuming": "Continuing…"
         },
@@ -4291,16 +4309,16 @@
       },
       "batch": {
         "listAria": "Proposal list",
-        "more": "(+{count} fields)",
         "expand": "Open details of {title}",
         "collapse": "Collapse {title}",
         "detailAria": "Proposal details {id}",
         "ownAria": "Needs your separate review",
         "ownTitle": "⚠ Needs your separate review ({count})",
         "acceptAll": "Accept all ({count})",
-        "perRowHint": "Redo / drop a part: click ▸",
-        "removed": "(removed)",
-        "noPreview": "(no preview yet)"
+        "perRowHint": "Redo a part: click ▸",
+        "viewAllOnDocument": "View changes on the document",
+        "acceptRow": "Accept {title}",
+        "rejectRow": "Drop {title}"
       },
       "requester": {
         "step": "Open a change request",
@@ -4317,14 +4335,6 @@
         "refPlaceholder": "Reference (optional), e.g. Email 23/09",
         "back": "Back",
         "open": "Open change request"
-      },
-      "steps": {
-        "aria": "Change request progress",
-        "clarify": "Clarify",
-        "impact": "Related parts",
-        "propose": "Propose",
-        "verify": "Check",
-        "submit": "Send to Lead"
       },
       "redraft": {
         "formAria": "Redraft direction for {id}",
@@ -4365,7 +4375,8 @@
         "proceedHint": "If you still want it, the AI will draft exactly what the request asks. It cannot be submitted for review until you choose.",
         "keep": "Keep my version",
         "keepHint": "Keeping this adds a new red flag to the document, and that flag blocks Submit for review until it is resolved.",
-        "keptNote": "You kept your version - the remaining red flag will block Submit for review."
+        "keptNote": "You kept your version - the remaining red flag will block Submit for review.",
+        "viewOnDocument": "View on document"
       },
       "dropped": {
         "summary": "{count, plural, one {# part not edited (unrelated or dropped by you)} other {# parts not edited (unrelated or dropped by you)}}",
@@ -4456,6 +4467,19 @@
         "answer": "No, send it as my answer",
         "dismiss": "Let me answer again"
       }
+    },
+    "crDocView": {
+      "title": "{crId} · {sections, plural, one {# section} other {# sections}} · {count, plural, =0 {no changes} one {# change} other {# changes}}",
+      "titleProposals": "{crId} · {count, plural, =0 {no proposals} one {# proposal} other {# proposals}}",
+      "loading": "Building the changes...",
+      "prev": "Previous",
+      "next": "Next",
+      "exit": "Exit",
+      "empty": "This CR has no changes to show on the document yet.",
+      "loadFailed": "Could not build the changes on the document. Try again later.",
+      "sectionAdded": "New section",
+      "sectionRemoved": "Removed section",
+      "staleNotice": "Could not refresh the changes, showing the previous version."
     },
     "crChat": {
       "hiddenOpen": "{crId} is still open.",
@@ -4630,10 +4654,10 @@
       "stages": {
         "draft": "Draft",
         "clarify": "Clarify",
-        "impact": "Affected locations",
+        "impact": "Related parts",
         "propose": "Propose",
         "verify": "Check",
-        "submit": "Submit",
+        "submit": "Send to Lead",
         "review": "Review",
         "written": "Write Track Changes"
       }

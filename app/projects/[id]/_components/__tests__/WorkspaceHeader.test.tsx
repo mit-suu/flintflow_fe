@@ -3,6 +3,7 @@ import { renderWithIntl } from "@/test/intl";
 import { describe, expect, it, vi } from "vitest";
 import WorkspaceHeader from "../WorkspaceHeader";
 import type { Project } from "@/types/project";
+import type { User } from "@/types/user";
 
 // Header có nút đổi ngôn ngữ (LocaleSwitcher) - dùng router để làm mới trang sau khi đổi
 vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn(), push: vi.fn(), replace: vi.fn() }) }));
@@ -133,5 +134,37 @@ describe("WorkspaceHeader - menu ⋯ và nút panel", () => {
       <WorkspaceHeader project={PROJECT} user={null} onToolsClick={() => {}} toolsLabel="Kiểm & chốt" toolsShortLabel="Kiểm & chốt" toolsIcon="shield-check" onLogout={() => {}} />
     );
     expect(screen.getByRole("button", { name: "Kiểm & chốt" })).toBeInTheDocument();
+  });
+});
+
+describe("WorkspaceHeader - vai trò", () => {
+  const USER = { _id: "u1", name: "Quỳnh", email: "q@example.com", balance: 10 } as unknown as User;
+
+  it("chip vai trò cạnh tên dự án, rê vào thấy quyền của vai trò", () => {
+    const { rerender } = renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} orgRole="lead" onLogout={() => {}} />);
+    const lead = screen.getByText("Lead");
+    expect(lead.closest("[title]")).toHaveAttribute("title", "Bạn là Lead: duyệt và chốt baseline cho dự án");
+    expect(screen.getByText(/Vai trò của bạn/)).toBeInTheDocument();
+
+    rerender(<WorkspaceHeader project={PROJECT} user={null} orgRole="analyst" onLogout={() => {}} />);
+    expect(screen.getByText("Analyst")).toBeInTheDocument();
+    expect(screen.queryByText("Lead")).not.toBeInTheDocument();
+  });
+
+  it("chưa biết vai trò ⇒ không có chip", () => {
+    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} onLogout={() => {}} />);
+    expect(screen.queryByText(/Vai trò của bạn/)).not.toBeInTheDocument();
+  });
+
+  it("menu tài khoản ghi vai trò kèm tên org", async () => {
+    renderWithIntl(<WorkspaceHeader project={PROJECT} user={USER} orgRole="analyst" orgName="Sở Xây dựng" onLogout={() => {}} />);
+    fireEvent.click(screen.getByRole("button", { name: "Tài khoản" }));
+    expect(await screen.findByText("· Sở Xây dựng")).toBeInTheDocument();
+    expect(screen.getAllByText("Analyst")).toHaveLength(2);
+  });
+
+  it("tiếng Anh: chip và tooltip theo giao diện", () => {
+    renderWithIntl(<WorkspaceHeader project={PROJECT} user={null} orgRole="viewer" onLogout={() => {}} />, "en");
+    expect(screen.getByText("Viewer").closest("[title]")).toHaveAttribute("title", "You're a Viewer: you can read the document and leave comments");
   });
 });

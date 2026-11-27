@@ -4,7 +4,12 @@ import { useTranslations } from "next-intl";
 import type { CrStatus } from "@/types/change-request";
 import { useMode1Labels } from "./i18n";
 
-const STAGES = [
+/** Khoá nhãn trong `mode1.crTimeline.stages` - để `t()` kiểm được khoá có thật. */
+type StageKey = "draft" | "clarify" | "impact" | "propose" | "verify" | "submit" | "review" | "written";
+type Stage = { key: StageKey; statuses: readonly CrStatus[] };
+
+/** Trang CR: đủ vòng đời, từ nháp tới ghi Track Changes. */
+const FULL_STAGES = [
   { key: "draft", statuses: ["draft"] },
   { key: "clarify", statuses: ["clarifying", "awaiting_answers"] },
   { key: "impact", statuses: ["impact_review"] },
@@ -13,36 +18,54 @@ const STAGES = [
   { key: "submit", statuses: ["ready_to_submit"] },
   { key: "review", statuses: ["in_review"] },
   { key: "written", statuses: ["written", "released"] },
-] as const satisfies readonly { key: string; statuses: readonly CrStatus[] }[];
+] as const satisfies readonly Stage[];
 
-/** Dòng thời gian trạng thái CR (máy trạng thái ở BE, FE chỉ đặt nhãn). */
-export default function CrTimeline({ status }: { status: CrStatus }) {
+/**
+ * Khung chat: chỉ phần người tạo CR tự làm. Nháp gộp vào "Làm rõ" (chat mở CR là vào làm rõ luôn); gửi Lead xong thì khung chat
+ * đứng ở bước cuối, phần duyệt / ghi xem ở trang CR.
+ */
+const CHAT_STAGES = [
+  { key: "clarify", statuses: ["draft", "clarifying", "awaiting_answers"] },
+  { key: "impact", statuses: ["impact_review"] },
+  { key: "propose", statuses: ["proposing"] },
+  { key: "verify", statuses: ["verifying", "manual_fix"] },
+  { key: "submit", statuses: ["ready_to_submit", "in_review", "written", "released"] },
+] as const satisfies readonly Stage[];
+
+/**
+ * Tiến trình CR (máy trạng thái ở BE, FE chỉ đặt nhãn). Một bảng nhãn dùng chung cho trang CR và khung chat để hai nơi luôn báo
+ * cùng một bước; `compact` = bản gọn trong khung chat (5 bước, pill nhỏ, xuống dòng khi hẹp thay vì cắt chữ).
+ */
+export default function CrTimeline({ status, compact = false }: { status: CrStatus; compact?: boolean }) {
   const t = useTranslations("mode1.crTimeline");
   const { crStatus } = useMode1Labels();
+  const stages: readonly Stage[] = compact ? CHAT_STAGES : FULL_STAGES;
   const ended = status === "rejected" || status === "cancelled";
-  const current = STAGES.findIndex((s) => (s.statuses as readonly CrStatus[]).includes(status));
+  const current = stages.findIndex((s) => s.statuses.includes(status));
+  const pill = compact ? "px-2 py-0.5 text-caption" : "px-2.5 py-1 text-body";
   return (
-    <ol className="flex flex-wrap items-center gap-1.5 text-body" aria-label={t("aria")}>
-      {STAGES.map((s, i) => (
+    <ol className={`flex flex-wrap items-center ${compact ? "gap-1" : "gap-1.5"}`} aria-label={t("aria")}>
+      {stages.map((s, i) => (
         <li
           key={s.key}
           aria-current={i === current ? "step" : undefined}
-          className={`px-2.5 py-1 rounded-full font-bold ${
+          className={`${pill} rounded-full font-bold ${
             ended
-              ? "bg-[#F0EEEA] text-[#C9C5BD]"
+              ? "bg-surface-container text-on-surface-muted opacity-60"
               : i < current
-                ? "bg-[#E9F7EE] text-[#1F7A45]"
+                ? "bg-success-soft text-success"
                 : i === current
                   ? status === "written" || status === "released"
-                    ? "bg-[#1F7A45] text-white"
-                    : "bg-[#191817] text-white"
-                  : "bg-[#F0EEEA] text-[#A8A49C]"
+                    ? "bg-success text-white"
+                    : "bg-on-surface text-surface"
+                  : "bg-surface-container text-on-surface-variant"
           }`}
         >
+          {i < current && !ended ? "✓ " : ""}
           {s.key === "written" && status === "released" ? crStatus("released") : t(`stages.${s.key}`)}
         </li>
       ))}
-      {ended && <li className="px-2.5 py-1 rounded-full font-bold bg-[#FDEDED] text-[#B03030]">{crStatus(status)}</li>}
+      {ended && <li className={`${pill} rounded-full font-bold bg-error-container text-error`}>{crStatus(status)}</li>}
     </ol>
   );
 }
