@@ -1612,7 +1612,18 @@
       "account": "Account",
       "credits": "credits",
       "more": "More actions",
-      "secondaryActions": "Other project actions"
+      "secondaryActions": "Other project actions",
+      "rolePrefix": "Your role",
+      "role": {
+        "lead": "Lead",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      },
+      "roleHint": {
+        "lead": "You're a Lead: you review and sign off the project baseline",
+        "analyst": "You're an Analyst: you draft and edit the document, a Lead signs off the baseline",
+        "viewer": "You're a Viewer: you can read the document and leave comments"
+      }
     },
     "phaseHeader": {
       "done": "Complete",

@@ -1612,7 +1612,18 @@
       "account": "Tài khoản",
       "credits": "credits",
       "more": "Thao tác khác",
-      "secondaryActions": "Thao tác khác của dự án"
+      "secondaryActions": "Thao tác khác của dự án",
+      "rolePrefix": "Vai trò của bạn",
+      "role": {
+        "lead": "Lead",
+        "analyst": "Analyst",
+        "viewer": "Viewer"
+      },
+      "roleHint": {
+        "lead": "Bạn là Lead: duyệt và chốt baseline cho dự án",
+        "analyst": "Bạn là Analyst: soạn và sửa tài liệu, Lead duyệt và chốt baseline",
+        "viewer": "Bạn là Viewer: chỉ đọc tài liệu và góp ý bằng comment"
+      }
     },
     "phaseHeader": {
       "done": "Hoàn tất",

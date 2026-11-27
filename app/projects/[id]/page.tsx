@@ -2360,6 +2360,8 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
         <WorkspaceHeader
           project={ws.project}
           user={ws.user}
+          orgRole={ws.orgRole}
+          orgName={ws.orgName}
           progressHidden={!mode1 && !railShown}
           onShowProgress={toggleProgress}
           // FLF-221: không còn nút chạy — gõ chat là chạy
