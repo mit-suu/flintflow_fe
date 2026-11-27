@@ -171,6 +171,33 @@ describe("ImportProgress - tiến trình đọc file", () => {
     expect(onResume).toHaveBeenCalled();
   });
 
+  it("FLF-454: kiểm tra AI đang chạy ⇒ nút Dừng gọi onPause; Dừng ở bước kiểm tra ⇒ thẻ Đã dừng + Tiếp tục", () => {
+    const onPause = vi.fn();
+    const onResume = vi.fn();
+    const { unmount } = renderWithIntl(<ImportProgress doc={doc({ status: "checking" })} sections={[]} onResume={onResume} onPause={onPause} />);
+    fireEvent.click(screen.getByRole("button", { name: /Dừng đọc/ }));
+    expect(onPause).toHaveBeenCalled();
+    unmount();
+
+    renderWithIntl(<ImportProgress doc={doc({ status: "checking", paused: { reason: "user", at: "2026-11-08T00:00:00.000Z" } })} sections={[]} onResume={onResume} onPause={onPause} />);
+    expect(screen.getByRole("status")).toHaveTextContent("Đã dừng bước kiểm tra AI");
+    expect(screen.queryByRole("button", { name: /Dừng đọc/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Tiếp tục" }));
+    expect(onResume).toHaveBeenCalled();
+  });
+
+  it("FLF-454: checking dừng để báo lại credit 1.9 ⇒ thẻ có số credit mới + nút Xác nhận và tiếp tục (không phải thẻ người dùng tự Dừng)", () => {
+    const onResume = vi.fn();
+    const estimate = { text_batches: 0, diagram_images: 0, ai_calls: 3, credits: 14, available_credits: 100 };
+    renderWithIntl(<ImportProgress doc={doc({ status: "checking", paused: { reason: "credit_notice", at: "2026-11-08T00:00:00.000Z" } })} sections={[]} creditEstimate={estimate} onResume={onResume} onPause={() => {}} />);
+    const card = screen.getByRole("status");
+    expect(card).toHaveTextContent("tốn 14 credit");
+    expect(card).not.toHaveTextContent("Đã dừng");
+    expect(screen.queryByRole("button", { name: /Dừng đọc/ })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Xác nhận và tiếp tục" }));
+    expect(onResume).toHaveBeenCalled();
+  });
+
   it("FLF-411 U-1 / #14: mục xếp theo thứ tự trong file (heading_map), không để mục nhóm BE đọc trước lên đầu; không in mã mục", () => {
     const sec = (section_id: string, status: "done" | "pending" = "pending") => ({ section_id, status, fields_total: 0, fields_needing_review: 0, error: null });
     const headings = [

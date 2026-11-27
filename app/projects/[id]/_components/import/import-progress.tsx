@@ -6,7 +6,7 @@ import Button from "@/components/ui/Button";
 import Icon from "@/components/ui/Icon";
 import { AiFollowBar } from "@/components/ui/ai-follow-bar";
 import { useAiFollow } from "@/lib/hooks/use-ai-follow";
-import type { ExtractionSection, HeadingMapEntry, ImportedDocument, ImportSourceSection, ImportStatus } from "@/types/import";
+import type { CreditEstimate, ExtractionSection, HeadingMapEntry, ImportedDocument, ImportSourceSection, ImportStatus } from "@/types/import";
 import Link from "next/link";
 import type { Locale } from "@/lib/i18n";
 import { FoundTotals, foundSignature, ImportSourcePane, SectionOutline, type PaneSection } from "./import-source-pane";
@@ -38,6 +38,8 @@ interface ImportProgressProps {
   previewSectionIds?: readonly string[] | null;
   /** Chữ gốc của file theo mục (GET /import/source, tải một lần). null = chưa có / tải lỗi: khung tài liệu hiện dòng giả như trước. */
   source?: ImportSourceSection[] | null;
+  /** FLF-454: `credit_estimate` của `GET /import` — số credit bước kiểm tra AI khi `paused.reason = credit_notice`. */
+  creditEstimate?: CreditEstimate | null;
 }
 
 /** Mốc bắt đầu cũ hơn ngần này thì không tin để làm đồng hồ. */
@@ -57,7 +59,7 @@ const phaseOf = (status: ImportStatus): Phase => (status === "checking" ? "check
  * ba bước Đọc nội dung → Dựng tài liệu → Kiểm tra. Chạy nền trên BE, rời trang được. Dừng ⇒ banner Tiếp tục; AI quá tải ⇒
  * dòng "đang đọc lại".
  */
-export default function ImportProgress({ doc, sections: allSections, headings, busy = false, onResume, onPause, pausing = false, resolvedMode = null, fileKind = null, previewSectionIds = null, source = null }: ImportProgressProps) {
+export default function ImportProgress({ doc, sections: allSections, headings, busy = false, onResume, onPause, pausing = false, resolvedMode = null, fileKind = null, previewSectionIds = null, source = null, creditEstimate = null }: ImportProgressProps) {
   const t = useTranslations("workspace.import.progress");
   const locale = useLocale() as Locale;
   const template = fileKind === "template";
@@ -100,9 +102,9 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
   // Mục đang đọc = mục chờ đầu tiên khi còn ở pha đọc và không dừng (BE đọc lần lượt)
   const stoppedByUser = doc.paused?.reason === "user";
   /** Loại thẻ dừng: người dùng dừng · hết credit · bước chạy nền bị gián đoạn (máy chủ khởi động lại / job lỗi) · AI lỗi. */
-  const pauseKind = !doc.paused ? null : stoppedByUser ? "user" : doc.paused.reason === "credits" ? "credits" : doc.status === "baselining" ? "interrupted" : "ai";
-  // Dừng chỉ có ở bước đọc nội dung (bước tốn credit theo từng mục), khi đang chạy
-  const canStop = !!onPause && current === "read" && !doc.paused;
+  const pauseKind = !doc.paused ? null : stoppedByUser ? "user" : doc.paused.reason === "credit_notice" ? "creditNotice" : doc.paused.reason === "credits" ? "credits" : doc.status === "baselining" ? "interrupted" : "ai";
+  // Dừng có ở bước đọc nội dung và kiểm tra AI (hai bước tốn credit theo lượt), khi đang chạy
+  const canStop = !!onPause && (current === "read" || current === "check") && !doc.paused;
   // AI đang đọc: nhiều mục cùng lúc (BE reading), theo thứ tự trong file
   const readingLive = current === "read" && !doc.paused;
   const panes = useMemo<PaneSection[]>(() => {
@@ -155,12 +157,20 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
           <span
             className={`w-9 h-9 shrink-0 rounded-control flex items-center justify-center ${pauseKind === "credits" ? "bg-surface-container-lowest text-accent-gold-text" : "bg-surface-container-lowest text-on-surface-variant"}`}
           >
-            <Icon name={pauseKind === "user" ? "pause" : pauseKind === "credits" ? "savings" : "cloud-off"} size={18} />
+            <Icon name={pauseKind === "user" ? "pause" : pauseKind === "credits" || pauseKind === "creditNotice" ? "savings" : "cloud-off"} size={18} />
           </span>
           <div className="flex-1 min-w-[220px] flex flex-col gap-0.5">
             {pauseKind !== "user" && <p className="text-body font-semibold text-on-surface">{t(`pause.${pauseKind}.title`, { phase: t(`phase.${current}`) })}</p>}
             <p className="text-body text-on-surface-variant">
-              {pauseKind === "user" ? t("stopped.body", { done, total }) : t(`pause.${pauseKind}.body`)}
+              {pauseKind === "user"
+                ? current === "check"
+                  ? t("stopped.bodyCheck")
+                  : t("stopped.body", { done, total })
+                : pauseKind === "creditNotice"
+                  ? creditEstimate
+                    ? t("pause.creditNotice.body", { credits: creditEstimate.credits })
+                    : t("pause.creditNotice.bodyUnknown")
+                  : t(`pause.${pauseKind}.body`)}
             </p>
           </div>
           {pauseKind === "credits" && (
@@ -169,7 +179,7 @@ export default function ImportProgress({ doc, sections: allSections, headings, b
             </Link>
           )}
           <Button onClick={onResume} loading={busy} icon="play">
-            {busy ? t("stopped.resuming") : t("stopped.resume")}
+            {busy ? t("stopped.resuming") : pauseKind === "creditNotice" ? t("pause.creditNotice.confirm") : t("stopped.resume")}
           </Button>
         </div>
       )}
