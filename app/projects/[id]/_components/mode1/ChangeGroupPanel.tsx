@@ -32,7 +32,8 @@ function GroupCard({ group, locations, canDecide, onDecide, busy }: { group: CrG
   const assumed = locations.reduce((n, l) => n + (l.conclusion === "not_related" ? 0 : (l.proposal?.assumptions?.length ?? 0)), 0);
 
   return (
-    <article className="bg-white border border-[#ECEAE5] rounded-[14px] p-3.5 flex flex-col gap-2" aria-label={t("aria", { id: group.group_id })}>
+    // Phẳng như thẻ vị trí (ProposalCard): nền xám nhạt, không viền
+    <article className="bg-surface-container-low rounded-card p-3.5 flex flex-col gap-2" aria-label={t("aria", { id: group.group_id })}>
       <header className="flex items-center gap-2">
         <h4 className="flex-1 font-bold text-[#191817] text-body truncate" title={group.group_id}>
           {humanizeText(group.title)}
@@ -40,7 +41,7 @@ function GroupCard({ group, locations, canDecide, onDecide, busy }: { group: CrG
         <span className={`px-2 py-0.5 rounded-full text-caption font-bold ${DECISION_TONE[group.decision]}`}>{t(`decision.${group.decision}`)}</span>
       </header>
       {locations.map((l) => (
-        <div key={l.location_id} className="text-body border-l-2 border-[#ECEAE5] pl-2.5">
+        <div key={l.location_id} className="text-body border-l-2 border-outline-variant pl-2.5">
           {/* F6: hiển thị theo mục của tài liệu; path Spine chỉ để tra (tooltip) */}
           <p className="text-caption text-[#8A867E]" title={l.path}>
             {sectionTitle(l.section_id, l.section_title) || pathLabel(l.path)} · {l.conclusion ? conclusion(l.conclusion) : "-"}

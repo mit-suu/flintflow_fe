@@ -31,10 +31,6 @@ const LOCATIONS = [
   location("L005", { found_by: ["spine_link"] }),
 ];
 
-const tagsOf = (id: string) =>
-  within(screen.getByRole("article", { name: `Vị trí ${id}` }))
-    .getAllByText(/^(Liên kết field|Nhắc mã|Từ khoá)$/)
-    .map((el) => el.textContent);
 
 describe("ImpactList - vị trí ảnh hưởng (C-3, UC-50)", () => {
   it("không có vị trí ⇒ không render", () => {
@@ -76,12 +72,22 @@ describe("ImpactList - vị trí ảnh hưởng (C-3, UC-50)", () => {
     expect(screen.queryByText(/tìm theo nghĩa/)).not.toBeInTheDocument();
   });
 
-  it("tag found_by của từng vị trí theo nguồn tìm thấy (liên kết field / nhắc mã / từ khoá)", () => {
-    renderWithIntl(<ImpactList locations={LOCATIONS} />);
-    expect(tagsOf("L001")).toEqual(["Liên kết field", "Nhắc mã"]);
-    expect(tagsOf("L002")).toEqual(["Nhắc mã"]);
-    expect(tagsOf("L003")).toEqual(["Từ khoá"]);
-    expect(tagsOf("L005")).toEqual(["Liên kết field"]);
+  it("không chip cách tìm nội bộ (liên kết field / nhắc mã / từ khoá); chỉ chip “Theo nghĩa” để người duyệt đọc kỹ", () => {
+    renderWithIntl(<ImpactList locations={[...LOCATIONS, location("L006", { found_by: ["vector"], vector_score: 0.8 })]} />);
+    expect(screen.queryByText(/^(Liên kết field|Nhắc mã|Từ khoá)$/)).not.toBeInTheDocument();
+    expect(within(screen.getByRole("article", { name: "Vị trí L006" })).getByText("Theo nghĩa · 80%")).toBeInTheDocument();
+  });
+
+  it("vị trí người dùng tự bỏ đếm là “đã bỏ”, tách khỏi “không liên quan”", () => {
+    renderWithIntl(
+      <ImpactList
+        locations={[
+          location("L001", { conclusion: "edit", proposal: { old_text: "a", new_text: "b", comment_text: null, spine_ops: [], assumptions: [] } }),
+          location("L002", { conclusion: "not_related", manual: true, reason: "Người yêu cầu bỏ đề xuất này trong khung chat" }),
+        ]}
+      />
+    );
+    expect(screen.getByText("1 sửa · 1 đã bỏ")).toBeInTheDocument();
   });
 
   it("FLF-375: danh sách chỉ đọc - không có nút sửa tay / sửa trực tiếp ở bất kỳ vị trí nào", () => {

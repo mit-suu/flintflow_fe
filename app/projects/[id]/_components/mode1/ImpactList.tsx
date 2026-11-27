@@ -2,15 +2,15 @@
 
 import { useTranslations } from "next-intl";
 import type { CrLocation, LocationConclusion } from "@/types/change-request";
-import ProposalCard, { isVectorOnlyLocation } from "./ProposalCard";
+import ProposalCard, { isDroppedLocation, isVectorOnlyLocation } from "./ProposalCard";
 
 /** FLF-375: danh sách chỉ đọc ở popup CR — thao tác làm trong khung chat (BF nguyên tắc 6). */
 interface ImpactListProps {
   locations: CrLocation[];
 }
 
-/** Thứ tự đếm trong dòng tóm tắt — cùng thứ tự kết luận ở `CONCLUSION_LABELS`. */
-const CONCLUSIONS: readonly LocationConclusion[] = ["edit", "comment", "not_related"];
+/** Thứ tự đếm trong dòng tóm tắt — cùng thứ tự kết luận ở `CONCLUSION_LABELS`; "đã bỏ" (người dùng bỏ) đếm riêng. */
+const CONCLUSIONS: readonly (LocationConclusion | "dropped")[] = ["edit", "comment", "not_related", "dropped"];
 
 /**
  * 3.4–3.6 Vị trí ảnh hưởng (C-3, UC-50) — phần tử Spine tìm tất định qua liên kết, mã/tên được nhắc và từ khoá; phần tử đã
@@ -20,7 +20,7 @@ export default function ImpactList({ locations }: ImpactListProps) {
   const t = useTranslations("mode1.impactList");
   if (locations.length === 0) return null;
   const counts = locations.reduce<Record<string, number>>((acc, l) => {
-    const key = l.conclusion ?? "pending";
+    const key = isDroppedLocation(l) ? "dropped" : (l.conclusion ?? "pending");
     acc[key] = (acc[key] ?? 0) + 1;
     return acc;
   }, {});
@@ -29,8 +29,8 @@ export default function ImpactList({ locations }: ImpactListProps) {
   return (
     <section className="flex flex-col gap-2.5">
       <div className="flex flex-wrap items-baseline gap-2">
-        <h3 className="font-extrabold text-[#191817] text-heading">{t("title", { count: locations.length })}</h3>
-        <span className="text-body text-[#8A867E]">
+        <h3 className="font-extrabold text-on-surface text-heading">{t("title", { count: locations.length })}</h3>
+        <span className="text-body text-on-surface-muted">
           {CONCLUSIONS.filter((k) => counts[k])
             .map((k) => t(`counts.${k}`, { count: counts[k] }))
             .concat(counts.pending ? [t("counts.pending", { count: counts.pending })] : [])

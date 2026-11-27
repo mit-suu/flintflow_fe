@@ -14,7 +14,6 @@ import CrTimeline from "./CrTimeline";
 import ImpactList from "./ImpactList";
 import { useMode1Labels } from "./i18n";
 import ReasonDialog from "./ReasonDialog";
-import { crListHref } from "./prefill";
 
 /** Vị trí AI cần (đề xuất lại): chưa kết luận, hoặc kiểm trượt mà không phải sửa tay — cùng luật `needsProposal` BE. */
 export const needsProposal = (l: CrLocation): boolean => !l.manual && (l.conclusion === null || (l.verify !== null && !l.verify.code_ok));
@@ -145,13 +144,6 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
     <div className="flex flex-col gap-4 max-w-[980px] w-full mx-auto">
       <div className="flex flex-wrap items-start gap-3">
         <div className="flex-1 min-w-[260px]">
-          <p className="text-body">
-            <Link href={crListHref(projectId)} scroll={false} className="text-[#8A867E] hover:text-[#191817] font-semibold">
-              {t("breadcrumb")}
-            </Link>
-            <span className="text-[#D6D2CB]"> / </span>
-            <code className="font-bold text-[#6A62C4]">{c.cr_id}</code>
-          </p>
           <h2 className="text-title font-extrabold text-[#191817]">{c.title}</h2>
           <p className="text-body text-[#8A867E]">
             {L.crSource(c.source.kind)}
@@ -168,7 +160,10 @@ export default function CrWorkspace({ projectId, crId, onChanged, readOnly = fal
 
       <CrTimeline status={c.status} />
 
-      <p className="text-body text-[#33312D] whitespace-pre-wrap bg-white border border-[#ECEAE5] rounded-[14px] p-3.5">{c.description}</p>
+      {/* Mã CR đã ở tiêu đề popup, đường về danh sách ở trên; mô tả trùng tiêu đề thì không lặp lại */}
+      {c.description.trim() && c.description.trim() !== c.title.trim() && (
+        <p className="text-body text-on-surface whitespace-pre-wrap bg-surface-container-low rounded-card p-3.5">{c.description}</p>
+      )}
 
       {c.seed && (
         <p className="text-body text-[#554DB0] bg-[#F2F1FB] border border-[#DCD8F0] rounded-[12px] px-3.5 py-2.5" aria-label={t("seedAria")}>

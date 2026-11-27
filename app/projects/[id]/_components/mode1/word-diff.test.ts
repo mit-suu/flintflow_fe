@@ -35,3 +35,19 @@ describe("diffWords", () => {
     ]);
   });
 });
+
+describe("groupHunks - gom bỏ / thêm của một chỗ đổi", () => {
+  it("bỏ / thêm xen kẽ từng từ ⇒ hết phần bỏ rồi hết phần thêm", async () => {
+    const { groupHunks } = await import("./BlockDiff");
+    const parts = groupHunks(diffWords("Đăng xuất khỏi trình duyệt hiện tại.", "Đăng xuất khỏi mọi thiết bị."));
+    expect(parts.filter((p) => p.op !== "same").map((p) => `${p.op}:${p.text.trim()}`)).toEqual(["del:trình duyệt hiện tại", "add:mọi thiết bị"]);
+  });
+});
+
+describe("diffWords - ưu tiên giữ chữ dài", () => {
+  it("bỏ một mục trong liệt kê ⇒ “specifications” giữ nguyên, không vừa bỏ vừa thêm", () => {
+    const parts = diffWords("price, stock, specifications and reviews.", "price, stock and specifications.");
+    expect(parts.filter((p) => p.op === "same").map((p) => p.text).join("")).toContain("specifications");
+    expect(parts.filter((p) => p.op !== "same").map((p) => p.text).join("")).not.toContain("specifications");
+  });
+});

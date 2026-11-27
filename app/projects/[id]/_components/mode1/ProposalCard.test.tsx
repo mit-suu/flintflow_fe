@@ -16,6 +16,9 @@ const UC = { id: "UC-2.4", name: "Log out of system", description: "The user log
 const OLD = json(UC);
 const NEW = json({ ...UC, description: "The user is signed out of every device." });
 
+/** Chữ của mọi từ bị bỏ / thêm trong thẻ (kiểu so sánh version chỉ tô từ đổi). */
+const marked = (el: HTMLElement, tag: "del" | "ins") => [...el.querySelectorAll(tag)].map((x) => x.textContent).join("");
+
 const location = (over: Partial<CrLocation> = {}): CrLocation => ({
   location_id: "L001",
   path: "use_cases[id=UC-2.4]",
@@ -84,7 +87,7 @@ describe("ProposalCard - vị trí tìm theo nghĩa", () => {
 });
 
 describe("ProposalCard - đề xuất cho một phần tử Spine (C-4, UC-81, FLF-186)", () => {
-  it("chưa kết luận: hiện mục, tên phần tử, nguồn tìm thấy, bước sở hữu; không có huy hiệu kết luận", () => {
+  it("chưa kết luận: hiện mục, tên phần tử; không lộ cách máy tìm ra hay tên bước nội bộ; không có huy hiệu kết luận", () => {
     renderWithIntl(
       <ProposalCard
         location={location({ found_by: ["spine_link", "mention", "keyword"], owner_step: "S-3.2", entity_paths: ["actors[id=A01]"] })}
@@ -95,21 +98,23 @@ describe("ProposalCard - đề xuất cho một phần tử Spine (C-4, UC-81, F
     expect(within(c).getByText("2.2.2 Use Case Descriptions")).toBeInTheDocument();
     expect(within(c).getByText("- Use case UC-2.4")).toBeInTheDocument();
     expect(c.textContent).not.toContain("[id=");
-    expect(within(c).getByText("Liên kết field")).toBeInTheDocument();
-    expect(within(c).getByText("Nhắc mã")).toBeInTheDocument();
-    expect(within(c).getByText("Từ khoá")).toBeInTheDocument();
-    expect(within(c).getByText("· phần “Actor – mục tiêu”")).toBeInTheDocument();
+    expect(within(c).queryByText("Liên kết field")).not.toBeInTheDocument();
+    expect(within(c).queryByText("Nhắc mã")).not.toBeInTheDocument();
+    expect(within(c).queryByText("Từ khoá")).not.toBeInTheDocument();
+    expect(c.textContent).not.toContain("Actor – mục tiêu");
     expect(within(c).queryByText(/^liên quan:/)).not.toBeInTheDocument();
     expect(within(c).queryByText("Sửa")).not.toBeInTheDocument();
     expect(within(c).queryByRole("button", { name: "Sửa tay" })).not.toBeInTheDocument();
   });
 
-  it("kết luận sửa ⇒ thay đổi theo field: cũ (del) → mới (ins), nhãn “Sửa”, lý do", () => {
+  it("kết luận sửa ⇒ thay đổi theo field, chỉ tô từ đổi như so sánh version; nhãn “Sửa”, lý do", () => {
     renderWithIntl(<ProposalCard location={location({ conclusion: "edit", reason: "UC-2.4 đổi phạm vi", proposal: proposal({ new_text: NEW }) })} />);
     const changes = within(card()).getByLabelText("Thay đổi theo field");
     expect(within(changes).getByText("Mô tả")).toHaveAttribute("title", "description");
-    expect(within(changes).getByText(UC.description).tagName).toBe("DEL");
-    expect(within(changes).getByText("The user is signed out of every device.").tagName).toBe("INS");
+    expect(marked(changes, "del")).toContain("logs");
+    expect(marked(changes, "del")).toContain("browser");
+    expect(marked(changes, "ins")).toContain("signed");
+    expect(marked(changes, "del")).not.toContain("The user");
     expect(within(changes).queryByText("Tên")).not.toBeInTheDocument();
     expect(within(card()).getByText("Sửa")).toBeInTheDocument();
     expect(within(card()).getByText("Lý do: UC-2.4 đổi phạm vi")).toBeInTheDocument();
@@ -122,13 +127,21 @@ describe("ProposalCard - đề xuất cho một phần tử Spine (C-4, UC-81, F
     expect(within(card()).queryByLabelText("Thay đổi theo field")).not.toBeInTheDocument();
   });
 
-  it("kết luận không liên quan ⇒ nhãn + lý do; không còn huy hiệu “sửa tay”", () => {
+  it("AI kết luận không liên quan ⇒ nhãn + lý do; không còn huy hiệu “sửa tay”", () => {
     renderWithIntl(
-      <ProposalCard location={location({ conclusion: "not_related", reason: "Chỉ nhắc tên, không đổi nghĩa", manual: true, proposal: proposal() })} />
+      <ProposalCard location={location({ conclusion: "not_related", reason: "Chỉ nhắc tên, không đổi nghĩa", manual: false, proposal: proposal() })} />
     );
     expect(within(card()).getByText("Không liên quan")).toBeInTheDocument();
     expect(within(card()).getByText("Lý do: Chỉ nhắc tên, không đổi nghĩa")).toBeInTheDocument();
     expect(within(card()).queryByText("sửa tay")).not.toBeInTheDocument();
+  });
+
+  it("người dùng tự bỏ đề xuất trong khung chat ⇒ “Đã bỏ”, không phải “Không liên quan”", () => {
+    renderWithIntl(
+      <ProposalCard location={location({ conclusion: "not_related", reason: "Người yêu cầu bỏ đề xuất này trong khung chat", manual: true, proposal: proposal() })} />
+    );
+    expect(within(card()).getByText("Đã bỏ")).toBeInTheDocument();
+    expect(within(card()).queryByText("Không liên quan")).not.toBeInTheDocument();
   });
 
   it("kiểm trượt ⇒ viền đỏ + kết quả kiểm trong thẻ", () => {
@@ -141,7 +154,7 @@ describe("ProposalCard - đề xuất cho một phần tử Spine (C-4, UC-81, F
         })}
       />
     );
-    expect(card().className).toContain("border-[#F2CACA]");
+    expect(card().className).toContain("border-error");
     expect(within(card()).getByText("Kiểm tra tự động: chưa đạt")).toBeInTheDocument();
   });
 });
@@ -155,7 +168,7 @@ describe("ProposalCard - chỉ đọc (FLF-375: thao tác làm trong khung chat)
     expect(within(c).queryByText("sửa tay")).not.toBeInTheDocument();
   });
 
-  it("có `display` ⇒ tiêu đề “mục - loại: tên”, thay đổi hiện dạng câu trước / sau (không diff JSON)", () => {
+  it("có `display` ⇒ tiêu đề “mục - loại: tên”, thay đổi chỉ tô từ đổi (không diff JSON, không gạch cả câu)", () => {
     renderWithIntl(
       <ProposalCard
         location={location({
@@ -168,8 +181,9 @@ describe("ProposalCard - chỉ đọc (FLF-375: thao tác làm trong khung chat)
     const c = card();
     expect(within(c).getByText("2.2.2 Use Case Descriptions")).toBeInTheDocument();
     expect(within(c).getByText(/^- .+: Đăng xuất$/)).toBeInTheDocument();
-    expect(within(c).getByText("Đăng xuất khỏi trình duyệt hiện tại.").tagName).toBe("DEL");
-    expect(within(c).getByText("Đăng xuất khỏi mọi thiết bị.").tagName).toBe("INS");
+    expect(marked(c, "del")).toContain("duyệt");
+    expect(marked(c, "ins")).toContain("thiết");
+    expect(marked(c, "del")).not.toContain("Đăng xuất");
     expect(within(c).queryByLabelText("Thay đổi theo field")).not.toBeInTheDocument();
   });
 
@@ -195,7 +209,8 @@ describe("ProposalCard - vị trí sơ đồ gốc (§4.13)", () => {
     );
     const card = screen.getByRole("article", { name: "Vị trí L001" });
     expect(within(card).getByText("Hình gốc - Sơ đồ use case")).toBeInTheDocument();
-    expect(within(card).getByText("Hình gốc")).toBeInTheDocument();
+    // Tiêu đề đã nói "Hình gốc" — không thêm chip cách tìm lặp lại
+    expect(within(card).queryByText("Hình gốc")).not.toBeInTheDocument();
     const change = within(card).getByLabelText("Thay hình gốc");
     expect(change).toHaveTextContent("Sơ đồ use case");
     expect(change).toHaveTextContent("Figure 2 - Use case");
@@ -205,5 +220,34 @@ describe("ProposalCard - vị trí sơ đồ gốc (§4.13)", () => {
   it("not_related ⇒ không có khối thay hình", () => {
     renderWithIntl(<ProposalCard location={diagramLoc({ conclusion: "not_related", reason: "giữ", proposal: proposal({ old_text: before }) })} />);
     expect(screen.queryByLabelText("Thay hình gốc")).toBeNull();
+  });
+});
+
+describe("ProposalCard - không vẽ ô trống khi đề xuất không có chữ", () => {
+  const withDisplay = (display: NonNullable<CrLocation["display"]>) =>
+    location({ conclusion: "edit", proposal: proposal({ new_text: NEW }), display });
+
+  it("xoá phần tử không có tên / chữ ⇒ vẫn nói rõ xoá nội dung ở phần này", () => {
+    renderWithIntl(<ProposalCard location={withDisplay({ kind: "messages", label: "", change: "remove", before: "", after: null })} />);
+    expect(within(card()).getByText("nội dung ở phần này")).toHaveClass("line-through");
+  });
+
+  it("trước và sau như nhau (đều trống) ⇒ báo không đổi gì, không có ô Trước / Sau", () => {
+    renderWithIntl(<ProposalCard location={withDisplay({ kind: "project", label: "Phạm vi phát hành", change: "edit", before: "", after: "" })} />);
+    expect(within(card()).getByText("Đề xuất này không làm đổi nội dung nào ở phần này.")).toBeInTheDocument();
+    expect(within(card()).queryByText("Trước")).not.toBeInTheDocument();
+  });
+
+  it("trước trống ⇒ hiện như thêm mới (ô xanh), không có ô trước rỗng", () => {
+    renderWithIntl(<ProposalCard location={withDisplay({ kind: "project", label: "Phạm vi phát hành", change: "edit", before: "", after: "Trong phạm vi: Đăng tin" })} />);
+    expect(within(card()).getByText("Trong phạm vi: Đăng tin")).toHaveClass("text-success");
+    expect(card().querySelector(".line-through")).toBeNull();
+  });
+
+  it("viết lại gần hết ⇒ ô cũ gạch đỏ rồi ô mới, không tô lốm đốm từng từ", () => {
+    renderWithIntl(<ProposalCard location={withDisplay({ kind: "nfrs", label: "Hiệu năng", change: "edit", before: "Response under 2 s", after: "Search must scale to 1,000 users" })} />);
+    expect(within(card()).getByText("Response under 2 s")).toHaveClass("line-through");
+    expect(within(card()).getByText("Search must scale to 1,000 users")).toHaveClass("text-success");
+    expect(card().querySelector("del, ins")).toBeNull();
   });
 });
