@@ -12,6 +12,7 @@ import CountBadge from "@/components/ui/CountBadge";
 import DropdownMenu, { type DropdownMenuItem } from "@/components/ui/DropdownMenu";
 import Icon, { type IconName } from "@/components/ui/Icon";
 import IconButton from "@/components/ui/IconButton";
+import type { OrgRole } from "@/types/organization";
 import type { Project } from "@/types/project";
 import type { User } from "@/types/user";
 
@@ -19,9 +20,19 @@ import type { User } from "@/types/user";
 const GROUP_ITEM =
   "h-7 px-2.5 inline-flex items-center justify-center gap-1.5 rounded-full text-body font-bold cursor-pointer transition-colors hover:bg-surface-container-lowest focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary";
 
+/** Mỗi vai trò một tone cố định để liếc là nhận ra; Viewer xám vì chỉ đọc. */
+const ROLE_TONE: Record<OrgRole, BadgeTone> = { lead: "primary", analyst: "info", viewer: "neutral" };
+
 interface WorkspaceHeaderProps {
   project: Project | null;
   user: User | null;
+  /**
+   * Vai trò của người đang xem trong org đang mở ⇒ chip cạnh tên dự án + dòng trong menu tài khoản. Workspace của Lead
+   * và Analyst gần như giống nhau nên phải ghi rõ. `null` (chưa biết / màn không tải vai trò) ⇒ không hiện.
+   */
+  orgRole?: OrgRole | null;
+  /** Tên org đi kèm vai trò trong menu tài khoản (vai trò tính theo org, không theo dự án). */
+  orgName?: string | null;
   /**
    * Chip trạng thái trên breadcrumb — chỉ các màn chưa có thanh đầu tài liệu (đang nhập SRS, đang tạo dự án). Workspace chính
    * đặt trạng thái baseline / gói duyệt ở thanh đầu tài liệu. `null` ⇒ không hiện chip.
@@ -82,6 +93,8 @@ interface WorkspaceHeaderProps {
 export default function WorkspaceHeader({
   project,
   user,
+  orgRole = null,
+  orgName = null,
   baselineStatus = null,
   fallbackName,
   nameLoading = false,
@@ -128,6 +141,15 @@ export default function WorkspaceHeader({
           <Skeleton className="h-3.5 w-40" />
         ) : (
           <span aria-current="page" className="font-bold text-on-surface truncate">{project?.name || fallbackName || t("untitled")}</span>
+        )}
+        {/* Không ẩn ở màn hẹp: đây là thứ người dùng cần biết nhất khi đổi qua lại giữa các tài khoản / org */}
+        {orgRole && (
+          <span title={t(`roleHint.${orgRole}`)} className="ml-1.5 shrink-0 inline-flex cursor-help">
+            <Badge tone={ROLE_TONE[orgRole]}>
+              <span className="sr-only">{t("rolePrefix")}: </span>
+              {t(`role.${orgRole}`)}
+            </Badge>
+          </span>
         )}
         {baselineStatus && (
           <button
@@ -262,6 +284,13 @@ export default function WorkspaceHeader({
                   <span className="tabular-nums">{user.balance ?? 0}</span>
                   <span className="text-on-surface-muted font-medium">{t("credits")}</span>
                 </span>
+                {orgRole && (
+                  <span className="inline-flex items-center gap-1.5 text-body text-on-surface min-w-0">
+                    <Icon name="building" size={14} className="text-primary shrink-0" />
+                    <span className="font-semibold shrink-0">{t(`role.${orgRole}`)}</span>
+                    {orgName && <span className="text-on-surface-muted truncate">· {orgName}</span>}
+                  </span>
+                )}
               </div>
             ) : undefined
           }
