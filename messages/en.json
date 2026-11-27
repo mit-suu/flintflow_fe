@@ -3430,6 +3430,12 @@
         "canLeave": "You can leave this page - FlintFlow keeps reading and saves the result.",
         "pausedTitle": "Reading is paused",
         "pause": {
+          "creditNotice": {
+            "title": "Confirm credits for the AI check",
+            "body": "The final result has a complete structure, so the AI check will run and cost {credits} credits. Press Confirm and continue to run it; what was read is kept.",
+            "bodyUnknown": "The final result has a complete structure, so the AI check will run and cost more credits. Press Confirm and continue to run it; what was read is kept.",
+            "confirm": "Confirm and continue"
+          },
           "credits": {
             "title": "{phase} paused - out of credits",
             "body": "Finished parts are kept. Top up, then press Continue.",
@@ -3452,6 +3458,7 @@
         "stopped": {
           "title": "Reading stopped",
           "body": "{done}/{total} sections read - kept as is, no more credits used. Continue to read the rest from where it stopped.",
+          "bodyCheck": "AI check stopped - results already saved are kept, and batches that did not start cost no credits. Press Continue to run the rest.",
           "resume": "Continue",
           "resuming": "Continuing…"
         },

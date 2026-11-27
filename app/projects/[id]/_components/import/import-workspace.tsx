@@ -235,7 +235,7 @@ export default function ImportWorkspace({ projectId, onProjectChanged, pollMs }:
       );
     }
     if (doc && status && (RUN_STATUSES.includes(status) || (doc.paused && status !== "reviewing"))) {
-      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview ? (preview.summary.present === 0 ? "template" : "written") : null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} source={source.sections} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
+      return <ImportProgress doc={doc} sections={imp.data?.extraction.sections ?? []} headings={imp.data?.profile?.heading_map} resolvedMode={structure?.resolved_mode ?? preview?.resolved_mode ?? null} fileKind={preview ? (preview.summary.present === 0 ? "template" : "written") : null} previewSectionIds={preview?.sections.map((x) => x.section_id) ?? null} source={source.sections} creditEstimate={imp.data?.credit_estimate ?? null} busy={imp.busy === "resume"} onResume={() => void imp.resume()} onPause={() => void imp.pause()} pausing={imp.busy === "pause"} />;
     }
     if (status === "fields_review") {
       // FLF-462 (bước 1.6): phần tử I-4 độ tin thấp / đoạn lớp 4 chữ hướng dẫn / mục tên đúng nội dung sai chờ xác nhận

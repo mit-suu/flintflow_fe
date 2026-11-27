@@ -3430,6 +3430,12 @@
         "canLeave": "Có thể rời trang - FlintFlow vẫn đọc tiếp và giữ kết quả.",
         "pausedTitle": "Đọc file đang tạm dừng",
         "pause": {
+          "creditNotice": {
+            "title": "Xác nhận credit cho bước kiểm tra AI",
+            "body": "Kết quả cuối ra cấu trúc đủ nên bước kiểm tra AI chạy, tốn {credits} credit. Bấm Xác nhận và tiếp tục để chạy; phần đã đọc giữ nguyên.",
+            "bodyUnknown": "Kết quả cuối ra cấu trúc đủ nên bước kiểm tra AI chạy và tốn thêm credit. Bấm Xác nhận và tiếp tục để chạy; phần đã đọc giữ nguyên.",
+            "confirm": "Xác nhận và tiếp tục"
+          },
           "credits": {
             "title": "{phase} tạm dừng vì hết credit",
             "body": "Phần đã xong giữ nguyên. Nạp thêm credit rồi bấm Tiếp tục.",
@@ -3452,6 +3458,7 @@
         "stopped": {
           "title": "Đã dừng đọc file",
           "body": "Đã đọc {done}/{total} mục - phần này giữ nguyên và không trừ thêm credit. Bấm Tiếp tục để đọc nốt từ chỗ dừng.",
+          "bodyCheck": "Đã dừng bước kiểm tra AI - kết quả đã ghi được giữ nguyên, các lô chưa chạy không trừ credit. Bấm Tiếp tục để chạy phần còn lại.",
           "resume": "Tiếp tục",
           "resuming": "Đang tiếp tục…"
         },
