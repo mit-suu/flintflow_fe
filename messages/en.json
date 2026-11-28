@@ -1280,6 +1280,13 @@
       "approvalEmailsLabel": "Approval emails",
       "approvalEmailsBody": "Get an email when a baseline or change package is sent to you for approval, and when your submission is approved, rejected or sent back for changes. You still see these in the app when this is off.",
       "approvalEmailsFailed": "Could not save this setting. Please try again.",
+      "explanationStyleTitle": "How AI presents its analysis",
+      "explanationStyleBody": "Applies to every BA-style suggestion from AI: business questions, options and recommendations, KPIs, MoSCoW, gaps. It changes only the presentation, not the analysis. Saved to your account for every organization.",
+      "explanationStyleConcise": "Concise",
+      "explanationStyleConciseHint": "Only the conclusion and a one-line reason.",
+      "explanationStyleExplained": "Explained",
+      "explanationStyleExplainedHint": "Also says why a BA should ask that question or choose that option.",
+      "explanationStyleFailed": "Could not save this choice. Please try again.",
       "logoutAllTitle": "Sign out of all devices",
       "logoutAllBody": "End every session of this account, including this device. Use it if you forgot to sign out elsewhere or suspect your password has leaked. Other devices are signed out within a few minutes.",
       "logoutAllCta": "Sign out of all devices",
@@ -2916,6 +2923,14 @@
       "pickReviewOption": "In {label}: fix the issue \"{issue}\" with option {key}: {proposal}",
       "fixComment": "In {label}, fix per this comment: {text}",
       "draftSection": "Draft section {label} following the template guidance and project data. Ask me if anything is missing, do not make things up. "
+    },
+    "explanationStyle": {
+      "styles": { "concise": "Concise", "explained": "Explained" },
+      "hints": {
+        "concise": "AI gives only the conclusion and a one-line reason. Click to switch to Explained.",
+        "explained": "AI also says why a BA should ask that question or choose that option. Click to switch to Concise."
+      },
+      "failed": "Could not save this choice. Please try again."
     },
     "aiSettings": {
       "aria": "How the AI works with you - {mode}",

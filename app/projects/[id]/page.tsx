@@ -55,6 +55,7 @@ import CreateCrPreviewModal from "./_components/mode1/CreateCrPreviewModal";
 import ProjectRecordPanel from "./_components/ProjectRecordPanel";
 import ProjectDocumentsButton from "./_components/ProjectDocumentsButton";
 import AiSettingsMenu from "./_components/AiSettingsMenu";
+import ExplanationStyleChip from "./_components/ExplanationStyleChip";
 import AutoPassedChip from "./_components/AutoPassedChip";
 import { patchSkipConfirmSections, setReviewMode } from "@/lib/api/review-level";
 import { sectionTitleOf } from "@/lib/section-title";
@@ -2648,13 +2649,17 @@ function FptWorkspace({ mode1 = false, initialNotice = null }: { mode1?: boolean
           inputTools={
             // FLF-337: mức duyệt áp cả sau baseline (CR tự ghi ở "Chỉ ở mốc chốt") ⇒ menu hiện ở mode 1
             canEdit ? (
-              <AiSettingsMenu
-                reviewMode={reviewMode}
-                onChangeReviewMode={(mode) => void changeReviewMode(mode)}
-                disabled={runner.state.busy || savingChange}
-                skipSections={skipSections}
-                onRestoreSection={(id) => void patchSkipSections({ remove: [id] })}
-              />
+              <>
+                <AiSettingsMenu
+                  reviewMode={reviewMode}
+                  onChangeReviewMode={(mode) => void changeReviewMode(mode)}
+                  disabled={runner.state.busy || savingChange}
+                  skipSections={skipSections}
+                  onRestoreSection={(id) => void patchSkipSections({ remove: [id] })}
+                />
+                {/* UC-90: đổi nhanh cách AI trình bày phân tích, cùng tuỳ chọn với Hồ sơ */}
+                <ExplanationStyleChip />
+              </>
             ) : undefined
           }
           questionCardVisible={runner.state.questions.some((q) => (q.options ?? []).length > 0)}

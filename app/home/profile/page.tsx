@@ -11,10 +11,10 @@ import PasswordStrengthMeter from "@/components/PasswordStrengthMeter";
 import GoogleConnectCard from "@/components/integrations/GoogleConnectCard";
 import { checkPassword, PASSWORD_MIN_LENGTH } from "@/lib/password-policy";
 import { ApiClientError } from "../../../lib/api/client";
-import { changeMyPassword, fetchMe, logoutAllDevices, updateApprovalEmails, updateMyName } from "../../../lib/api/users";
+import { changeMyPassword, fetchMe, logoutAllDevices, updateApprovalEmails, updateExplanationStyle, updateMyName } from "../../../lib/api/users";
 import { logoutAndRedirect } from "../../../lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
-import type { User } from "../../../types/user";
+import { EXPLANATION_STYLES, type ExplanationStyle, type User } from "../../../types/user";
 import { userErrorMessage } from "@/lib/api/error-messages";
 import { useActiveOrganizationState } from "@/lib/hooks/use-active-org";
 
@@ -393,6 +393,75 @@ function ApprovalEmailsCard({ user, onUpdated }: { user: User; onUpdated: (user:
   );
 }
 
+const EXPLANATION_STYLE_TEXT = {
+  concise: { label: "explanationStyleConcise", hint: "explanationStyleConciseHint" },
+  explained: { label: "explanationStyleExplained", hint: "explanationStyleExplainedHint" },
+} as const satisfies Record<ExplanationStyle, { label: string; hint: string }>;
+
+/**
+ * UC-90: Analyst / Lead chọn cách AI trình bày phân tích kiểu BA. Lưu theo tài khoản (mọi tổ chức), mặc định Giải thích.
+ * Đổi lạc quan như `ApprovalEmailsCard`: lỗi thì trả về lựa chọn cũ và báo lỗi.
+ */
+function ExplanationStyleCard({ user, onUpdated }: { user: User; onUpdated: (user: User) => void }) {
+  const t = useTranslations("app.profile");
+  const [style, setStyle] = useState<ExplanationStyle>(user.explanationStyle ?? "explained");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const choose = async (next: ExplanationStyle) => {
+    if (next === style || saving) return;
+    const previous = style;
+    setStyle(next);
+    setSaving(true);
+    setError(null);
+    try {
+      onUpdated(await updateExplanationStyle(next));
+    } catch (err) {
+      setStyle(previous);
+      setError(userErrorMessage(err, t("explanationStyleFailed")));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className={cardClass}>
+      <div>
+        <h2 id="explanation-style-title" className="text-heading font-bold text-on-surface">{t("explanationStyleTitle")}</h2>
+        <p className="text-body text-on-surface-muted mt-1 leading-[1.6]">{t("explanationStyleBody")}</p>
+      </div>
+      <div role="radiogroup" aria-labelledby="explanation-style-title" className="grid gap-2 sm:grid-cols-2">
+        {EXPLANATION_STYLES.map((option) => {
+          const selected = option === style;
+          return (
+            <button
+              key={option}
+              type="button"
+              role="radio"
+              aria-checked={selected}
+              disabled={saving}
+              onClick={() => void choose(option)}
+              className={`flex items-start gap-3 rounded-control bg-surface-container-lowest px-3.5 py-3 text-left transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-60 ${selected ? "ring-2 ring-primary" : ""}`}
+            >
+              <span
+                aria-hidden
+                className={`mt-1 inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 ${selected ? "border-primary" : "border-outline"}`}
+              >
+                {selected && <span className="h-2 w-2 rounded-full bg-primary" />}
+              </span>
+              <span className="min-w-0">
+                <span className="block text-body font-bold text-on-surface">{t(EXPLANATION_STYLE_TEXT[option].label)}</span>
+                <span className="block text-body text-on-surface-muted mt-0.5 leading-[1.6]">{t(EXPLANATION_STYLE_TEXT[option].hint)}</span>
+              </span>
+            </button>
+          );
+        })}
+      </div>
+      {error && <p role="alert" className="text-body text-on-error-container">{error}</p>}
+    </section>
+  );
+}
+
 function LogoutAllCard() {
   const t = useTranslations("app.profile");
   const tc = useTranslations("app.common");
@@ -497,6 +566,7 @@ export default function ProfilePage() {
             <ProfileInfoCard user={user} onUpdated={setUser} hasOrg={hasOrg} />
             <ChangePasswordCard user={user} />
             <ApprovalEmailsCard user={user} onUpdated={setUser} />
+            <ExplanationStyleCard user={user} onUpdated={setUser} />
             <GoogleConnectCard className={cardClass} />
             <LogoutAllCard />
           </div>

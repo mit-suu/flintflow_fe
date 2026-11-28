@@ -1,7 +1,7 @@
 /** `/users/me` (BE `modules/user`) — hồ sơ của user đang đăng nhập. */
 import { apiCall } from "./client";
 import type { Locale } from "@/lib/i18n";
-import type { User } from "@/types/user";
+import type { ExplanationStyle, User } from "@/types/user";
 
 export const fetchMe = async (): Promise<User> => {
   const res = await apiCall<User>("/users/me");
@@ -10,6 +10,12 @@ export const fetchMe = async (): Promise<User> => {
 
 export const updateMyName = async (name: string): Promise<User> => {
   const res = await apiCall<User>("/users/me", { method: "PATCH", body: JSON.stringify({ name }) });
+  return res.data as User;
+};
+
+/** UC-90: chọn cách AI trình bày phân tích (theo tài khoản, áp cho mọi tổ chức). */
+export const updateExplanationStyle = async (explanationStyle: ExplanationStyle): Promise<User> => {
+  const res = await apiCall<User>("/users/me", { method: "PATCH", body: JSON.stringify({ explanationStyle }) });
   return res.data as User;
 };
 

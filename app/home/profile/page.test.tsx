@@ -2,7 +2,7 @@ import { fireEvent, screen, waitFor } from "@testing-library/react";
 import { renderWithIntl } from "@/test/intl";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiClientError } from "@/lib/api/client";
-import { changeMyPassword, fetchMe, logoutAllDevices, updateApprovalEmails, updateMyName } from "@/lib/api/users";
+import { changeMyPassword, fetchMe, logoutAllDevices, updateApprovalEmails, updateExplanationStyle, updateMyName } from "@/lib/api/users";
 import { logoutAndRedirect } from "@/lib/auth";
 import { getActiveOrgId } from "@/lib/api/token-store";
 import type { User } from "@/types/user";
@@ -14,6 +14,7 @@ vi.mock("@/lib/api/users", () => ({
   changeMyPassword: vi.fn(),
   logoutAllDevices: vi.fn(),
   updateApprovalEmails: vi.fn(),
+  updateExplanationStyle: vi.fn(),
 }));
 vi.mock("@/lib/auth", () => ({ logoutAndRedirect: vi.fn() }));
 vi.mock("@/lib/api/token-store", () => ({ getActiveOrgId: vi.fn() }));
@@ -251,5 +252,32 @@ describe("ProfilePage", () => {
     fireEvent.click(toggle);
     expect(await screen.findByText("Máy chủ đang gặp sự cố.")).toBeInTheDocument();
     expect(toggle).toHaveAttribute("aria-checked", "false");
+  });
+  it("UC-90: mặc định Giải thích (tài khoản cũ chưa có field); chọn Ngắn gọn ⇒ lưu concise", async () => {
+    vi.mocked(updateExplanationStyle).mockResolvedValue({ ...LOCAL_USER, explanationStyle: "concise" });
+    await renderLoaded();
+    const concise = screen.getByRole("radio", { name: /Ngắn gọn/ });
+    const explained = screen.getByRole("radio", { name: /Giải thích/ });
+    expect(explained).toHaveAttribute("aria-checked", "true");
+    expect(concise).toHaveAttribute("aria-checked", "false");
+    fireEvent.click(concise);
+    expect(updateExplanationStyle).toHaveBeenCalledWith("concise");
+    await waitFor(() => expect(concise).toHaveAttribute("aria-checked", "true"));
+    expect(explained).toHaveAttribute("aria-checked", "false");
+  });
+
+  it("UC-90: bấm lại lựa chọn đang chọn ⇒ không gọi API", async () => {
+    vi.mocked(updateExplanationStyle).mockClear();
+    await renderLoaded({ ...LOCAL_USER, explanationStyle: "concise" });
+    fireEvent.click(screen.getByRole("radio", { name: /Ngắn gọn/ }));
+    expect(updateExplanationStyle).not.toHaveBeenCalled();
+  });
+
+  it("UC-90: lưu lỗi ⇒ trả về lựa chọn cũ và báo lỗi", async () => {
+    vi.mocked(updateExplanationStyle).mockRejectedValue(new ApiClientError(500, "INTERNAL", "Máy chủ đang gặp sự cố."));
+    await renderLoaded({ ...LOCAL_USER, explanationStyle: "concise" });
+    fireEvent.click(screen.getByRole("radio", { name: /Giải thích/ }));
+    expect(await screen.findByText("Máy chủ đang gặp sự cố.")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: /Ngắn gọn/ })).toHaveAttribute("aria-checked", "true");
   });
 });
