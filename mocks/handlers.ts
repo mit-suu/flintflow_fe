@@ -6,6 +6,7 @@
 import { delay, http, HttpResponse } from "msw";
 import { API_BASE_URL } from "@/lib/api/client";
 import { isLocale } from "@/lib/i18n";
+import { isExplanationStyle } from "@/types/user";
 import {
   CALLS_LIMIT,
   REGENERATE_LIMIT,
@@ -614,7 +615,7 @@ const buildMockTraceability = (state: MockState, entity: TraceabilityEntity, id:
  * Khớp `updateMeSchema` của BE (strictObject): field lạ, sai kiểu hay body rỗng ⇒ 400 VALIDATION_ERROR. Mock từng
  * nhận mọi body trong khi BE từ chối `locale` — chính chỗ đó che bug FLF-259.
  */
-const USER_PATCH_KEYS = new Set(["name", "onboardedAt", "locale", "approvalEmails"]);
+const USER_PATCH_KEYS = new Set(["name", "onboardedAt", "locale", "approvalEmails", "explanationStyle"]);
 
 const invalidUserPatch = (path: string, message: string, userMessage = "Dữ liệu gửi lên không hợp lệ. Vui lòng tải lại trang rồi thử lại.") =>
   fail(400, "VALIDATION_ERROR", userMessage, { issues: [{ path, message }] });
@@ -625,7 +626,7 @@ const patchMockUser = (body: unknown) => {
   const unknownKeys = Object.keys(patch).filter((key) => !USER_PATCH_KEYS.has(key));
   if (unknownKeys.length) return invalidUserPatch("", `Unrecognized keys: ${unknownKeys.join(", ")}`);
 
-  const { name, onboardedAt, locale, approvalEmails } = patch;
+  const { name, onboardedAt, locale, approvalEmails, explanationStyle } = patch;
   if (name !== undefined && (typeof name !== "string" || !name.trim() || name.trim().length > 100)) {
     return invalidUserPatch("name", "Invalid name");
   }
@@ -634,13 +635,17 @@ const patchMockUser = (body: unknown) => {
   }
   if (locale !== undefined && !isLocale(locale)) return invalidUserPatch("locale", 'Invalid option: expected one of "vi"|"en"');
   if (approvalEmails !== undefined && typeof approvalEmails !== "boolean") return invalidUserPatch("approvalEmails", "Invalid input: expected boolean");
-  if (name === undefined && onboardedAt === undefined && locale === undefined && approvalEmails === undefined) {
+  if (explanationStyle !== undefined && !isExplanationStyle(explanationStyle)) {
+    return invalidUserPatch("explanationStyle", 'Invalid option: expected one of "concise"|"explained"');
+  }
+  if (name === undefined && onboardedAt === undefined && locale === undefined && approvalEmails === undefined && explanationStyle === undefined) {
     return invalidUserPatch("", "Chưa có thông tin nào để cập nhật.", "Chưa có thông tin nào để cập nhật.");
   }
 
   if (typeof name === "string") mockState.user.name = name.trim();
   if (onboardedAt !== undefined) mockState.user.onboardedAt = onboardedAt as string | null;
   if (typeof approvalEmails === "boolean") mockState.user.approvalEmails = approvalEmails;
+  if (isExplanationStyle(explanationStyle)) mockState.user.explanationStyle = explanationStyle;
   if (isLocale(locale)) mockState.user.locale = locale;
   return ok(mockState.user);
 };

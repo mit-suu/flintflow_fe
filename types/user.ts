@@ -25,4 +25,16 @@ export interface User {
   hasPassword?: boolean;
   /** UC-89: nhận email việc duyệt (gửi / quyết định baseline và gói thay đổi); BE mặc định `true`. */
   approvalEmails?: boolean;
+  /**
+   * UC-90: cách AI trình bày phân tích kiểu BA (theo tài khoản, áp cho mọi tổ chức). `concise` = kết luận + lý do một dòng,
+   * `explained` = thêm vì sao BA nên hỏi / nên chọn. BE mặc định `explained`.
+   */
+  explanationStyle?: ExplanationStyle;
 }
+
+export const EXPLANATION_STYLES = ["concise", "explained"] as const;
+
+export type ExplanationStyle = (typeof EXPLANATION_STYLES)[number];
+
+export const isExplanationStyle = (value: unknown): value is ExplanationStyle =>
+  EXPLANATION_STYLES.includes(value as ExplanationStyle);

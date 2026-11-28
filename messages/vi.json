@@ -1280,6 +1280,13 @@
       "approvalEmailsLabel": "Email việc duyệt",
       "approvalEmailsBody": "Nhận email khi có baseline hoặc gói thay đổi gửi bạn duyệt, và khi bản bạn gửi được duyệt, bị từ chối hoặc bị yêu cầu sửa. Tắt thì bạn vẫn thấy các việc này trong ứng dụng.",
       "approvalEmailsFailed": "Không lưu được cài đặt này. Vui lòng thử lại.",
+      "explanationStyleTitle": "Cách AI trình bày phân tích",
+      "explanationStyleBody": "Áp cho mọi gợi ý kiểu BA của AI: câu hỏi nghiệp vụ, phương án và khuyến nghị, KPI, MoSCoW, chỗ thiếu. Chỉ đổi cách trình bày, không đổi nội dung phân tích. Lưu theo tài khoản, áp cho mọi tổ chức.",
+      "explanationStyleConcise": "Ngắn gọn",
+      "explanationStyleConciseHint": "Chỉ có kết luận và lý do một dòng.",
+      "explanationStyleExplained": "Giải thích",
+      "explanationStyleExplainedHint": "Thêm vì sao BA nên hỏi câu đó hoặc nên chọn phương án đó.",
+      "explanationStyleFailed": "Không lưu được lựa chọn này. Vui lòng thử lại.",
       "logoutAllTitle": "Đăng xuất mọi thiết bị",
       "logoutAllBody": "Kết thúc mọi phiên đăng nhập của tài khoản, kể cả thiết bị này. Dùng khi bạn quên đăng xuất ở máy khác hoặc nghi bị lộ mật khẩu. Các thiết bị khác sẽ bị đăng xuất trong vòng vài phút.",
       "logoutAllCta": "Đăng xuất mọi thiết bị",
@@ -2916,6 +2923,14 @@
       "pickReviewOption": "Trong {label}: sửa vấn đề \"{issue}\" theo phương án {key}: {proposal}",
       "fixComment": "Trong {label}, sửa theo góp ý: {text}",
       "draftSection": "Soạn nháp mục {label} theo hướng dẫn của mẫu và dữ liệu dự án. Thiếu thông tin thì hỏi tôi, đừng tự bịa. "
+    },
+    "explanationStyle": {
+      "styles": { "concise": "Ngắn gọn", "explained": "Giải thích" },
+      "hints": {
+        "concise": "AI chỉ đưa kết luận và lý do một dòng. Bấm để chuyển sang Giải thích.",
+        "explained": "AI thêm vì sao BA nên hỏi câu đó hoặc nên chọn phương án đó. Bấm để chuyển sang Ngắn gọn."
+      },
+      "failed": "Không lưu được lựa chọn này. Vui lòng thử lại."
     },
     "aiSettings": {
       "aria": "Cách AI làm việc với bạn - {mode}",
