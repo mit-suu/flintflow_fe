@@ -63,9 +63,9 @@ export default function VersionCompare({ projectId, versions }: VersionComparePr
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <FilterSelect label={t("from")} value={effectiveFrom} options={options} onChange={setFrom} align="start" />
+        <FilterSelect label={t("from")} value={effectiveFrom} options={options} onChange={setFrom} align="start" portal />
         <span aria-hidden className="text-on-surface-muted">→</span>
-        <FilterSelect label={t("to")} value={effectiveTo} options={options} onChange={setTo} align="start" />
+        <FilterSelect label={t("to")} value={effectiveTo} options={options} onChange={setTo} align="start" portal />
         {same && <span className="text-body text-on-surface-muted">{t("pickDifferent")}</span>}
         {busy && (
           <span role="status" className="text-caption text-on-surface-muted">

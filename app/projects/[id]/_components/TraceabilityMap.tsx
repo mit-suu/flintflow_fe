@@ -146,14 +146,14 @@ export default function TraceabilityMap({ projectId, spine }: TraceabilityMapPro
   return (
     <div className="flex flex-col gap-2.5" aria-label={t("aria")}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <FilterSelect label={t("colKind")} value={entity} options={entityOptions} onChange={changeEntity} align="start" />
+        <FilterSelect label={t("colKind")} value={entity} options={entityOptions} onChange={changeEntity} align="start" portal />
         {spine ? (
           items.length === 0 ? (
             <span className="flex-1 min-w-0 text-caption text-on-surface-subtle italic">
               {t("noEntities", { entity: entityLabel(entity).toLowerCase() })}
             </span>
           ) : (
-            <FilterSelect label={t("itemLabel")} value={selected} options={items} onChange={setId} align="start" className="min-w-0" />
+            <FilterSelect label={t("itemLabel")} value={selected} options={items} onChange={setId} align="start" portal className="min-w-0" />
           )
         ) : (
           <input

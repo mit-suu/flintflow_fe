@@ -379,6 +379,7 @@ export function CommentResolveMenu({
   const t = useTranslations("workspace.comments");
   return (
     <DropdownMenu
+      floating
       header={<p className="text-caption text-on-surface-variant leading-snug">{note}</p>}
       items={[
         ...(onFixByChat ? [{ label: t("fixByChat"), icon: "pencil" as const, onSelect: onFixByChat, disabled: busy }] : []),
@@ -398,6 +399,7 @@ export function CommentMoreMenu({ items }: { items: DropdownMenuItem[] }) {
   if (items.length === 0) return null;
   return (
     <DropdownMenu
+      floating
       items={items}
       trigger={(props) => <IconButton {...props} icon="more-horizontal" size="sm" label={t("more")} className="max-lg:w-10 max-lg:h-10" />}
     />
