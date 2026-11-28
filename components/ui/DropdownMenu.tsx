@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import Icon, { type IconName } from "./Icon";
 
 export interface DropdownMenuItem {
@@ -35,29 +35,54 @@ interface DropdownMenuProps {
    * vùng cuộn (`overflow-y-auto` cắt luôn cả chiều ngang, menu đặt tuyệt đối sẽ bị xén).
    */
   placement?: "bottom-end" | "top" | "right-start";
+  /**
+   * Vẽ `bottom-end` / `top` bằng `position: fixed` theo toạ độ trigger, tự lật chiều khi phía kia thiếu chỗ. Dùng khi
+   * trigger nằm trong vùng cuộn (popup, panel, danh sách tự cuộn): menu đặt tuyệt đối sẽ bị vùng đó xén hoặc bắt cuộn.
+   */
+  floating?: boolean;
   className?: string;
 }
 
 /** Bề ngang menu `right-start` — cần một số cụ thể để tính xem bên phải còn đủ chỗ không. */
 const MENU_WIDTH = 232;
+/** Khoảng hở giữa trigger và menu khi mở xuống / mở lên. */
+const GAP_BELOW = 6;
+const GAP_ABOVE = 8;
 
 /** Menu thả xuống dùng chung: đóng khi bấm ra ngoài hoặc Esc (trả focus về trigger), mũi tên lên/xuống giữa các mục. */
-export default function DropdownMenu({ trigger, items, header, placement = "bottom-end", className }: DropdownMenuProps) {
+export default function DropdownMenu({ trigger, items, header, placement = "bottom-end", floating = false, className }: DropdownMenuProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
   const menuId = useId();
-  /** Toạ độ màn hình của menu `right-start`; `null` khi chưa đo hoặc dùng placement khác. */
-  const [anchor, setAnchor] = useState<{ top: number; left: number } | null>(null);
+  /** Menu vẽ bằng `position: fixed`, thoát khỏi vùng cuộn chứa trigger. */
+  const fixed = placement === "right-start" || floating;
+  /** Toạ độ màn hình của menu `fixed`; `null` khi chưa đo hoặc menu đặt tuyệt đối. */
+  const [anchor, setAnchor] = useState<CSSProperties | null>(null);
 
-  useEffect(() => {
-    if (!open || placement !== "right-start") return;
+  // Layout effect: đo xong trước khi trình duyệt vẽ, menu không chớp ở góc màn hình rồi mới nhảy về chỗ đúng.
+  useLayoutEffect(() => {
+    if (!open || !fixed) return;
     const measure = () => {
       const rect = rootRef.current?.getBoundingClientRect();
       if (!rect) return;
-      // Không đủ chỗ bên phải (màn hẹp) thì nhả sang trái trigger thay vì tràn khỏi khung nhìn.
-      const fitsRight = rect.right + 8 + MENU_WIDTH <= window.innerWidth;
-      setAnchor({ top: rect.top, left: fitsRight ? rect.right + 8 : Math.max(8, rect.left - 8 - MENU_WIDTH) });
+      if (placement === "right-start") {
+        // Không đủ chỗ bên phải (màn hẹp) thì nhả sang trái trigger thay vì tràn khỏi khung nhìn.
+        const fitsRight = rect.right + 8 + MENU_WIDTH <= window.innerWidth;
+        setAnchor({ top: rect.top, left: fitsRight ? rect.right + 8 : Math.max(8, rect.left - 8 - MENU_WIDTH), width: MENU_WIDTH });
+        return;
+      }
+      const height = menuRef.current?.offsetHeight ?? 0;
+      const fitsBelow = rect.bottom + GAP_BELOW + height <= window.innerHeight;
+      const fitsAbove = rect.top - GAP_ABOVE - height >= 0;
+      // Giữ hướng của placement; chỉ lật khi hướng đó thiếu chỗ mà hướng kia đủ.
+      const up = placement === "top" ? fitsAbove || !fitsBelow : !fitsBelow && fitsAbove;
+      const vertical = up ? { bottom: window.innerHeight - rect.top + GAP_ABOVE } : { top: rect.bottom + GAP_BELOW };
+      setAnchor(
+        placement === "top"
+          ? { ...vertical, left: rect.left, width: Math.max(rect.width, MENU_WIDTH) }
+          : { ...vertical, right: window.innerWidth - rect.right, minWidth: 168 }
+      );
     };
     measure();
     // Trigger nằm trong vùng cuộn ⇒ cuộn là toạ độ cũ sai ngay; `capture` để bắt cả cuộn của vùng bên trong.
@@ -67,7 +92,7 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
       window.removeEventListener("scroll", measure, true);
       window.removeEventListener("resize", measure);
     };
-  }, [open, placement]);
+  }, [open, fixed, placement]);
 
   useEffect(() => {
     if (!open) return;
@@ -116,13 +141,10 @@ export default function DropdownMenu({ trigger, items, header, placement = "bott
           id={menuId}
           role="menu"
           onKeyDown={moveFocus}
-          style={
-            placement === "right-start" ? { top: anchor?.top ?? 0, left: anchor?.left ?? 0, width: MENU_WIDTH } : undefined
-          }
+          style={fixed ? (anchor ?? { top: 0, left: 0 }) : undefined}
           className={`z-50 bg-surface-container-lowest rounded-card shadow-[0_12px_32px_rgba(25,24,23,0.12)] p-1.5 flex flex-col gap-0.5 ${
-            placement === "right-start"
-              ? // Chưa đo xong thì chưa vẽ, tránh một frame nhảy từ góc trên bên trái màn hình
-                `fixed ${anchor ? "" : "invisible"}`
+            fixed
+              ? "fixed"
               : // `top`: rộng bằng trigger nhưng tối thiểu 232px (sidebar thu gọn chỉ ~48px)
                 `absolute ${
                   placement === "top"

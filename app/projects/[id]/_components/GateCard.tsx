@@ -223,6 +223,7 @@ export default function GateCard({
           <DropdownMenu
             items={menuItems}
             placement="top"
+            floating
             trigger={(props) => (
               <button
                 type="button"

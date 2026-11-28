@@ -315,6 +315,7 @@ export default function MembersPage() {
                   {canRemoveMember || isSelf ? (
                     <DropdownMenu
                       className="shrink-0"
+                      floating
                       items={[
                         canRemoveMember
                           ? {
